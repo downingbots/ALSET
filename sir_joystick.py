@@ -207,11 +207,11 @@ class SIR_joystick:
                 self._robot_driver.set_gather_data_mode(mode)
                 print("gather data", mode) 
             if self.pressed_button == "tr":
-                mode = self._robot_driver.get_NN_mode()
+                nn_mode = self._robot_driver.get_NN_mode()
                 # toggle current mode
-                mode = (not mode)
-                self._robot_driver.set_NN_mode(mode)
-                print("NN", mode)
+                nn_mode = (not nn_mode)
+                self._robot_driver.set_NN_mode(nn_mode)
+                print("NN", nn_mode)
 
             if self.pressed_button == "a":
                 command.append("LOWER_ARM")

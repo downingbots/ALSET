@@ -222,6 +222,23 @@ class SIR_control:
           if right_speed != None:
             self.set_speed(self.RIGHT_TRACK, right_speed)
 
+  def pwm_stop(self, take_picture = True):
+           # stop, no snapshot
+           save_pin_val = self.curr_pin_val
+           save_pin_io_val = self.curr_pin_io_val
+           # stop all motors
+           self.curr_pin_val = MCP23017.LOW
+           self.curr_pin_io_val = self.ALL_FUNC
+           self.switch_exec(exec_next_pulse=False)
+           if take_picture:
+             # take picture and collect data
+             self._driver.gather_data.save_snapshot()
+           # restore state for next pulse
+           if self._driver.gather_data.function_name != None:
+             self.curr_pin_val = save_pin_val
+             self.curr_pin_io_val = save_pin_io_val
+             self.switch_exec(exec_next_pulse=True)
+
   def handle_pwm(self, pulse_num):
     timeout = False
     self.curr_pwm_pulse = pulse_num
@@ -235,29 +252,49 @@ class SIR_control:
         all_on = self.ALL_FUNC
         functions_not_stopped = all_on ^ self.curr_pin_io_val
         print(bin(functions_not_stopped)[2:].zfill(8), pulse_num)
-        if pulse_num % 2 == 0:
-           save_pin_val = self.curr_pin_val
-           save_pin_io_val = self.curr_pin_io_val
-           # stop all motors
-           self.curr_pin_val = MCP23017.LOW
-           self.curr_pin_io_val = self.ALL_FUNC
+        # 0,1,3 (no pic),2 (pic), 4 (go), -> 5,6,8 (nopic) 7 (pic) 9 (go)
+        if (self._driver.gather_data.function_name in ("LEFT", "RIGHT") 
+                and pulse_num in (0,1,3,5,6,8)):
+           self.pwm_stop(take_picture = False)
+        elif (self._driver.gather_data.function_name in ("LEFT", "RIGHT") 
+                and pulse_num in (2,7)):
+           self.pwm_stop(take_picture = True)
+        elif (self._driver.gather_data.function_name in ("LEFT", "RIGHT")):
+           # pwm_go (2,5,9)
            self.switch_exec(exec_next_pulse=False)
-           # take picture and collect data
-           self._driver.gather_data.save_snapshot()
-           # restore state for next pulse
-           if self._driver.gather_data.function_name != None:
-             self.curr_pin_val = save_pin_val
-             self.curr_pin_io_val = save_pin_io_val
-             self.switch_exec(exec_next_pulse=True)
+        elif pulse_num % 2 == 0:
+           self.pwm_stop(take_picture = True)
         else:
            # next pulse: essentially everything is half speed during data collection
            self.switch_exec(exec_next_pulse=False)
         return
     elif self._driver.NN.is_on(): 
-        print("wait for capture")
-        self._driver.NN.wait_for_capture()
-        print("process image")
-        self._driver.NN.process_image()
+        if (self._driver.gather_data.function_name in ("LEFT", "RIGHT") 
+                and pulse_num in (0,1,3,5,6,8)):
+            self._driver.stop()
+        elif (self._driver.gather_data.function_name in ("LEFT", "RIGHT") 
+                and pulse_num in (2,7)):
+            self._driver.stop()
+            self.switch_exec(exec_next_pulse=False)
+            print("wait for capture")
+            self._driver.NN.wait_for_capture()
+            print("process image")
+            self._driver.NN.process_image()
+
+           self.pwm_stop(take_picture = True)
+        elif (self._driver.gather_data.function_name in ("LEFT", "RIGHT")):
+            self.switch_exec(exec_next_pulse=False)
+        elif pulse_num % 2 == 0:
+            # next pulse: essentially everything is half speed during data collection
+            self._driver.stop()
+            self.switch_exec(exec_next_pulse=False)
+            print("wait for capture")
+            self._driver.NN.wait_for_capture()
+            print("process image")
+            self._driver.NN.process_image()
+            return
+        else:
+            self.switch_exec(exec_next_pulse=False)
         return
     #########################################
     # if not gather data mode, support pseudo-pwm processing for LEFT/RIGHT TRACK

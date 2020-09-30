@@ -41,8 +41,17 @@ class SIRNN():
     def is_on(self):
         return self.mode
 
-    def turn_on(self, mode):
-        self.mode = mode
+    def turn_on(self, nn_mode):
+        i = 0
+        while self.ready_for_frame and nn_mode == False:
+            i = i+1
+            if i == 1:
+                print("Turning NN off when safe")
+            time.sleep(.01)
+            # 1 second should have produced 20 images; break to prevent hang 
+            if i > 100:  
+              break
+        self.mode = nn_mode
 
     def wait_for_capture(self):
         self.ready_for_frame = True
@@ -50,6 +59,9 @@ class SIRNN():
         while self.ready_for_frame:
             i = i+1
             time.sleep(.01)
+            # 1 second should have produced 20 images; break to prevent hang 
+            if i > 100:  
+              break
         print("snapshot wait time: %f" % (i*.01))
 
     def ready_for_capture(self):
@@ -84,21 +96,22 @@ class SIRNN():
         print(y.flatten) 
         max_prob = 0
         best_action = -1
-        for i in range(10):
+        for i in [0, 3, 7]:
             prob = float(y.flatten()[i])
             print("PROB", i, prob)
             if max_prob < prob:
                 max_prob = prob
                 best_action = i
-        if best_action == 7:
+        if best_action == 0:
             print("NN FORWARD") 
             self.robot.forward()
         elif best_action == 3:
             print("NN LEFT") 
             self.robot.left()
-        elif best_action == 0:
-            print("NN RIGHT") 
-            self.robot.right()
+        elif best_action == 7:
+            print("NN RIGHT -> LEFT") 
+            self.robot.left()
+            # self.robot.right()
         else:
             print("Action:", best_action, max_prob) 
             # unused by Tabletap:

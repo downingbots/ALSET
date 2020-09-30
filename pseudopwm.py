@@ -24,7 +24,8 @@ class PseudoPWM(Heartbeat):
     pulse_enum = traitlets.UseEnum(PWMpulse, default_value=PWMpulse.pulse0)
     
     # config
-    period = traitlets.Float(default_value=0.1).tag(config=True)
+    # period = traitlets.Float(default_value=0.1).tag(config=True)
+    period = traitlets.Float(default_value=0.085).tag(config=True)
 
     def __init__(self, *args, **kwargs):
         super(Heartbeat, self).__init__(*args,

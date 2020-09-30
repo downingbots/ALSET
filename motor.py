@@ -18,8 +18,9 @@ class Motor(Configurable):
           self._side = self._driver.RIGHT_TRACK
         else:
           print("motor: no such side (%s)" % side)
-        self.pwm.observe(self.handle_pwm, names='pulse_enum')
-        atexit.register(self.pwm.stop)
+        if side == "LEFT":
+          self.pwm.observe(self.handle_pwm, names='pulse_enum')
+          atexit.register(self.pwm.stop)
 
     def get_speed(self):
         print("get_speed", self._side, self._driver.get_speed(self._side))

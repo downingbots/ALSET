@@ -1,6 +1,7 @@
 import os
 import cv2
 from uuid import uuid1
+import time
 
 class GatherData():
 
@@ -18,6 +19,11 @@ class GatherData():
       while self.frame_location != None:
           i = i+1
           time.sleep(.01)
+          # ARD: to debug when camera errors occur and camera not needed
+          # if i >= 1:
+          if i > 100:
+              print("save snapshot race condition; break loop")
+              break
       print("save snapshot wait time: %f" % (i*.01))
       return self.frame_location
 
