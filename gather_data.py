@@ -5,15 +5,9 @@ import time
 
 class GatherData():
 
-    def mkdirs(self):
-        for dir_name in self.robot_dir:
-          try:
-              os.makedirs(dir_name)
-          except FileExistsError:
-            print('Directory already exists')
-
     def save_snapshot(self):
-      directory = self.robot_dir[self.function_name]
+      directory = os.path.join(self.nn_app.get_snapshot_dir(), self.function_name)
+      # directory = self.robot_dir[self.function_name]
       self.frame_location = os.path.join(directory, str(uuid1()) + '.jpg')
       i = 0
       while self.frame_location != None:
@@ -37,12 +31,8 @@ class GatherData():
         return self.speed
 
     def set_function(self, func):
-        try:
-          if func != None:
-            func_dir = self.robot_dir[func]
+        if self.nn_app.set_function(func):
           self.function_name = func
-        except:
-            print("bad function name: %s" % func)
 
     # Video capture is done in __main__()
     def capture_frame_location(self):
@@ -52,20 +42,10 @@ class GatherData():
         self.frame_location = None
 
 
-    def __init__(self):
+    def __init__(self, app):
         self.mode = False
+        self.nn_app = app
         self.function_name = None
         self.frame_location = None
         self.speed = .5
-        self.robot_dir = {}
-        self.robot_dir["FORWARD"] = "dataset/forward"
-        self.robot_dir["REVERSE"] = "dataset/reverse"
-        self.robot_dir["LEFT"] = "dataset/left"
-        self.robot_dir["RIGHT"] = "dataset/right"
-        self.robot_dir["UPPER_ARM_UP"] = "dataset/upper_arm_up"
-        self.robot_dir["UPPER_ARM_DOWN"] = "dataset/upper_arm_down"
-        self.robot_dir["LOWER_ARM_UP"] = "dataset/lower_arm_up"
-        self.robot_dir["LOWER_ARM_DOWN"] = "dataset/lower_arm_down"
-        self.robot_dir["GRIPPER_OPEN"] = "dataset/gripper_open"
-        self.robot_dir["GRIPPER_CLOSE"] = "dataset/gripper_close"
         # Video capture is done in __main__()

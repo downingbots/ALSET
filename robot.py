@@ -6,16 +6,46 @@ from .motor import *
 from .sir_joystick import *
 from .gather_data import *
 from .nn import *
+from docopt import docopt
+from .nn_apps import *
 
 class Robot(SingletonConfigurable):
-    # config
     def __init__(self, *args, **kwargs):
+        __doc__ = """
+        Scripts to drive a Smarter Image Robot and train a model for it.
+
+        Usage:
+            SIR_robot_teleop.py --app_num num
+            SIR_robot_teleop.py --app_name name
+
+        Options:
+            -h --help        Show this screen.
+            --app_num num    see app_registry in nn_apps.py
+            --app_name name    see app_registry in nn_apps.py
+        """
+        # print(__doc__)
+        args = docopt(__doc__)
+        found = False
+        find_app_name = args['--app_name'] 
+        find_app_num  = args['--app_num'] 
+        self.NN_apps = nn_apps(self, find_app_num, find_app_name)
+        for [self.app_num,self.app_name,self.num_NN] in self.NN_apps.app_registry:
+            if args['--app_name'] == self.app_name:
+                found = True
+                break
+            elif args['--app_num'] == self.app_name:
+                found = True
+                break
+        if not found:
+            [self.app_num,self.app_name,self.num_NN] = self.NN_apps.app_regestry[0]
+        print(self.app_num, self.app_name, self.num_NN)
         # super(Robot, self).__init__(*args, **kwargs)
-        self.gather_data = GatherData()
-        self.NN = SIRNN(self)
+        self.gather_data = GatherData(self.NN_apps)
+        # self.NN = SIRNN(self)
         self.sir_robot = SIR_control(self)
         self.left_motor = Motor(self.sir_robot, "LEFT")
         self.right_motor = Motor(self.sir_robot, "RIGHT")
+        self.NN_apps.nn_init()
         sir_joystick_daemon(self)
         
     def set_motors(self, left_speed, right_speed):
@@ -106,6 +136,14 @@ class Robot(SingletonConfigurable):
           self.gather_data.set_function("GRIPPER_" + direction)
         self.sir_robot.gripper(direction)
 
+    def reward(self):
+        self.gather_data.set_function("REWARD")
+        self.sir_robot.stop_all()
+
+    def penalty(self):
+        self.gather_data.set_function("PENALTY")
+        self.sir_robot.stop_all()
+
     # gather data / teleop mode
     def set_gather_data_mode(self, mode=True): 
         self.gather_data.turn_on(mode)
@@ -115,17 +153,17 @@ class Robot(SingletonConfigurable):
 
     # run pytorch NN to determine next move
     def set_NN_mode(self, mode=True): 
-        self.NN.turn_on(mode)
+        self.NN_apps.turn_on(mode)
 
     def get_NN_mode(self):
-        return self.NN.is_on()
+        return self.NN_apps.is_on()
 
     # webcam integration
     def ready_for_capture(self):
-        return self.NN.ready_for_capture()
+        return self.NN_apps.ready_for_capture()
 
     def capture_frame(self, img):
-        return self.NN.capture_frame(img)
+        return self.NN_apps.capture_frame(img)
 
     def capture_frame_location(self):
         return self.gather_data.capture_frame_location()

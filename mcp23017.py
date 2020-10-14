@@ -98,11 +98,12 @@ class SIR_control:
       self.curr_pin_val |= pin
   
   def switch_exec(self, exec_next_pulse=True):
-      # print(bin(self.curr_pin_io_val)[2:].zfill(8))
       if exec_next_pulse:
           # execute during next pulse processing
           self.switch_exec_next_pulse = True
       else:
+          # print("IO/PIN", bin(self.curr_pin_io_val)[2:].zfill(8),
+          #       bin(self.curr_pin_val)[2:].zfill(8))
           # execute immediate (probably called during pulse processing)
           self.switch_exec_next_pulse = False
           self.bus.write_byte_data(MCP23017.ADDRESS,MCP23017.IODIRB,self.curr_pin_io_val)
@@ -143,7 +144,7 @@ class SIR_control:
     print("new speed = %d" % pulse_speed)
 
 
-  def stop_all(self):
+  def stop_all(self, execute_immediate = True):
     #Configure the register to default value
     for addr in range(22):
       if (addr == 0) or (addr == 1):
@@ -152,12 +153,13 @@ class SIR_control:
           self.bus.write_byte_data(MCP23017.ADDRESS, addr, 0x00)
     #configure all PinB as input
     self.curr_pin_io_val     = MCP23017.HIGH
-    self.bus.write_byte_data(MCP23017.ADDRESS,MCP23017.IODIRB,self.curr_pin_io_val)
     # Disable all PinB pullUP
     self.curr_pin_pullup_val = MCP23017.LOW
-    self.bus.write_byte_data(MCP23017.ADDRESS,MCP23017.GPPUB,self.curr_pin_pullup_val)
     self.curr_pin_val        = MCP23017.LOW
-    self.bus.write_byte_data(MCP23017.ADDRESS,MCP23017.GPIOB,self.curr_pin_val)
+    if execute_immediate:
+        self.bus.write_byte_data(MCP23017.ADDRESS,MCP23017.IODIRB,self.curr_pin_io_val)
+        self.bus.write_byte_data(MCP23017.ADDRESS,MCP23017.GPPUB,self.curr_pin_pullup_val)
+        self.bus.write_byte_data(MCP23017.ADDRESS,MCP23017.GPIOB,self.curr_pin_val)
 
   def drive_forward(self, speed):
           print("F")
@@ -230,11 +232,11 @@ class SIR_control:
            self.curr_pin_val = MCP23017.LOW
            self.curr_pin_io_val = self.ALL_FUNC
            self.switch_exec(exec_next_pulse=False)
-           if take_picture:
-             # take picture and collect data
-             self._driver.gather_data.save_snapshot()
            # restore state for next pulse
            if self._driver.gather_data.function_name != None:
+             if take_picture:
+               # take picture and collect data
+               self._driver.gather_data.save_snapshot()
              self.curr_pin_val = save_pin_val
              self.curr_pin_io_val = save_pin_io_val
              self.switch_exec(exec_next_pulse=True)
@@ -245,14 +247,50 @@ class SIR_control:
     if self.switch_exec_next_pulse:
       timeout = True
     #########################################
+    # if gather data mode and automatic mode (as part of functional nn app)
+    #########################################
+    if self._driver.gather_data.is_on() and self._driver.NN_apps.nn_automatic_mode():
+        action = self._driver.NN_apps.nn_automatic_action(self._driver.gather_data.function_name)
+        self.execute_command(action)
+        all_on = self.ALL_FUNC
+        functions_not_stopped = all_on ^ self.curr_pin_io_val
+        print("active pins, pulse_num:", 
+              bin(functions_not_stopped)[2:].zfill(8), pulse_num)
+        if (action in ("LEFT", "RIGHT") and pulse_num in (0,1,3,5,6,8)):
+           self.pwm_stop(take_picture = False)
+        elif (action in ("LEFT", "RIGHT") and pulse_num in (2,7)):
+           self.pwm_stop(take_picture = True)
+        elif (action in ("LEFT", "RIGHT")):
+           # pwm_go (4,9)
+           self.switch_exec(exec_next_pulse=False)
+
+        if (self._driver.gather_data.function_name in ("PENALTY", "REWARD")):
+           self.pwm_stop(take_picture = True)
+           if self._driver.gather_data.function_name == "REWARD":
+              self._driver.NN_apps.nn_upon_reward()
+           self._driver.gather_data.function_name = None
+        elif pulse_num % 2 == 0 and action not in ("LEFT","RIGHT"):
+           self.pwm_stop(take_picture = True)
+           print("take pix")
+        elif action not in ("LEFT","RIGHT"):
+           # next pulse: essentially everything is half speed during data collection
+           print("switch_exec")
+           self.switch_exec(exec_next_pulse=False)
+
+    #########################################
     # if gather data mode, do simplified non-pwm processing
     #########################################
-    if self._driver.gather_data.is_on() and self._driver.gather_data.function_name != None:
+    elif self._driver.gather_data.is_on() and self._driver.gather_data.function_name != None:
       # if self.curr_mode[self.LEFT_TRACK] == "STOP" and self.curr_mode[self.RIGHT_TRACK] == "STOP":
+        if self._driver.gather_data.function_name == "REWARD":
+           self._driver.NN_apps.nn_upon_reward()
+        elif self._driver.gather_data.function_name == "PENALTY":
+           self._driver.NN_apps.nn_upon_penalty()
         all_on = self.ALL_FUNC
         functions_not_stopped = all_on ^ self.curr_pin_io_val
         print(bin(functions_not_stopped)[2:].zfill(8), pulse_num)
         # 0,1,3 (no pic),2 (pic), 4 (go), -> 5,6,8 (nopic) 7 (pic) 9 (go)
+        # nn_automatic_action(self, NN_num, feedback)
         if (self._driver.gather_data.function_name in ("LEFT", "RIGHT") 
                 and pulse_num in (0,1,3,5,6,8)):
            self.pwm_stop(take_picture = False)
@@ -262,13 +300,16 @@ class SIR_control:
         elif (self._driver.gather_data.function_name in ("LEFT", "RIGHT")):
            # pwm_go (2,5,9)
            self.switch_exec(exec_next_pulse=False)
+        elif (self._driver.gather_data.function_name in ("PENALTY", "REWARD")):
+           self.pwm_stop(take_picture = True)
+           self._driver.gather_data.function_name = None
         elif pulse_num % 2 == 0:
            self.pwm_stop(take_picture = True)
         else:
            # next pulse: essentially everything is half speed during data collection
            self.switch_exec(exec_next_pulse=False)
         return
-    elif self._driver.NN.is_on(): 
+    elif self._driver.NN_apps.is_on(): 
         if (self._driver.gather_data.function_name in ("LEFT", "RIGHT") 
                 and pulse_num in (0,1,3,5,6,8)):
             self._driver.stop()
@@ -277,27 +318,27 @@ class SIR_control:
             self._driver.stop()
             self.switch_exec(exec_next_pulse=False)
             print("wait for capture")
-            self._driver.NN.wait_for_capture()
+            self._driver.NN_apps.wait_for_capture()
             print("process image")
-            self._driver.NN.process_image()
-
-           self.pwm_stop(take_picture = True)
+            self._driver.NN_apps.nn_process_image()
+            self.pwm_stop(take_picture = True)
         elif (self._driver.gather_data.function_name in ("LEFT", "RIGHT")):
             self.switch_exec(exec_next_pulse=False)
         elif pulse_num % 2 == 0:
             # next pulse: essentially everything is half speed during data collection
-            self._driver.stop()
+            self.stop_all(execute_immediate=False)
             self.switch_exec(exec_next_pulse=False)
             print("wait for capture")
-            self._driver.NN.wait_for_capture()
+            self._driver.NN_apps.wait_for_capture()
             print("process image")
-            self._driver.NN.process_image()
+            self._driver.NN_apps.nn_process_image()
             return
         else:
             self.switch_exec(exec_next_pulse=False)
         return
     #########################################
-    # if not gather data mode, support pseudo-pwm processing for LEFT/RIGHT TRACK
+    # if not gather data mode or NN mode, 
+    # support pseudo-pwm processing for LEFT/RIGHT TRACK
     #########################################
     if self.curr_timeout[self.LEFT_TRACK] == -1:
       if self.curr_mode[self.LEFT_TRACK] == "STOP":
@@ -391,10 +432,10 @@ class SIR_control:
         print("wrist: invalid input (%s)" % dir)
 
   def gripper(self, dir):
-    if dir == "OPEN":
+    if dir == "CLOSE":
         self.switch_up(self.GRIPPER)
         self.switch_exec()
-    elif dir == "CLOSE":
+    elif dir == "OPEN":
         self.switch_down(self.GRIPPER)
         self.switch_exec()
     elif dir == "STOP":
@@ -402,6 +443,32 @@ class SIR_control:
         self.switch_exec()
     else:
         print("gripper: invalid input (%s)" % dir)
+
+  def execute_command(self, command):
+      self.stop_all(execute_immediate=False)
+      speed = 1
+      if command == "UPPER_ARM_UP":
+          self.upper_arm("UP")
+      elif command == "UPPER_ARM_DOWN":
+          self.upper_arm("DOWN")
+      elif command == "LOWER_ARM_UP":
+          self.lower_arm("UP")
+      elif command == "LOWER_ARM_DOWN":
+          self.lower_arm("DOWN")
+      elif command == "GRIPPER_OPEN":
+          self.gripper("OPEN")
+      elif command == "GRIPPER_CLOSE":
+          self.gripper("CLOSE")
+      elif command == "FORWARD":
+          self.drive_forward(speed)
+      elif command == "REVERSE":
+          self.drive_reverse(speed)
+      elif command == "LEFT":
+          self.drive_rotate_left(speed)
+      elif command == "RIGHT":
+          self.drive_rotate_right(speed)
+      else:
+          print("execute_command: command unknown(%s)" % command)
 
   def test_arm(self):
           for pin in (self.LOWER_ARM, self.UPPER_ARM, self.WRIST, self.GRIPPER):

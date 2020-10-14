@@ -9,13 +9,7 @@ import torch.nn.functional as F
 import time
 
 class SIRNN():
-    def __init__(self,sir_robot):
-        self.model = torchvision.models.alexnet(pretrained=False)
-        self.model.classifier[6] = torch.nn.Linear(self.model.classifier[6].in_features, 10)
-        self.model.load_state_dict(torch.load('best_model.pth'))
-
-        self.device = torch.device('cuda')
-        self.model = self.model.to(self.device)
+    def __init__(self,sir_robot,num_outputs):
         self.mode = False
         self.ready_for_frame = False
         self.frame = None
@@ -25,66 +19,23 @@ class SIRNN():
         # stdev = 255.0 * np.array([0.229, 0.224, 0.225])
         # normalize = torchvision.transforms.Normalize(mean, stdev)
 
-    def preprocess(self, camera_value):
-#        return camera_value
+    def nn_init(self, NN_num, gather_mode=False):
+        if gather_mode:
+            self.model = torchvision.models.alexnet(pretrained=True)
+            self.model.classifier[6] = torch.nn.Linear(self.model.classifier[6].in_features, num_outputs)
+            self.model.load_state_dict(torch.load('best_model.pth'))
+            self.device = torch.device('cuda')
+            self.model = self.model.to(self.device)
+        # Class can be used as a single-NN app that can do any action
+        return False, ["UPPER_ARM_UP", "UPPER_ARM_DOWN", "LOWER_ARM_UP",
+                "LOWER_ARM_DOWN", "GRIPPER_OPEN", "GRIPPER_CLOSE",
+                "FORWARD", "REVERSE", "LEFT", "RIGHT", "SUCCESS", "FAILURE"]
 
-         global device, normalize
-         x = camera_value
-         x = cv2.cvtColor(x, cv2.COLOR_BGR2RGB)
-         x = x.transpose((2, 0, 1))
-         x = torch.from_numpy(x).float()
-#        # x = normalize(x)
-         x = x.to(self.device)
-         x = x[None, ...]
-         return x
+    def nn_process_image(self, NN_num = 0, image=None):
+        if image == None:
+          return
+        x = image
 
-    def is_on(self):
-        return self.mode
-
-    def turn_on(self, nn_mode):
-        i = 0
-        while self.ready_for_frame and nn_mode == False:
-            i = i+1
-            if i == 1:
-                print("Turning NN off when safe")
-            time.sleep(.01)
-            # 1 second should have produced 20 images; break to prevent hang 
-            if i > 100:  
-              break
-        self.mode = nn_mode
-
-    def wait_for_capture(self):
-        self.ready_for_frame = True
-        i = 0
-        while self.ready_for_frame:
-            i = i+1
-            time.sleep(.01)
-            # 1 second should have produced 20 images; break to prevent hang 
-            if i > 100:  
-              break
-        print("snapshot wait time: %f" % (i*.01))
-
-    def ready_for_capture(self):
-        if self.ready_for_frame == True:
-            return True
-        else:
-            return False
-
-    def capture_frame(self, img):
-        self.frame = img
-        self.ready_for_frame = False
-
-    def set_function(self, func):
-        try:
-          if func != None:
-            func_dir = self.robot_dir[func]
-          self.function_name = func
-        except:
-            print("bad function name: %s" % func)
-
-        self.frame = camera_frame
-
-    def process_image(self):
         x = self.frame
         x = self.preprocess(x)
         y = self.model(x)
@@ -96,7 +47,7 @@ class SIRNN():
         print(y.flatten) 
         max_prob = 0
         best_action = -1
-        for i in [0, 3, 7]:
+        for i in range(0, 11):
             prob = float(y.flatten()[i])
             print("PROB", i, prob)
             if max_prob < prob:
@@ -105,24 +56,62 @@ class SIRNN():
         if best_action == 0:
             print("NN FORWARD") 
             self.robot.forward()
+        elif best_action == 1:
+            print("NN GRIPPER_CLOSE") 
+            self.robot.gripper("CLOSE")
+        elif best_action == 2:
+            print("NN GRIPPER_OPEN") 
+            self.robot.gripper("OPEN")
         elif best_action == 3:
             print("NN LEFT") 
             self.robot.left()
+        elif best_action == 4:
+            print("NN LOWER ARM DOWN") 
+            self.robot.lower_arm("DOWN")
+        elif best_action == 5:
+            print("NN LOWER ARM UP") 
+            self.robot.lower_arm("UP")
+        elif best_action == 6:
+            print("NN PENALTY") 
+            self.NN.failure()
         elif best_action == 7:
-            print("NN RIGHT -> LEFT") 
-            self.robot.left()
-            # self.robot.right()
+            print("NN REVERSE") 
+            self.robot.reverse()
+        elif best_action == 8:
+            print("NN PENALTY") 
+            self.NN.success()
+        elif best_action == 9:
+            print("NN RIGHT") 
+            self.robot.right()
+            # self.robot.left() # for simplified tabletop NN 
+        elif best_action == 10:
+            print("NN LOWER ARM DOWN") 
+            self.robot.lower_arm("DOWN")
+        elif best_action == 11:
+            print("NN LOWER ARM UP") 
+            self.robot.lower_arm("UP")
         else:
             print("Action:", best_action, max_prob) 
-            # unused by Tabletap:
-            # robot.backward()
-            # robot.backward()
-            # robot.upper_arm_up()
-            # robot.upper_arm_down()
-            # robot.lower_arm_up()
-            # robot.lower_arm_down()
-            # robot.gripper(self,direction)
-
             time.sleep(0.08)
             self.robot.stop()
         
+      
+    def nn_set_automatic_mode(self, TF):
+        pass
+
+    def nn_automatic_mode(self):
+        return False
+
+    def nn_automatic_action(self, NN_num, feedback):
+        pass
+
+    def nn_before_action_callback(self, NN_num, feedback):
+        return None
+
+    def nn_upon_penalty(self, NN_num):
+        exit()
+
+    def nn_upon_reward(self, NN_num):
+        exit()
+
+

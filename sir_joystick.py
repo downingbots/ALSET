@@ -200,6 +200,16 @@ class SIR_joystick:
                 self.right_speed  = -fvalue
                 # left_speed  = None
                 self._robot_driver.set_motors(self.left_speed, self.right_speed)
+            if axis == "z":
+                if fvalue == 1:
+                    command.append("REWARD")
+                    arg.append("REWARD")
+                    self._robot_driver.reward()
+            elif axis == "rz":
+                if fvalue == 1:
+                    command.append("PENALTY")
+                    arg.append("PENALTY")
+                    self._robot_driver.penalty()
             if self.pressed_button == "tl":
                 mode = self._robot_driver.get_gather_data_mode()
                 # toggle current mode
@@ -212,7 +222,6 @@ class SIR_joystick:
                 nn_mode = (not nn_mode)
                 self._robot_driver.set_NN_mode(nn_mode)
                 print("NN", nn_mode)
-
             if self.pressed_button == "a":
                 command.append("LOWER_ARM")
                 arg.append("DOWN")
@@ -260,13 +269,13 @@ class SIR_joystick:
                 self.wrist_active = False
             if self.pressed_button == "x":
                 command.append("GRIPPER")
-                arg.append("CLOSE")
-                self._robot_driver.gripper("CLOSE")
+                arg.append("OPEN")
+                self._robot_driver.gripper("OPEN")
                 self.gripper_active = True
             elif self.pressed_button == "b":
                 command.append("GRIPPER")
-                arg.append("OPEN")
-                self._robot_driver.gripper("OPEN")
+                arg.append("CLOSE")
+                self._robot_driver.gripper("CLOSE")
                 self.gripper_active = True
             elif self.gripper_active:
                 command.append("GRIPPER")

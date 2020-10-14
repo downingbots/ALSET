@@ -17,7 +17,16 @@ global webcam_robot
 # GSTREAMER_PIPELINE = 'nvarguscamerasrc ! video/x-raw(memory:NVMM), width=3280, height=2464, format=(string)NV12, framerate=21/1 ! nvvidconv flip-method=0 ! video/x-raw, width=960, height=616, format=(string)BGRx ! videoconvert ! video/x-raw, format=(string)BGR ! appsink wait-on-eos=false max-buffers=1 drop=True'
 # STREAMER_PIPELINE = 'nvarguscamerasrc ! video/x-raw(memory:NVMM), width=3280, height=2464, format=(string)NV12, framerate=5/1 ! nvvidconv flip-method=0 ! video/x-raw, width=410, height=308, format=(string)BGRx ! videoconvert ! video/x-raw, format=(string)BGR ! appsink wait-on-eos=false max-buffers=1 drop=True'
 # if choose a divide 960,616 by 8 or 16 then output is wrong.
-WEBCAM_GSTREAMER_PIPELINE = 'nvarguscamerasrc ! video/x-raw(memory:NVMM), width=3280, height=2464, format=(string)NV12, framerate=20/1 ! nvvidconv flip-method=0 ! video/x-raw, width=328, height=246, format=(string)BGRx ! videoconvert ! video/x-raw, format=(string)BGR ! appsink wait-on-eos=false max-buffers=1 drop=True'
+# WEBCAM_GSTREAMER_PIPELINE = 'nvarguscamerasrc ! video/x-raw(memory:NVMM), width=3280, height=2464, format=(string)NV12, framerate=20/1 ! nvvidconv flip-method=0 ! video/x-raw, width=328, height=246, format=(string)BGRx ! videoconvert ! video/x-raw, format=(string)BGR ! appsink wait-on-eos=false max-buffers=1 drop=True'
+
+###########################################################################
+# transform = T.Compose([T.Resize(256), T.CenterCrop(224), T.ToTensor()])
+# All pre-trained models expect input images normalized in the same way,
+# i.e. mini-batches of 3-channel RGB images of shape (3 x H x W),
+# where H and W are expected to be at least 224. The images have to be
+# loaded in to a range of [0, 1] and then normalized using
+# mean = [0.485, 0.456, 0.406] and std = [0.229, 0.224, 0.225].
+WEBCAM_GSTREAMER_PIPELINE = 'nvarguscamerasrc ! video/x-raw(memory:NVMM), width=3280, height=2464, format=(string)NV12, framerate=20/1 ! nvvidconv flip-method=0 ! video/x-raw, width=224, height=224, format=(string)BGRx ! videoconvert ! video/x-raw, format=(string)BGR ! appsink wait-on-eos=false max-buffers=1 drop=True'
 
 # Create the Flask object for the application
 webcam_app = Flask(__name__)
@@ -43,8 +52,11 @@ def webcam_captureFrames():
         if image_loc != None:
             return_key, encoded_image = cv2.imencode(".jpg", webcam_video_frame)
             if return_key:
-                with open(image_loc, 'wb') as f:
+                try:
+                  with open(image_loc, 'wb') as f:
                     f.write(encoded_image)
+                except:
+                    print("Invalid directory: %s" % image_loc)
             # free the robot to move;
             # if bottleneck, optimistically move up before encode/write
             webcam_robot.capture_frame_completed()
