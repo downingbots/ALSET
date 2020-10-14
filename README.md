@@ -10,7 +10,10 @@ The Sharper Image robot was hacked as followed:
         - the inside of the low-end RC control that came with the robot. 
         - You can see/use the buttons here control the robot. 
         - the other side of the board was soldered to wire it up with the IO expansion board.
-    - The IO expansion board was required because the RC control uses Tri-state logic on 6 pins. It uses I2C to communicate with the Jetson Development board
+    - The IO expansion board was required :
+        - the RC control uses Tri-state logic on 6 pins.
+        - The expansion board uses I2C to communicate with the Jetson Development board
+        - The expansion board is connected to the RC control via wires
     - It is powered by a mongo BONAI 5.6A battery pack
     - Logitech gamepad
 
@@ -21,7 +24,9 @@ ectivity from my working area. The tutorials were replaced with:
     - The Logitech joystick controls the robot directly
     - The camera is streamed using much lower overhead video webserver for teleoperation.
     - The images are saved directly to the Robot SD card.
-    - a poor-man's pwm changes the commands to start/stop up to every tenth of a second or so. Currently, takes the picture when stopped.  It records the command sent by the joystick (lower or upper arm up/down, open/close gripper, etc.) along with the picture in the directory associated with the NN's command.
+    - a poor-man's pwm changes the commands to start/stop up to every tenth of a second or so.
+        -- takes the picture when stopped.  
+        -- records the command sent by the joystick (lower or upper arm up/down, open/close gripper, etc.) along with the picture in the directory associated with the NN's command.
     
       This data is then gathered and used to train the robot. Note: a tenth of a second of start/stop proved too much for one of the boards and the robot will stop moving after a few minutes of continuous use. Eventually changed the pwm rate to two-moves-per-second.
 
