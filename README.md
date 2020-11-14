@@ -18,8 +18,7 @@ The Sharper Image robot was hacked as followed:
     - Logitech gamepad
 
 The code started with the Jetson Notebook tutorial on Obstacle avoidance, but was changed 
-significantly. The Notebook tutorials barely ran on my Jetson with the wifi conn
-ectivity from my working area. The tutorials were replaced with:
+significantly. The Notebook tutorials barely ran on my Jetson with the wifi connectivity from my working area. The tutorials were replaced with:
 
     - The Logitech joystick controls the robot directly
     - The camera is streamed using much lower overhead video webserver for teleoperation.
@@ -31,6 +30,7 @@ ectivity from my working area. The tutorials were replaced with:
       This data is then gathered and used to train the robot. Note: a tenth of a second of start/stop proved too much for one of the boards and the robot will stop moving after a few minutes of continuous use. Eventually changed the pwm rate to two-moves-per-second.
 
 The robot runs in 3 modes: RC telepresence, data-capture, and using the trained neural net.  The data capture and neural net can be for a singe alexnet NN, or a sequence of alexnet NN with function-specific knowledge. For example, the 8-parts are for an HBRC phase-3 tabletop bot is:
+
     - get the arm to a known position
     - scans for object on the floor (or table)
     - goes to object, keeping object in center of vision
