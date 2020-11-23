@@ -251,11 +251,18 @@ class SIR_control:
     #########################################
     if self._driver.gather_data.is_on() and self._driver.NN_apps.nn_automatic_mode():
         action = self._driver.NN_apps.nn_automatic_action(self._driver.gather_data.function_name)
-        self.execute_command(action)
+        joystick_action = self._driver.gather_data.function_name
+        self._driver.gather_data.set_function(action)
         all_on = self.ALL_FUNC
         functions_not_stopped = all_on ^ self.curr_pin_io_val
         print("active pins, pulse_num:", 
-              bin(functions_not_stopped)[2:].zfill(8), pulse_num)
+              action, bin(functions_not_stopped)[2:].zfill(8), pulse_num)
+        if (action == "REWARD"):
+           self._driver.gather_data.set_function(None)
+           self.stop_all(execute_immediate=False)
+           self.switch_exec(exec_next_pulse=False)
+           return
+        self.execute_command(action)
         if (action in ("LEFT", "RIGHT") and pulse_num in (0,1,3,5,6,8)):
            self.pwm_stop(take_picture = False)
         elif (action in ("LEFT", "RIGHT") and pulse_num in (2,7)):
@@ -264,31 +271,42 @@ class SIR_control:
            # pwm_go (4,9)
            self.switch_exec(exec_next_pulse=False)
 
-        if (self._driver.gather_data.function_name in ("PENALTY", "REWARD")):
+        # elif (self._driver.gather_data.function_name in ("PENALTY", "REWARD")):
+        elif (joystick_action in ("PENALTY", "REWARD")):
            self.pwm_stop(take_picture = True)
-           if self._driver.gather_data.function_name == "REWARD":
+           # if self._driver.gather_data.function_name == "REWARD":
+           if joystick_action == "REWARD":
               self._driver.NN_apps.nn_upon_reward()
            self._driver.gather_data.function_name = None
-        elif pulse_num % 2 == 0 and action not in ("LEFT","RIGHT"):
+        elif (pulse_num+1) % 5 == 3 and action not in ("LEFT","RIGHT"):
            self.pwm_stop(take_picture = True)
            print("take pix")
-        elif action not in ("LEFT","RIGHT"):
+        elif (pulse_num+1) % 5 == 0 and action not in ("LEFT","RIGHT"):
            # next pulse: essentially everything is half speed during data collection
            print("switch_exec")
            self.switch_exec(exec_next_pulse=False)
+        return
 
     #########################################
     # if gather data mode, do simplified non-pwm processing
     #########################################
     elif self._driver.gather_data.is_on() and self._driver.gather_data.function_name != None:
-      # if self.curr_mode[self.LEFT_TRACK] == "STOP" and self.curr_mode[self.RIGHT_TRACK] == "STOP":
+        # gather data, not automatic mode, function name provided by joystick
+        # if self.curr_mode[self.LEFT_TRACK] == "STOP" and self.curr_mode[self.RIGHT_TRACK] == "STOP":
         if self._driver.gather_data.function_name == "REWARD":
+           print("nn_upon_reward")
+           self.stop_all(execute_immediate=True)
            self._driver.NN_apps.nn_upon_reward()
+           return
         elif self._driver.gather_data.function_name == "PENALTY":
+           print("nn_upon_penalty")
+           self.stop_all(execute_immediate=True)
            self._driver.NN_apps.nn_upon_penalty()
+           return
         all_on = self.ALL_FUNC
         functions_not_stopped = all_on ^ self.curr_pin_io_val
-        print(bin(functions_not_stopped)[2:].zfill(8), pulse_num)
+        print("active pins, pulse_num:", self._driver.gather_data.function_name,
+              bin(functions_not_stopped)[2:].zfill(8), pulse_num)
         # 0,1,3 (no pic),2 (pic), 4 (go), -> 5,6,8 (nopic) 7 (pic) 9 (go)
         # nn_automatic_action(self, NN_num, feedback)
         if (self._driver.gather_data.function_name in ("LEFT", "RIGHT") 
@@ -298,48 +316,61 @@ class SIR_control:
                 and pulse_num in (2,7)):
            self.pwm_stop(take_picture = True)
         elif (self._driver.gather_data.function_name in ("LEFT", "RIGHT")):
-           # pwm_go (2,5,9)
+           # pwm_go (4, 9)
+           print("go")
            self.switch_exec(exec_next_pulse=False)
+
         elif (self._driver.gather_data.function_name in ("PENALTY", "REWARD")):
            self.pwm_stop(take_picture = True)
            self._driver.gather_data.function_name = None
-        elif pulse_num % 2 == 0:
+        elif (pulse_num+1) % 5 == 3:
            self.pwm_stop(take_picture = True)
-        else:
+        elif (pulse_num+1) % 5 == 0:
            # next pulse: essentially everything is half speed during data collection
            self.switch_exec(exec_next_pulse=False)
+        else:
+           self.pwm_stop(take_picture = False)
         return
-    elif self._driver.NN_apps.is_on(): 
+    elif self._driver.gather_data.is_on():
+        # gather data, not automatic mode, no function name from joystick
+        all_on = self.ALL_FUNC
+        functions_not_stopped = all_on ^ self.curr_pin_io_val
+        # print("is_on / no func_nm", bin(functions_not_stopped)[2:].zfill(8), pulse_num)
         if (self._driver.gather_data.function_name in ("LEFT", "RIGHT") 
                 and pulse_num in (0,1,3,5,6,8)):
             self._driver.stop()
         elif (self._driver.gather_data.function_name in ("LEFT", "RIGHT") 
                 and pulse_num in (2,7)):
-            self._driver.stop()
-            self.switch_exec(exec_next_pulse=False)
-            print("wait for capture")
-            self._driver.NN_apps.wait_for_capture()
-            print("process image")
-            self._driver.NN_apps.nn_process_image()
+            # self._driver.stop()
+            # self.switch_exec(exec_next_pulse=False)
+            # print("wait for capture")
+            # self._driver.NN_apps.wait_for_capture()
+            # print("process image")
+            # self._driver.NN_apps.nn_process_image()
             self.pwm_stop(take_picture = True)
         elif (self._driver.gather_data.function_name in ("LEFT", "RIGHT")):
             self.switch_exec(exec_next_pulse=False)
-        elif pulse_num % 2 == 0:
+        elif (pulse_num+1) % 5 == 3:
             # next pulse: essentially everything is half speed during data collection
-            self.stop_all(execute_immediate=False)
-            self.switch_exec(exec_next_pulse=False)
-            print("wait for capture")
-            self._driver.NN_apps.wait_for_capture()
-            print("process image")
-            self._driver.NN_apps.nn_process_image()
+            # self.stop_all(execute_immediate=False)
+            # self.switch_exec(exec_next_pulse=False)
+            # print("wait for capture")
+            # self._driver.NN_apps.wait_for_capture()
+            # print("process image")
+            # self._driver.NN_apps.nn_process_image()
+            self.pwm_stop(take_picture = True)
             return
-        else:
+        elif (pulse_num+1) % 5 == 0:
             self.switch_exec(exec_next_pulse=False)
+        else:
+            self.pwm_stop(take_picture = False)
         return
     #########################################
     # if not gather data mode or NN mode, 
     # support pseudo-pwm processing for LEFT/RIGHT TRACK
     #########################################
+    # print("left track : ", self.curr_timeout[self.LEFT_TRACK], self.curr_mode[self.LEFT_TRACK], self.curr_speed[self.LEFT_TRACK])
+    # print("right track: ", self.curr_timeout[self.RIGHT_TRACK], self.curr_mode[self.RIGHT_TRACK], self.curr_speed[self.RIGHT_TRACK])
     if self.curr_timeout[self.LEFT_TRACK] == -1:
       if self.curr_mode[self.LEFT_TRACK] == "STOP":
         timeout = True

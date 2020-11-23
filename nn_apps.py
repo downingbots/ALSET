@@ -40,7 +40,7 @@ class nn_apps():
 
       self.app_instance = []
       # 0
-      self.app_instance.append(SIRNN(sir_robot, len(self.action_set)))
+      self.app_instance.append(SIRNN(sir_robot, self.action_set))
       # 1
       self.app_instance.append(tabletop_functional_nn(sir_robot))
       robot_dirs = []
@@ -59,20 +59,20 @@ class nn_apps():
     ####################################################
     # COMMON APP CONTROL FUNCTIONS
     ####################################################
-    def preprocess(self, camera_value):
-         global device, normalize
-         mean = 255.0 * np.array([0.485, 0.456, 0.406])
-         stdev = 255.0 * np.array([0.229, 0.224, 0.225])
-         normalize = torchvision.transforms.Normalize(mean, stdev)
-
-         x = camera_value
-         x = cv2.cvtColor(x, cv2.COLOR_BGR2RGB)
-         x = x.transpose((2, 0, 1))
-         x = torch.from_numpy(x).float()
-         x = normalize(x)
-         x = x.to(self.device)
-         x = x[None, ...]
-         return x
+#    def preprocess(self, camera_value):
+#         global device, normalize
+#         mean = 255.0 * np.array([0.485, 0.456, 0.406])
+#         stdev = 255.0 * np.array([0.229, 0.224, 0.225])
+#         normalize = torchvision.transforms.Normalize(mean, stdev)
+#
+#         x = camera_value
+#         x = cv2.cvtColor(x, cv2.COLOR_BGR2RGB)
+#         x = x.transpose((2, 0, 1))
+#         x = torch.from_numpy(x).float()
+#         x = normalize(x)
+#         x = x.to(self.device)
+#         x = x[None, ...]
+#         return x
 
     def is_on(self):
         return self.mode
@@ -136,21 +136,21 @@ class nn_apps():
 
     def nn_init(self):
       gather_mode = self.robot.get_gather_data_mode()
+      self.robot.gather_data.set_function(None)
       # automatic_mode must be set to false until after the directories
       # are created.
       self.app_instance[self.app_num].nn_set_automatic_mode(False)
-      auto_mode, robot_action_dirs = self.app_instance[self.app_num].nn_init(self.curr_nn_num, gather_mode)
+      auto_mode, robot_action_dirs = self.app_instance[self.app_num].nn_init(self.app_registry[self.app_num][1], self.curr_nn_num, gather_mode)
+      self.app_instance[self.app_num].nn_set_automatic_mode(auto_mode)
       # probably should use os.path.join()
-      dataset_dir = "apps/" + self.app_registry[self.app_num][1] + "/dataset"
       robot_dirs = []
+      dataset_dir = "apps/" + self.app_registry[self.app_num][1] + "/dataset"
       self.nn_dir = dataset_dir + "/NN" + str(self.curr_nn_num)
       robot_dirs.append(self.nn_dir)
       for dir_name in robot_action_dirs:
           robot_dirs.append(self.nn_dir + "/" + dir_name)
       self.mkdirs(robot_dirs)
       print("nn_init: " , self.curr_nn_num, robot_dirs)
-      if auto_mode:
-          self.app_instance[self.app_num].nn_set_automatic_mode(True)
       return robot_dirs
 
     def nn_process_image(self):
@@ -172,7 +172,8 @@ class nn_apps():
 
     def nn_automatic_action(self, feedback):
       if feedback == "REWARD":
-          self.nn_upon_reward()
+          self.app_instance[self.app_num].nn_set_automatic_mode(False)
+          self.curr_nn_num = self.nn_upon_reward()
           return "REWARD"
       return self.app_instance[self.app_num].nn_automatic_action(self.curr_nn_num, feedback)
 
@@ -183,4 +184,6 @@ class nn_apps():
       return self.curr_nn_num
 
     def nn_upon_penalty(self):
-      return self.app_instance[self.app_num].nn_upon_penalty(self.curr_nn_num)
+      self.curr_nn_num = self.app_instance[self.app_num].nn_upon_penalty(self.curr_nn_num)
+      self.nn_init()
+      return self.curr_nn_num
