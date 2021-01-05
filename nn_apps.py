@@ -1,3 +1,39 @@
+# Flow between
+# 
+# robot.py
+#   only interacts with NN_apps
+# 
+# NN_apps (nn_apps.py)
+#   currently 2 apps are defined:
+#      1. a single SIRNN
+#      2. one tabletop_nn that will define 8 SIRNN
+#   sets up directory for dataset
+#   stores image in appropriate directory for gather_mode
+#   knows curr_nn_num
+#      starts at 1, 
+#      changes curr_nn_num based upon app's
+#         nn_upon_failure, nn_upon_success, automatic_mode
+# 
+# tabletop (tabletop_functional_nn.py)
+#   self.NN[0-7] -> defines a SIRNN for each function performed
+#   knows number of NN to define
+#   knows actions for each NN
+#   knows/calls actual torch NN (SIRNN)
+#   defines flow between NN
+#    1. Park Arm
+#    2. Automatic scan for cube
+#    3. Approach cube
+#    4. Pick up cube
+#    5. Park Arm (with cube in grippers)
+#    6. Automatic scan for box (with cube in grippers)
+#    7. Approach box (with cube in grippers)
+#    8. Drop cube in box and back away
+#      -> New park arm (back to 1)
+#   defines automatic mode 
+# 
+# nn.py defines
+#   SIRNN -> actual single torch NN
+#   also a self-contained single-NN app
 import os
 import time
 import cv2
@@ -10,15 +46,15 @@ import time
 class nn_apps():
     # initialize app registry
     def __init__(self, sir_robot, sir_app_num=None, sir_app_name=None):
-      self.app_registry = [[0, "SIRNN", 1], [1, "TT_func", 8]]
+      self.app_registry = [[0, "SIRNN", 1], [1, "TT_func", 8], [2, "TT_DQN", 1]
       if sir_app_num != None:
-          self.app_num = sir_app_num
-          if self.app_num >= len(self.app_registry) or self.app_num < 0:
-              print("Error: unknown app number %d" % self.app_num)
+          if sir_app_num >= len(self.app_registry) or sir_app_num < 0:
+              print("Error: unknown app number %d" % sir_app_num)
               exit()
+          [self.app_num, self.app_name, self.num_nn] = self.app_registry[sir_app_num]
       else:
           found = False
-          for [self.app_num, app_name, num_nn] in self.app_registry:
+          for [self.app_num, self.app_name, self.num_nn] in self.app_registry:
                if sir_app_name == app_name:
                    found = True
                    break
@@ -49,7 +85,7 @@ class nn_apps():
           robot_dirs.append("apps/" + app_reg[1])
           robot_dirs.append("apps/" + app_reg[1] + "/dataset")
       self.mkdirs(robot_dirs)
-      self.mode = False
+      self.mode = "TELEOP"
       self.ready_for_frame = False
       self.frame = None
       self.robot = sir_robot
@@ -74,12 +110,12 @@ class nn_apps():
 #         x = x[None, ...]
 #         return x
 
-    def is_on(self):
+    def get_nn_mode(self):
         return self.mode
 
-    def turn_on(self, nn_mode):
+    def set_nn_mode(self, nn_mode):
         i = 0
-        while self.ready_for_frame and nn_mode == False:
+        while self.ready_for_frame and nn_mode == "CNN":
             i = i+1
             if i == 1:
                 print("Turning NN off when safe")
@@ -134,6 +170,8 @@ class nn_apps():
     # PASS-THROUGH FUNCTION CALLS
     ####################################################
 
+    # called to initialize or switch to a new NN for gathering data or exec
+    # idempotent
     def nn_init(self):
       gather_mode = self.robot.get_gather_data_mode()
       self.robot.gather_data.set_function(None)
@@ -145,6 +183,7 @@ class nn_apps():
       # probably should use os.path.join()
       robot_dirs = []
       dataset_dir = "apps/" + self.app_registry[self.app_num][1] + "/dataset"
+      # curr_nn_num is updated to reflect actual NN_num via nn_upon_reward
       self.nn_dir = dataset_dir + "/NN" + str(self.curr_nn_num)
       robot_dirs.append(self.nn_dir)
       for dir_name in robot_action_dirs:
@@ -174,12 +213,12 @@ class nn_apps():
       if feedback == "REWARD":
           self.app_instance[self.app_num].nn_set_automatic_mode(False)
           self.curr_nn_num = self.nn_upon_reward()
+          self.nn_init()
           return "REWARD"
       return self.app_instance[self.app_num].nn_automatic_action(self.curr_nn_num, feedback)
 
     def nn_upon_reward(self):
       self.curr_nn_num = self.app_instance[self.app_num].nn_upon_reward(self.curr_nn_num)
-      gather_mode = self.robot.get_gather_data_mode()
       self.nn_init()
       return self.curr_nn_num
 

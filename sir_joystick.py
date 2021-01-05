@@ -218,20 +218,25 @@ class SIR_joystick:
                 print("gather data", mode) 
             if self.pressed_button == "tr":
                 nn_mode = self._robot_driver.get_NN_mode()
-                # toggle current mode
-                nn_mode = (not nn_mode)
+                if nn_mode == "TELEOP":
+                  nn_mode = "NN"       # immitation learning or dqn
+                elif nn_mode == "NN":
+                  nn_mode = "TELEOP"   # reinforcement learning
                 self._robot_driver.set_NN_mode(nn_mode)
-                print("NN", nn_mode)
+                print("nn_mode", nn_mode)
             if self.pressed_button == "a":
                 command.append("LOWER_ARM")
                 arg.append("DOWN")
                 self._robot_driver.lower_arm("DOWN")
                 self.lower_arm_active = True
             elif self.pressed_button == "y":
-                command.append("LOWER_ARM")
-                arg.append("UP")
-                self._robot_driver.lower_arm("UP")
-                self.lower_arm_active = True
+                if self._robot_driver.NN_apps.app_name == "TT_DQN" and self.gather_data.is_on():
+                  self._robot_driver.robot_off_table_penalty()
+                else:
+                  command.append("LOWER_ARM")
+                  arg.append("UP")
+                  self._robot_driver.lower_arm("UP")
+                  self.lower_arm_active = True
             elif self.lower_arm_active:
                 command.append("LOWER_ARM")
                 arg.append("STOP")
@@ -243,10 +248,13 @@ class SIR_joystick:
                 self._robot_driver.upper_arm("DOWN")
                 self.upper_arm_active = True
             elif axis == "hat0y" and fvalue < -.9:
-                command.append("UPPER_ARM")
-                arg.append("UP")
-                self._robot_driver.upper_arm("UP")
-                self.upper_arm_active = True
+                if self._robot_driver.NN_apps.app_name == "TT_DQN" and self.gather_data.is_on():
+                  self._robot_driver.cube_off_table_reward()
+                else:
+                  command.append("UPPER_ARM")
+                  arg.append("UP")
+                  self._robot_driver.upper_arm("UP")
+                  self.upper_arm_active = True
             elif self.upper_arm_active:
                 command.append("UPPER_ARM")
                 arg.append("STOP")
@@ -268,15 +276,21 @@ class SIR_joystick:
                 self._robot_driver.wrist("STOP")
                 self.wrist_active = False
             if self.pressed_button == "x":
-                command.append("GRIPPER")
-                arg.append("OPEN")
-                self._robot_driver.gripper("OPEN")
-                self.gripper_active = True
+                if self._robot_driver.NN_apps.app_name == "TT_DQN" and self.gather_data.is_on():
+                    pass
+                else:
+                    command.append("GRIPPER")
+                    arg.append("OPEN")
+                    self._robot_driver.gripper("OPEN")
+                    self.gripper_active = True
             elif self.pressed_button == "b":
-                command.append("GRIPPER")
-                arg.append("CLOSE")
-                self._robot_driver.gripper("CLOSE")
-                self.gripper_active = True
+                if self._robot_driver.NN_apps.app_name == "TT_DQN" and self.gather_data.is_on():
+                    pass
+                else:
+                    command.append("GRIPPER")
+                    arg.append("CLOSE")
+                    self._robot_driver.gripper("CLOSE")
+                    self.gripper_active = True
             elif self.gripper_active:
                 command.append("GRIPPER")
                 arg.append("STOP")

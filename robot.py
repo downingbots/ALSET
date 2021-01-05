@@ -8,6 +8,7 @@ from .gather_data import *
 from .nn import *
 from docopt import docopt
 from .nn_apps import *
+from .sir_ddqn import *
 
 class Robot(SingletonConfigurable):
     def __init__(self, *args, **kwargs):
@@ -21,7 +22,7 @@ class Robot(SingletonConfigurable):
         Options:
             -h --help        Show this screen.
             --app_num num    see app_registry in nn_apps.py
-            --app_name name    see app_registry in nn_apps.py
+            --app_name name  see app_registry in nn_apps.py
         """
         # print(__doc__)
         args = docopt(__doc__)
@@ -46,6 +47,7 @@ class Robot(SingletonConfigurable):
         self.left_motor = Motor(self.sir_robot, "LEFT")
         self.right_motor = Motor(self.sir_robot, "RIGHT")
         self.NN_apps.nn_init()
+        self.DQN = None
         sir_joystick_daemon(self)
         
     def set_motors(self, left_speed, right_speed):
@@ -81,28 +83,36 @@ class Robot(SingletonConfigurable):
             self.sir_robot.set_motors(left_speed, right_speed)
         
     def forward(self, speed=1.0, duration=None):
-        if self.gather_data.is_on():
+        if self.NN_apps.app_name == "TT_DQN" and self.gather_data.is_on():
+            pass
+        elif self.gather_data.is_on():
             self.gather_data.set_function("FORWARD")
             self.sir_robot.drive_forward(speed)
         else:
             self.sir_robot.drive_forward(speed)
 
     def backward(self, speed=1.0):
-        if self.gather_data.is_on():
+        if self.NN_apps.app_name == "TT_DQN" and self.gather_data.is_on():
+            pass
+        elif self.gather_data.is_on():
             self.gather_data.set_function("REVERSE")
             self.sir_robot.drive_reverse(speed)
         else:
             self.sir_robot.drive_reverse(speed)
 
     def left(self, speed=1.0):
-        if self.gather_data.is_on():
+        if self.NN_apps.app_name == "TT_DQN" and self.gather_data.is_on():
+            pass
+        elif self.gather_data.is_on():
             self.gather_data.set_function("LEFT")
             self.sir_robot.drive_rotate_left(speed)
         else:
             self.sir_robot.drive_rotate_left(speed)
 
     def right(self, speed=1.0):
-        if self.gather_data.is_on():
+        if self.NN_apps.app_name == "TT_DQN" and self.gather_data.is_on():
+            pass
+        elif self.gather_data.is_on():
             self.gather_data.set_function("RIGHT")
             self.sir_robot.drive_rotate_right(speed)
         else:
@@ -113,28 +123,37 @@ class Robot(SingletonConfigurable):
         self.sir_robot.drive_stop()
 
     def upper_arm(self,direction):
-        if direction == "STOP":
+        if self.NN_apps.app_name == "TT_DQN" and self.gather_data.is_on():
+            pass
+        elif direction == "STOP":
           self.gather_data.set_function(None)
-        else:
           self.gather_data.set_function("UPPER_ARM_" + direction)
-        self.sir_robot.upper_arm(direction)
+        else:
+          self.sir_robot.upper_arm(direction)
+          self.gather_data.set_function("UPPER_ARM_" + direction)
 
     def lower_arm(self,direction):
-        if direction == "STOP":
+        if self.NN_apps.app_name == "TT_DQN" and self.gather_data.is_on():
+            pass
+        elif direction == "STOP":
           self.gather_data.set_function(None)
+          self.sir_robot.lower_arm(direction)
         else:
           self.gather_data.set_function("LOWER_ARM_" + direction)
-        self.sir_robot.lower_arm(direction)
+          self.sir_robot.lower_arm(direction)
 
     def wrist(self,direction):
         self.sir_robot.wrist(direction)
 
     def gripper(self,direction):
-        if direction == "STOP":
+        if self.NN_apps.app_name == "TT_DQN" and self.gather_data.is_on():
+            pass
+        elif direction == "STOP":
           self.gather_data.set_function(None)
+          self.sir_robot.gripper(direction)
         else:
           self.gather_data.set_function("GRIPPER_" + direction)
-        self.sir_robot.gripper(direction)
+          self.sir_robot.gripper(direction)
 
     def reward(self):
         self.gather_data.set_function("REWARD")
@@ -152,11 +171,21 @@ class Robot(SingletonConfigurable):
         return self.gather_data.is_on()
 
     # run pytorch NN to determine next move
-    def set_NN_mode(self, mode=True): 
-        self.NN_apps.turn_on(mode)
+    def set_NN_mode(self, mode): 
+        self.NN_apps.set_nn_mode(mode)
+        if mode == "DQN" and self.DQN == None:
+          self.DQN = SJB_DDQN()
+
+    def robot_off_table_penalty(self, mode)
+        self.gather_data.set_function("ROBOT_OFF_TABLE_PENALTY")
+        self.sir_robot.stop_all()
+
+    def cube_off_table_reward()
+        self.gather_data.set_function("CUBE_OFF_TABLE_REWARD")
+        self.sir_robot.stop_all()
 
     def get_NN_mode(self):
-        return self.NN_apps.is_on()
+        return self.NN_apps.get_nn_mode()
 
     # webcam integration
     def ready_for_capture(self):
@@ -170,5 +199,4 @@ class Robot(SingletonConfigurable):
 
     def capture_frame_completed(self):
         self.gather_data.capture_frame_completed()
-
 
