@@ -29,7 +29,7 @@ significantly. The Notebook tutorials barely ran on my Jetson with the wifi conn
     
       This data is then gathered and used to train the robot. Note: a tenth of a second of start/stop proved too much for one of the boards and the robot will stop moving after a few minutes of continuous use. Eventually changed the pwm rate to two-moves-per-second.
 
-The robot runs in 3 modes: RC telepresence, data-capture, and using the trained neural net.  The data capture and neural net can be for a single alexnet NN, or a sequence of alexnet NNs with function-specific knowledge. For example, the 8-parts are for an HBRC phase-3 tabletop bot is:
+The robot runs in 4 modes: RC telepresence, data-capture, and using trained neural net(s) including a single CNN, a multi-part sequence of CNNs, and DDQN reinformcement learning.  The data capture and neural net can be for a single alexnet NN, or a sequence of alexnet NNs with function-specific knowledge. For example, the 8-parts are for an HBRC phase-3 tabletop bot is:
 
     - get the arm to a known position
     - scans for object on the floor (or table)
@@ -41,7 +41,7 @@ The robot runs in 3 modes: RC telepresence, data-capture, and using the trained 
     - drops object in box
     - backs up and park arm (back to phase 1)
 
-The #1 rule is no falling off the table (or going out-of-bounds)
+The #1 rule is no falling off the table (or going out-of-bounds).
 
 The Jetson "notebook" is a cool idea for tutorials, but in practice needs very fast wifi - better than my house has and very fast SSD - faster than I bought.  But putting the gamepad/logitech on the robot and using lower overhead video webstreaming worked fine.
 
