@@ -604,8 +604,8 @@ class SIR_DDQN():
             if action == "REWARD":
               NN_num = int(line[NN_NUM_OFFSET:NN_NUM_OFFSET+1])
               if NN_num not in NN_REAL_REWARD:
-                # print("action to NOOP, NN#", action, NN_num)
-                action = "NOOP"
+                print("action to NOOP, NN#", action, NN_num)
+                line_action = "NOOP"
             break
         if not found:
           print("action not found: ", line)
@@ -637,6 +637,8 @@ class SIR_DDQN():
             prev_action = None
             prev_state = None
             line = filehandle.readline()
+            if not line:
+              break
             action = self.get_action(line)
             state = line[FILE_OFFSET:]
             done = False
@@ -651,7 +653,7 @@ class SIR_DDQN():
             print("NOOP")
             continue
           next_state = next_line[FILE_OFFSET:]
-          # nn_num = int(line[NN_NUM_OFFSET, NN_NUM_OFFSET]) 
+          nn_num = int(next_line[13:14]) 
           # print("action ", action, " NN# ", nn_num)
           print("action ", action, frame_num, self.curr_phase)
           reward, done = self.compute_reward(frame_num, action)
