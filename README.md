@@ -67,11 +67,6 @@ To solve the problem of getting the state of the environment that simulations ca
   - add fiducials to objects (e.g., block) in environment
   - add sensors to objects in environment
   - Tons of human-interactons to reset the environment
-  
-There are many obstacles of doing RL on real robots:
- - number of episodes to tune RL (1000-100,000 on model-free RL). Want to be order of 10's or You-Only-Demo-Once
- - Getting access to information. Simulations provide the internal state of objects such as block locations so you can compute distance to block
- - low-end hardware adds more complexity for repeatability
 
 Lessons from ROSwell:
   - Simulations don't match reality at all!  Spent a ton of time trying to get Gazebo physics engine to realistically model a light, top-heavy robot with low-end servos (e.g., dynamixel MX-64).
