@@ -51,7 +51,7 @@ I want to do Reinforcement Learning (RL) on real robots (specifically mobile man
 ROS is a good place to start with real robots, but you'll eventually hit the limits of what custom software can achieve.  Robot perception is still not solved and the best human-designed algorithms leave a lot to be desired.  My hope is that RL can adapt to handle low-end hardware and fill some of the intelligence void in robotics. Unfortunately, RL presents its own set of challenges.  I want to learn these challenges and try to solve subsets of these open-end research problems.
 
 SIR_jetbot_the_first addresses several lessons learned the hard way.
-  - Over time, I've become convinced that Robot Arms should have camera attached directly to the arm and use RL for digital servoing. SIR_jetbot1 does this as with its only sensor - the camera.
+  - Over time, I've become convinced that Robot Arms should have camera attached directly to the arm and use RL for digital servoing. SIR_jetbot1 does this with its only sensor - the RPi camera on its gripper (just below the "wrist").
   - SIR_jetbot1 does discrete moves to avoid realtime processing and also to handle low-end hardware limations (mcp23017 communication rate).
   - on-board Jetson is the most expensive component. Total price of the whole robot is a few hundred dollars.
   - Use imitation-learning to reduce amount of RL episodes that you have to run.
