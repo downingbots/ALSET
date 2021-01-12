@@ -43,6 +43,71 @@ The robot runs in 4 modes: RC telepresence, data-capture, and using trained neur
 
 The #1 rule is no falling off the table (or going out-of-bounds).
 
-The Jetson "notebook" is a cool idea for tutorials, but in practice needs very fast wifi - better than my house has and very fast SSD - faster than I bought.  But putting the gamepad/logitech on the robot and using lower overhead video webstreaming worked fine.
+REINFORCEMENT LEARNING ON REAL ROBOTS: Lessons Learned
+------------------------------------------------------
 
+I want to do Reinforcement Learning (RL) on real robots (specifically mobile manipulators with high-end hobbyist-grade hardware such as dynamixel MX-64 servos.) These robots cost less than a few thousand dollars. Such robots would be considered very low-end by university research robotics labs.
+
+ROS is a good place to start with real robots, but you'll eventually hit the limits of what custom software can achieve.  Robot perception is still not solved and the best human-designed algorithms leave a lot to be desired.  My hope is that RL can adapt to handle low-end hardware and fill some of the intelligence void in robotics. Unfortunately, RL presents its own set of challenges.  I want to learn these challenges and try to solve subsets of these open-end research problems.
+
+SIR_jetbot_the_first addresses several lessons learned the hard way.
+  - Over time, I've become convinced that Robot Arms should have camera attached directly to the arm and use RL for digital servoing. SIR_jetbot1 does this as with its only sensor - the camera.
+  - SIR_jetbot1 does discrete moves to avoid realtime processing and also to handle low-end hardware limations (mcp23017 communication rate).
+  - on-board Jetson is the most expensive component. Total price of the whole robot is a few hundred dollars.
+  - Use imitation-learning to reduce amount of RL episodes that you have to run.
+  
+  There are many obstacles of doing RL on real robots:
+ - number of episodes to tune RL (1000-100,000 on model-free)
+   -- Want to be order of 10's or You-Only-Demo-Once
+ - Getting access to information
+   -- Simulations provide the internal state of objects such
+      as block locations so you can compute distance to block
+ - low-end hardware adds more complexity for repeatability
+
+To solve the problem of getting the state of the environment that simulations can provide for free, you need other external mechanisms to evaluate real-world state:
+  - OpenCV implementations to identify state (e.g., distance from line, location of block)
+  - Separate cameras
+  - add fiducials to objects (e.g., block) in environment
+  - add sensors to objects in environment
+  - Tons of human-interactons to reset the environment
+  
+There are many obstacles of doing RL on real robots:
+ - number of episodes to tune RL (1000-100,000 on model-free RL). Want to be order of 10's or You-Only-Demo-Once
+ - Getting access to information. Simulations provide the internal state of objects such as block locations so you can compute distance to block
+ - low-end hardware adds more complexity for repeatability
+
+Lessons from ROSwell:
+  - Simulations don't match reality at all!  Spent a ton of time
+    trying to get Gazebo physics engine to realistically model
+    a light, top-heavy robot with low-end servos (e.g., dynamixel
+    MX-64).
+  - Problems encountered include incompatible upgrades of components
+  - Difficulty tuning of weights, inertia, friction, pids, transmissions
+  - Physics of rotational friction was way off in all versions of gazebo
+  - Top-heavy robot might flip feet into the air!
+  - Lots of papers on needing different lighting, coloring, etc.
+  - Might as well use no physics engine and assume perfect performance.
+
+Lessons from Donkey-car:
+  - Donkey car perfomance changed as it used up batteries. The RL doesn't adapt for this.
+  - Continuous realtime RL is hard:
+    -- On-board processing needs better performance for continuous
+       realtime RL.
+    -- Off-loaded processing needs better communication performance
+       for continuous realtime RL.
+  - You do a lot of training but still overfits to environment, (fails at big DIY robocar events due to the addition of spectators or change in location.)  You need to train on many tracks, in many lighting conditions, with and without spectators, etc.
+
+Lessons from REPLab:
+  - Intel 3D Realsense camera gave poor results for any single 3D snapshot. Needed to accumulate and integrate results.  Worked around this by using OctoMaps, but this greatly reduces performance.
+    --> most RL just use 2D camera, ignoring 2D camera capabilities.
+  - Used ROS moveit to assume away much of the problem, only using RL for planning the final stage of grasping (e.g., lower straight down from above so only choosing final x/y and theta).
+  - Frequent calibration between robot camera and arm. Simple calibration didn't do very well across robots or across runs on same robot due to overheating or stressing of motors (e.g., pushing down too hard on tray).
+  - Pretrained imagenet models provide some transfer learning for regular cameras, but this doesn't help for 3D cameras.
+  - Using OpenCV to evaluate state needed for RL is almost a difficult as solving the problem itself.  For example,identifying the blocks and stacking them:
+    --> add fiducials to blocks (blah)
+    --> add sensors to blocks (blah)
+  - Need to park arm so that it was away from tray so that state of objects on tray could be accurately assessed.
+
+Lesson from using the Jetson nano:
+  - The Jetson "notebook" is a cool idea for tutorials, but in practice needs very fast wifi - better than my house has and very fast SSD - faster than I bought.  But putting the gamepad/logitech on the robot and using lower overhead video webstreaming worked fine.
 
