@@ -57,7 +57,7 @@ SIR_jetbot_the_first addresses several lessons learned the hard way.
   - Use imitation-learning to reduce amount of RL episodes that you have to run.
   
   There are many obstacles of doing RL on real robots:
- - number of episodes to tune RL (1000-100,000 on model-free)
+ - number of episodes to tune RL (1000-100,000 on model-free). Solving problems like Open AI's DOTA, Deep Mind's Alpha-GO, Open AI's GTP3, etc. requires hundreds of thousands of dollars of computing power. We want to do realtime tuning of RL on a small scale.
    -- Want to be order of 10's or You-Only-Demo-Once
  - Getting access to information
    -- Simulations provide the internal state of objects such
