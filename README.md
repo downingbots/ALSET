@@ -57,11 +57,8 @@ SIR_jetbot_the_first addresses several lessons learned the hard way.
   - Use imitation-learning to reduce amount of RL episodes that you have to run.
   
   There are many obstacles of doing RL on real robots:
- - number of episodes to tune RL (1000-100,000 on model-free). Solving problems like Open AI's DOTA, Deep Mind's Alpha-GO, Open AI's GTP3, etc. requires hundreds of thousands of dollars of computing power. We want to do realtime tuning of RL on a small scale.
-   -- Want to be order of 10's or You-Only-Demo-Once
- - Getting access to information
-   -- Simulations provide the internal state of objects such
-      as block locations so you can compute distance to block
+ - number of episodes to tune RL (1000-100,000 on model-free). Solving problems like Open AI's DOTA, Deep Mind's Alpha-GO, Open AI's GTP3, etc. requires hundreds of thousands of dollars of computing power. We want to do realtime tuning of RL on a small scale. We want to be order of 10 training sessions or You-Only-Demo-Once.
+ - Getting access to state information. Simulations provide the internal state of objects such as block locations so you can compute distance to block.
  - low-end hardware adds more complexity for repeatability
 
 To solve the problem of getting the state of the environment that simulations can provide for free, you need other external mechanisms to evaluate real-world state:
@@ -77,35 +74,25 @@ There are many obstacles of doing RL on real robots:
  - low-end hardware adds more complexity for repeatability
 
 Lessons from ROSwell:
-  - Simulations don't match reality at all!  Spent a ton of time
-    trying to get Gazebo physics engine to realistically model
-    a light, top-heavy robot with low-end servos (e.g., dynamixel
-    MX-64).
+  - Simulations don't match reality at all!  Spent a ton of time trying to get Gazebo physics engine to realistically model a light, top-heavy robot with low-end servos (e.g., dynamixel MX-64).
   - Problems encountered include incompatible upgrades of components
   - Difficulty tuning of weights, inertia, friction, pids, transmissions
   - Physics of rotational friction was way off in all versions of gazebo
-  - Top-heavy robot might flip feet into the air!
+  - Top-heavy robot might flip 10 feet into the air!
   - Lots of papers on needing different lighting, coloring, etc.
   - Might as well use no physics engine and assume perfect performance.
 
 Lessons from Donkey-car:
   - Donkey car perfomance changed as it used up batteries. The RL doesn't adapt for this.
-  - Continuous realtime RL is hard:
-    -- On-board processing needs better performance for continuous
-       realtime RL.
-    -- Off-loaded processing needs better communication performance
-       for continuous realtime RL.
+  - Continuous realtime RL is hard. On-board processing needs better performance for continuous realtime RL. On the other hand, Off-loaded processing to a laptop needs better communication performance for continuous realtime RL.
   - You do a lot of training but still overfits to environment, (fails at big DIY robocar events due to the addition of spectators or change in location.)  You need to train on many tracks, in many lighting conditions, with and without spectators, etc.
 
 Lessons from REPLab:
-  - Intel 3D Realsense camera gave poor results for any single 3D snapshot. Needed to accumulate and integrate results.  Worked around this by using OctoMaps, but this greatly reduces performance.
-    --> most RL just use 2D camera, ignoring 2D camera capabilities.
+  - Intel 3D Realsense camera gave poor results for any single 3D snapshot. Needed to accumulate and integrate results.  Worked around this by using OctoMaps, but this greatly reduces performance. Most RL implementations just use 2D camera, ignoring 2D camera capabilities.
   - Used ROS moveit to assume away much of the problem, only using RL for planning the final stage of grasping (e.g., lower straight down from above so only choosing final x/y and theta).
   - Frequent calibration between robot camera and arm. Simple calibration didn't do very well across robots or across runs on same robot due to overheating or stressing of motors (e.g., pushing down too hard on tray).
   - Pretrained imagenet models provide some transfer learning for regular cameras, but this doesn't help for 3D cameras.
-  - Using OpenCV to evaluate state needed for RL is almost a difficult as solving the problem itself.  For example,identifying the blocks and stacking them:
-    --> add fiducials to blocks (blah)
-    --> add sensors to blocks (blah)
+  - Using OpenCV to evaluate state needed for RL is almost a difficult as solving the problem itself.  For example,identifying the blocks and stacking them can be made easier by adding fiducials pr sensors to blocks (blah)
   - Need to park arm so that it was away from tray so that state of objects on tray could be accurately assessed.
 
 Lesson from using the Jetson nano:
