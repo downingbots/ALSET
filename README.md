@@ -1,4 +1,5 @@
 # SIR_jetbot
+Physics of rotational friction w
 This is SIRjetbot1. The SIR stands for Sharper Image Robot, which I purchased on
  clearance for less than $20. The 1 is because we bought 3 of them that worked.
 
@@ -72,7 +73,7 @@ Lessons from ROSwell:
   - Simulations don't match reality at all!  Spent a ton of time trying to get Gazebo physics engine to realistically model a light, top-heavy robot with low-end servos (e.g., dynamixel MX-64).
   - Problems encountered include incompatible upgrades of components
   - Difficulty tuning of weights, inertia, friction, pids, transmissions
-  - Physics of rotational friction was way off in all versions of gazebo
+  - Physics of torsional friction in gazebo is missing or unrealistic (depending on physics engine release)
   - Top-heavy robot might flip 10 feet into the air!
   - Lots of papers on needing different lighting, coloring, etc.
   - Might as well use no physics engine and assume perfect performance.
