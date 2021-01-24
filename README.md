@@ -1,12 +1,18 @@
 # SIR_jetbot
-Physics of rotational friction w
+
 This is SIRjetbot1. The SIR stands for Sharper Image Robot, which I purchased on
  clearance for less than $20. The 1 is because we bought 3 of them that worked.
+ 
+This robot is an inexpensive platform to run DDQN reinforcement learning. However, 
+the software is not specific to the Sharper Image Robot. In theory, it could easily
+be generalized to many inexpensive RC toys with tracked or differential-drive wheels and 
+an arm or crane or dozer or shovel. Just add a Jetson Nano, battery, and camera mounted
+near the end of the arm/crane/shovel as described below. Contact me if interested.
 
 The Sharper Image robot was hacked as followed:
 
     - Jetson Nano Developer Board with wifi
-    - raspberry pi camera v2 with 2 ft cable mounted on a cookie wheel case
+    - raspberry pi camera v2 with 2 ft cable mounted on a cookie wheel case near the end of the arm.
     - A hacked RC:
         - the inside of the low-end RC control that came with the robot. 
         - You can see/use the buttons here control the robot. 
@@ -16,7 +22,7 @@ The Sharper Image robot was hacked as followed:
         - The expansion board uses I2C to communicate with the Jetson Development board
         - The expansion board is connected to the RC control via wires
     - It is powered by a mongo BONAI 5.6A battery pack
-    - Logitech gamepad
+    - Logitech gamepad joystick
 
 The code started with the Jetson Notebook tutorial on Obstacle avoidance, but was changed 
 significantly. The Notebook tutorials barely ran on my Jetson with the wifi connectivity from my working area. The tutorials were replaced with:
