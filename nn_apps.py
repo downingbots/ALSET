@@ -39,6 +39,7 @@ import time
 import cv2
 import numpy as np
 from .robot import *
+from .sir_ddqn import *
 from .tabletop_functional_nn import *
 from .nn import *
 import time
@@ -46,7 +47,7 @@ import time
 class nn_apps():
     # initialize app registry
     def __init__(self, sir_robot, sir_app_num=None, sir_app_name=None):
-      self.app_registry = [[0, "SIRNN", 1], [1, "TT_func", 8], [2, "TT_DQN", 1]
+      self.app_registry = [[0, "SIRNN", 1], [1, "TT_func", 8], [2, "TT_DQN", 1]]
       if sir_app_num != None:
           if sir_app_num >= len(self.app_registry) or sir_app_num < 0:
               print("Error: unknown app number %d" % sir_app_num)
@@ -55,8 +56,9 @@ class nn_apps():
       else:
           found = False
           for [self.app_num, self.app_name, self.num_nn] in self.app_registry:
-               if sir_app_name == app_name:
+               if sir_app_name == self.app_name:
                    found = True
+                   print("app num/name:", self.app_num, self.app_name)
                    break
           if not found:
               print("Error: unknown app name %s" % sir_app_name)
@@ -79,6 +81,8 @@ class nn_apps():
       self.app_instance.append(SIRNN(sir_robot, self.action_set))
       # 1
       self.app_instance.append(tabletop_functional_nn(sir_robot))
+      # 2
+      self.app_instance.append(SIR_DDQN(True, False))
       robot_dirs = []
       robot_dirs.append("apps")
       for app_reg in self.app_registry:
@@ -115,7 +119,7 @@ class nn_apps():
 
     def set_nn_mode(self, nn_mode):
         i = 0
-        while self.ready_for_frame and nn_mode == "CNN":
+        while self.ready_for_frame and nn_mode == "NN":
             i = i+1
             if i == 1:
                 print("Turning NN off when safe")
@@ -147,7 +151,7 @@ class nn_apps():
         self.ready_for_frame = False
 
     def set_function(self, func):
-        if func == None or func in self.action_set:
+        if func == None or func in self.action_set or func in ["ROBOT_OFF_TABLE_PENALTY", "CUBE_OFF_TABLE_REWARD", "PENALTY", "REWARD"]:
             self.function_name = func
         else:
             print("bad function name: %s" % func)
@@ -178,6 +182,10 @@ class nn_apps():
       # automatic_mode must be set to false until after the directories
       # are created.
       self.app_instance[self.app_num].nn_set_automatic_mode(False)
+
+      # print(self.app_instance[self.app_num])
+      print(self.app_registry[self.app_num][1])
+      print(self.curr_nn_num, gather_mode)
       auto_mode, robot_action_dirs = self.app_instance[self.app_num].nn_init(self.app_registry[self.app_num][1], self.curr_nn_num, gather_mode)
       self.app_instance[self.app_num].nn_set_automatic_mode(auto_mode)
       # probably should use os.path.join()
@@ -193,10 +201,13 @@ class nn_apps():
       return robot_dirs
 
     def nn_process_image(self):
-      action = self.app_instance[self.app_num].nn_process_image(self.curr_nn_num, self.frame)
+      if self.function_name in ["ROBOT_OFF_TABLE_PENALTY", "CUBE_OFF_TABLE_REWARD", "PENALTY", "REWARD"]:
+          rew_pen = self.function_name
+      else:
+          rew_pen = None
+      action = self.app_instance[self.app_num].nn_process_image(self.curr_nn_num, self.frame, reward_penalty = rew_pen)
       if action == None:
           return None
-      action_dir = os.path.join(self.nn_dir, action)
 # called directly from mcp to better handle automatic mode 
 #      if action == "SUCCESS":
 #          # do apps-specific transition to next function-specific NN
@@ -204,7 +215,7 @@ class nn_apps():
 #      elif action == "FAILURE":
 #          # do apps-specific transition to next function-specific NN
 #          self.curr_nn_num = self.app_instance[self.app_num].nn_upon_penalty(self.curr_nn_num)
-      return action_dir
+      return action
 
     def nn_automatic_mode(self):
       return self.app_instance[self.app_num].nn_automatic_mode()

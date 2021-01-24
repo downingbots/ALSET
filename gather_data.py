@@ -5,10 +5,14 @@ import time
 
 class GatherData():
 
-    def save_snapshot(self):
-      directory = os.path.join(self.nn_app.get_snapshot_dir(), self.function_name)
-      # directory = self.robot_dir[self.function_name]
-      self.frame_location = os.path.join(directory, str(uuid1()) + '.jpg')
+    def save_snapshot(self, process_image=False):
+      if (process_image):
+        self.set_process_image(True)
+        self.frame_location = "dummy"
+      else:
+        directory = os.path.join(self.nn_app.get_snapshot_dir(), self.function_name)
+        # directory = self.robot_dir[self.function_name]
+        self.frame_location = os.path.join(directory, str(uuid1()) + '.jpg')
       i = 0
       while self.frame_location != None:
           i = i+1
@@ -18,8 +22,25 @@ class GatherData():
           if i > 100:
               print("save snapshot race condition; break loop")
               break
-      print("save snapshot wait time: %f" % (i*.01))
-      return self.frame_location
+          if self.frame_location == "DONE":
+              exit()
+      print("save snapshot wait time: %f" % (i*.01), self.frame_location)
+      return self.process_image_action
+
+    def set_process_image(self, value):
+        self.process_image_value = value
+
+    def do_process_image(self):
+        return self.process_image_value
+
+    def process_image(self):
+        self.process_image_action = self.nn_app.nn_process_image()
+        directory = os.path.join(self.nn_app.get_snapshot_dir(), self.process_image_action)
+        frame_location = os.path.join(directory, str(uuid1()) + '.jpg')
+        self.set_process_image(False)
+        if self.process_image_action == "DONE":
+            return "DONE"
+        return frame_location
 
     def is_on(self):
         return self.mode
@@ -39,13 +60,18 @@ class GatherData():
         return self.frame_location
 
     def capture_frame_completed(self):
+        if self.frame_location == "DONE":
+            return
         self.frame_location = None
 
 
     def __init__(self, app):
         self.mode = False
+        # wrong. nn_app changes based on NN function
         self.nn_app = app
         self.function_name = None
         self.frame_location = None
         self.speed = .5
+        self.process_image_value = False
+        self.process_image_action = None
         # Video capture is done in __main__()

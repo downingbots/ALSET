@@ -127,7 +127,7 @@ class Robot(SingletonConfigurable):
             pass
         elif direction == "STOP":
           self.gather_data.set_function(None)
-          self.gather_data.set_function("UPPER_ARM_" + direction)
+          self.sir_robot.upper_arm(direction)
         else:
           self.sir_robot.upper_arm(direction)
           self.gather_data.set_function("UPPER_ARM_" + direction)
@@ -173,14 +173,14 @@ class Robot(SingletonConfigurable):
     # run pytorch NN to determine next move
     def set_NN_mode(self, mode): 
         self.NN_apps.set_nn_mode(mode)
-        if mode == "DQN" and self.DQN == None:
-          self.DQN = SJB_DDQN()
+        # if mode == "DQN" and self.DQN == None:
+        #   self.DQN = SJB_DDQN()
 
-    def robot_off_table_penalty(self, mode)
+    def robot_off_table_penalty(self):
         self.gather_data.set_function("ROBOT_OFF_TABLE_PENALTY")
         self.sir_robot.stop_all()
 
-    def cube_off_table_reward()
+    def cube_off_table_reward(self):
         self.gather_data.set_function("CUBE_OFF_TABLE_REWARD")
         self.sir_robot.stop_all()
 
@@ -199,4 +199,10 @@ class Robot(SingletonConfigurable):
 
     def capture_frame_completed(self):
         self.gather_data.capture_frame_completed()
+
+    def do_process_image(self):
+        return self.gather_data.do_process_image()
+
+    def process_image(self):
+        return self.gather_data.process_image()
 

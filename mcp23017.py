@@ -224,7 +224,7 @@ class SIR_control:
           if right_speed != None:
             self.set_speed(self.RIGHT_TRACK, right_speed)
 
-  def pwm_stop(self, take_picture = True):
+  def pwm_stop(self, take_picture = True, process_image = False):
            # stop, no snapshot
            save_pin_val = self.curr_pin_val
            save_pin_io_val = self.curr_pin_io_val
@@ -233,12 +233,14 @@ class SIR_control:
            self.curr_pin_io_val = self.ALL_FUNC
            self.switch_exec(exec_next_pulse=False)
            # restore state for next pulse
-           if self._driver.gather_data.function_name != None:
+           if self._driver.gather_data.function_name != None or process_image:
              if take_picture:
                # take picture and collect data
-               self._driver.gather_data.save_snapshot()
+               action = self._driver.gather_data.save_snapshot(process_image)
              self.curr_pin_val = save_pin_val
              self.curr_pin_io_val = save_pin_io_val
+             if process_image:
+               self.execute_command(action)
              self.switch_exec(exec_next_pulse=True)
 
   def handle_pwm(self, pulse_num):
@@ -246,48 +248,39 @@ class SIR_control:
     self.curr_pwm_pulse = pulse_num
     if self.switch_exec_next_pulse:
       timeout = True
-    #########################################
-    # if gather data mode and automatic mode (as part of functional nn app)
-    #########################################
 
-    if self._robot_driver.NN_apps.app_name == "TT_DQN" and self.gather_data.is_on():
+    #########################################
+    # if gather data mode and TT_DQN reinforcement learning
+    # if NN mode, run NN 
+    #########################################
+    # print(self._driver.NN_apps.app_name, self._driver.gather_data.is_on())
+    if ((self._driver.NN_apps.app_name == "TT_DQN" and self._driver.gather_data.is_on()) or
+       (self._driver.get_NN_mode() == "NN")): 
         # Reinforcement Learning.
-        #  - Capture and store images.
-        #  - Process image to determine next move.
+        #  - Capture, process and store image to determine next move
         #  - Joystick provides reward / penalty
         if self._driver.gather_data.function_name in ["REWARD", "PENALTY", "CUBE_OFF_TABLE_REWARD", "ROBOT_OFF_TABLE_PENALTY"]:
-           print(self._driver.gather_data.function_name)
+           print("tt_dqn func:",self._driver.gather_data.function_name)
            self.stop_all(execute_immediate=True)
-           self._driver.gather_data.save_snapshot()
+           self._driver.gather_data.save_snapshot(process_image = True)
            return
         all_on = self.ALL_FUNC
         functions_not_stopped = all_on ^ self.curr_pin_io_val
         print("active pins, pulse_num:", self._driver.gather_data.function_name,
               bin(functions_not_stopped)[2:].zfill(8), pulse_num)
-        # 0,1,3 (no pic),2 (pic), 4 (go), -> 5,6,8 (nopic) 7 (pic) 9 (go)
-        # nn_automatic_action(self, NN_num, feedback)
-        if (self._driver.gather_data.function_name in ("LEFT", "RIGHT") 
-                and pulse_num in (0,1,3,5,6,8)):
-           self.pwm_stop(take_picture = False)
-        elif (self._driver.gather_data.function_name in ("LEFT", "RIGHT") 
-                and pulse_num in (2,7)):
-           self.pwm_stop(take_picture = True)
-        elif (self._driver.gather_data.function_name in ("LEFT", "RIGHT")):
-           # pwm_go (4, 9)
-           print("go")
-           self.switch_exec(exec_next_pulse=False)
-
-        elif (self._driver.gather_data.function_name in ("PENALTY", "REWARD", "CUBE_OFF_TABLE_REWARD", "ROBOT_OFF_TABLE_PENALTY")):
-           self.pwm_stop(take_picture = True)
-           self._driver.gather_data.function_name = None
-        elif (pulse_num+1) % 5 == 3:
-           self.pwm_stop(take_picture = True)
+        if (pulse_num+1) % 5 == 2:
+            # next pulse: essentially everything is half speed during data collection
+            print("take snapshot, process image, store image")
+            self.pwm_stop(take_picture = True, process_image = True)
+            # action(state) -> next state
+            return
         elif (pulse_num+1) % 5 == 0:
-           # next pulse: essentially everything is half speed during data collection
-           self.switch_exec(exec_next_pulse=False)
-        else:
-           self.pwm_stop(take_picture = False)
+            self.switch_exec(exec_next_pulse=False)
         return
+
+    #########################################
+    # if gather data mode and automatic mode (as part of functional nn app)
+    #########################################
     elif self._driver.gather_data.is_on() and self._driver.NN_apps.nn_automatic_mode():
         action = self._driver.NN_apps.nn_automatic_action(self._driver.gather_data.function_name)
         joystick_action = self._driver.gather_data.function_name
@@ -378,8 +371,11 @@ class SIR_control:
         else:
            self.pwm_stop(take_picture = False)
         return
+
+    #########################################
+    # gather data, not automatic mode, no function name from joystick
+    #########################################
     elif self._driver.gather_data.is_on():
-        # gather data, not automatic mode, no function name from joystick
         all_on = self.ALL_FUNC
         functions_not_stopped = all_on ^ self.curr_pin_io_val
         # print("is_on / no func_nm", bin(functions_not_stopped)[2:].zfill(8), pulse_num)
@@ -534,6 +530,15 @@ class SIR_control:
           self.drive_rotate_left(speed)
       elif command == "RIGHT":
           self.drive_rotate_right(speed)
+      # REWARD/PENALTIES NEEDED FOR DDQN only
+      elif command == "ROBOT_OFF_TABLE_PENALTY":
+          self.stop_all()
+      elif command == "CUBE_OFF_TABLE_REWARD":
+          self.stop_all()
+      elif command == "REWARD":
+          self.stop_all()
+      elif command == "PENALTY":
+          self.stop_all()
       else:
           print("execute_command: command unknown(%s)" % command)
 

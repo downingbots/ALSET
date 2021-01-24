@@ -230,7 +230,7 @@ class SIR_joystick:
                 self._robot_driver.lower_arm("DOWN")
                 self.lower_arm_active = True
             elif self.pressed_button == "y":
-                if self._robot_driver.NN_apps.app_name == "TT_DQN" and self.gather_data.is_on():
+                if self._robot_driver.NN_apps.app_name == "TT_DQN" and self._robot_driver.gather_data.is_on():
                   self._robot_driver.robot_off_table_penalty()
                 else:
                   command.append("LOWER_ARM")
@@ -248,7 +248,7 @@ class SIR_joystick:
                 self._robot_driver.upper_arm("DOWN")
                 self.upper_arm_active = True
             elif axis == "hat0y" and fvalue < -.9:
-                if self._robot_driver.NN_apps.app_name == "TT_DQN" and self.gather_data.is_on():
+                if self._robot_driver.NN_apps.app_name == "TT_DQN" and self._robot_driver.gather_data.is_on():
                   self._robot_driver.cube_off_table_reward()
                 else:
                   command.append("UPPER_ARM")
@@ -276,7 +276,7 @@ class SIR_joystick:
                 self._robot_driver.wrist("STOP")
                 self.wrist_active = False
             if self.pressed_button == "x":
-                if self._robot_driver.NN_apps.app_name == "TT_DQN" and self.gather_data.is_on():
+                if self._robot_driver.NN_apps.app_name == "TT_DQN" and self._robot_driver.gather_data.is_on():
                     pass
                 else:
                     command.append("GRIPPER")
@@ -284,7 +284,7 @@ class SIR_joystick:
                     self._robot_driver.gripper("OPEN")
                     self.gripper_active = True
             elif self.pressed_button == "b":
-                if self._robot_driver.NN_apps.app_name == "TT_DQN" and self.gather_data.is_on():
+                if self._robot_driver.NN_apps.app_name == "TT_DQN" and self._robot_driver.gather_data.is_on():
                     pass
                 else:
                     command.append("GRIPPER")

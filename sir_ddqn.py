@@ -1,15 +1,27 @@
 # https://github.com/higgsfield/RL-Adventure/blob/master/2.double%20dqn.ipynb
 
 import math, random
+# from builtins import bytes
+import codecs
+from PIL import Image
+import cv2
 
 # import gym
 import numpy as np
+import collections, itertools
 
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.autograd as autograd 
 import torch.nn.functional as F
+# import torch.ops
+# import torch.ops.image
+# from torch import read_file, decode_image
+
+import pickle
+
+# import sir_image 
 
 # from IPython.display import clear_output
 # import matplotlib.pyplot as plt
@@ -18,28 +30,130 @@ import torch.nn.functional as F
 
 from collections import deque
 
-class ReplayBuffer(object):
-    def __init__(self, capacity):
+# workaround due to ReplayBuffer pickling/unpickling and class evolution
+def static_vars():
+    static_vars.name = []
+    static_vars.sample_start = []
+static_vars.name = []
+static_vars.sample_start = []
+
+# class ReplayBuffer(object):
+class ReplayBuffer():
+    def __init__(self, capacity, name="replay"):
         self.buffer = deque(maxlen=capacity)
+        static_vars.name.append(name)
+        static_vars.sample_start.append(0)
     
-    def push(self, state, action, reward, next_state, done):
+    def push(self, state, action, reward, next_state, done, q_val):
         state      = np.expand_dims(state, 0)
         next_state = np.expand_dims(next_state, 0)
             
-        self.buffer.append((state, action, reward, next_state, done))
+        self.buffer.append((state, action, reward, next_state, done, q_val))
     
-    def sample(self, batch_size):
-        state, action, reward, next_state, done = zip(*random.sample(self.buffer, batch_size))
-        return np.concatenate(state), action, reward, np.concatenate(next_state), done
-    
+    def random_sample(self, batch_size):
+        state, action, reward, next_state, done, q_val = zip(*random.sample(self.buffer, batch_size))
+        return np.concatenate(state), action, reward, np.concatenate(next_state), done, q_val
+
+    def find_done(self, start=0):
+        len_buf = len(self.buffer)
+        random_start = random.randint(0,(len_buf-1))
+        for i in range(start, len_buf):
+           state, action, reward, next_state, done, q_val = zip(*itertools.islice(self.buffer,i,i+1))
+           if done[0]:
+             # print("find_done:", i, done[0])
+             return(i+1)
+        return None
+
+    def reset_sample(self, name="replay", start=0):
+        for i, nm in enumerate(static_vars.name):
+            if name==nm:
+               if start is not None:
+                  static_vars.sample_start[i] = start
+               return i
+        print("reset_sample ", name, " returns None buf_id")
+        return None
+
+    def get_next_sample(self, batch_size, name="replay", start=None):
+        buf_id = self.reset_sample(name,start)
+        len_buf = len(self.buffer)
+        done_end = None
+        done_end = self.find_done(static_vars.sample_start[buf_id])
+        if done_end == None:
+          static_vars.sample_start[buf_id] = 0
+          return None, None, None, None, None, None
+        elif done_end - static_vars.sample_start[buf_id] > batch_size:
+          done_end = static_vars.sample_start[buf_id] + batch_size 
+        # print("gns:", static_vars.sample_start, done_end, len_buf)
+        state, action, reward, next_state, done, q_val = zip(*itertools.islice(self.buffer,static_vars.sample_start[buf_id], done_end))
+        static_vars.sample_start[buf_id] = done_end
+        return np.concatenate(state), action, reward, np.concatenate(next_state), done, q_val
+
+    def clear(self):
+        self.buffer.clear()
+
+    def concat(self, replay_buffer):
+        state, action, reward, next_state, done, dummy_q_val = zip(*replay_buffer.buffer[-1])
+        assert done, "last entry must be completion of run"
+        self.buffer += replay_buffer.buffer
+        replay.buffer.clear()
+
+    def compute_real_q_values(self, gamma=.99, name="replay", sample_start=0, done_end=None):
+        buf_id = self.reset_sample(name,sample_start)
+        if done_end is None:
+          done_end = len(self.buffer)
+        try:
+          state, action, reward, next_state, done, dummy_q_val = zip(*itertools.islice(self.buffer,sample_start,done_end))
+          add_q_val = False
+        except:
+          state, action, reward, next_state, done = zip(*itertools.islice(self.buffer,sample_start,done_end))
+          print("No qval in replay buffer. Adding qval.")
+          add_q_val = True
+        print("len done:", len(done), done_end-sample_start, done_end, sample_start)
+        assert done[done_end-sample_start-1], "Only compute real q values upon completion of run"
+        next_q_val = 0
+        q_val = 0
+        len_reward = len(reward)
+        converted = False
+        for i,reward_val in enumerate(reversed(reward)):
+            d = len_reward - i - 1
+            if done[d]:
+              next_q_val = 0
+            else:
+              next_q_val = q_val # "next" because iterating in reverse order
+            q_val = reward_val + gamma * next_q_val
+            offset = done_end - sample_start - i - 1
+            if add_q_val:
+              assert len(self.buffer[sample_start+offset])==5,"Wrong number of entries in replay buffer"
+              lst = list(self.buffer[sample_start+offset])
+              lst.append(q_val)
+              self.buffer[sample_start+offset] = tuple(lst)
+              assert len((self.buffer[sample_start+offset]))==6,"Wrong # of entries in replay buffer"
+              converted = True
+            else:
+              lst = list(self.buffer[sample_start+offset])
+              lst[5] = q_val
+              self.buffer[sample_start+offset] = tuple(lst)
+        if converted:
+            print("Added q_val to replay_buffer")
+
     def __len__(self):
         return len(self.buffer)
 
+    def entry_len(self):
+        if len(self.buffer) > 0:
+          return len(self.buffer[0])
+        return None
 
 ##############
 # Initially defined for atari env
 ##############
-import torchvision
+import torchvision 
+import torchvision.io
+# import torchvision.io.image
+# from torchvision.io.image import read_image
+# from torchvision.io import read_image
+# import image
+# from .sir_image import read_image
 import torchvision.datasets as datasets
 import torchvision.models as models
 import torchvision.transforms as transforms
@@ -106,6 +220,7 @@ class CnnDQN():
         #############
         # https://pytorch.org/tutorials/beginner/finetuning_torchvision_models_tutorial.html
         feature_extract = True
+        # feature_extract = False
         self.alexnet_model = models.alexnet(pretrained=True)
         self.set_parameter_requires_grad(self.alexnet_model, feature_extract)
         # num_features should be 4096
@@ -224,8 +339,13 @@ class CnnDQN():
             for param in model.parameters():
                 param.requires_grad = False
 
+    def train(self):
+        self.alexnet_model.train()
+    def eval(self):
+        self.alexnet_model.eval()
 
-    def train_model(self, dataloaders, criterion, optimizer):
+    # this trains the Functional NN -> output is the action to perform
+    def train_Functional_NN(self, dataloaders, criterion, optimizer):
         since = time.time()
     
         val_acc_history = []
@@ -346,45 +466,33 @@ class CnnDQN():
 #    
 #    def feature_size(self):
 #        return self.features(autograd.Variable(torch.zeros(1, *self.input_shape))).view(1, -1).size(1)
-    
-    def transform_image(self, image_filepath):
-        # data transforms, for pre-processing the input image before feeding into the net
-        data_transforms = transforms.Compose([
-                                              transforms.Resize((224,224)),  # resize to 224x224
-                                              transforms.ToTensor(),         # tensor format
-                                              transforms.Normalize([0.485, 0.456, 0.406],
-                                              [0.229, 0.224, 0.225])  ])
-        # open the testing image
-        img = Image.open(image_filepath)
-        # pre-process the input
-        transformed_img = data_transforms(img)
-        return transformed_img
-
-    def act(self, state, epsilon):
-        if random.random() < self.epsilon:
-            action = random.randrange(self.num_actions)
-            return action
-        self.act(state)
 
     def act(self, state):
-        # state is an image file, preappend path prefix
-        image_filepath = self.PATH_PREFIX + state
-        transformed_img = transform_image(image_filepath)
-        # print("transformed image's shape: " + str(transformed_img.shape))
-        # form a batch with only one image
-        batch_img = torch.unsqueeze(transformed_img, 0)
+        # make an image of size 1
+        # batch_img = torch.unsqueeze(transformed_img, 0)
         # print("image batch's shape: " + str(batch_img.shape))
 
         # put the model to eval mode for testing
         self.alexnet_model.eval()
         # obtain the output of the model
-        q_value = self.alexnet_model(batch_img)
+        # RuntimeError: Expected object of device type cuda but got device type cpu for argument #1 'self' in call to _thnn_conv2d_forward
+
+        q_value = self.alexnet_model(state)
+        # q_value = self.current_model(state)
         # print("output vector's shape: " + str(q_value.shape))
 
         # obtain the activation maps
         # visualize_activation_maps(batch_img, self.alexnet_model)
         # sorted, indices = torch.sort(q_value, descending=True)
         # percentage = F.softmax(output, dim=1)[0] * 100.0
+
+
+        ###############################
+        # 
+        #               outputs = model(inputs)
+        #               loss = criterion(outputs, labels)
+        #           _, preds = torch.max(outputs, 1)
+
         action  = q_value.max(1)[1].data[0]
         return action
 
@@ -411,20 +519,23 @@ class CnnDQN():
 #  NN8. Drop cube in box and back away
 # 
 import os
+import os.path as osp
+import importlib.machinery
 
 # class SIR_DDQN(nn.Module):
 class SIR_DDQN():
 
-    def __init__(self, initialize_model=False):
-        self.TTFUNC_DATASET_INDEX_FILE = "./apps/tt_func/dataset/run_details_sorted.txt"
-        self.TTFUNC_PATH_PREFIX = './apps/tt_func/dataset/'
-        self.BEST_MODEL_PATH = './apps/tt_ddq/dataset/best_model.pth'
-        self.TTDQN_DATASET_INDEX_FILE = "./apps/tt_dqn/dataset/run_details_sorted.txt"
-        self.TTDQN_PATH_PREFIX = './apps/tt_dqn/dataset/'
+    def __init__(self, initialize_model=False, do_train_model=False):
+        self.TTFUNC_DATASET_INDEX_FILE = "./apps/TT_func/dataset/run_details_sorted.txt"
+        self.TTFUNC_PATH_PREFIX = './apps/TT_func/dataset/'
+        self.BEST_MODEL_PATH = './apps/TT_DQN/dataset/best_model.pth'
+        self.TTDQN_DATASET_INDEX_FILE = "./apps/TT_DQN/dataset/run_details_sorted.txt"
+        self.TTDQN_PATH_PREFIX = "./apps/TT_DQN/dataset/"
+        self.REPLAY_BUFFER_PATH = './apps/TT_DQN/dataset/replay_buffer.data'
 
         # these are the directories. Joystick can specify reward/penalty + robot actions.
-        self.actions = { "FORWARD", "REVERSE", "LEFT", "RIGHT", "LOWER_ARM_DOWN", "LOWER_ARM_UP", "UPPER_ARM_DOWN", "UPPER_ARM_UP", "GRIPPER_OPEN", "GRIPPER_CLOSE", "REWARD", "PENALTY", "ROBOT_OFF_TABLE_PENALTY", "CUBE_OFF_TABLE_REWARD", "NOOP"}
-        self.robot_actions = { "FORWARD", "REVERSE", "LEFT", "RIGHT", "LOWER_ARM_DOWN", "LOWER_ARM_UP", "UPPER_ARM_DOWN", "UPPER_ARM_UP", "GRIPPER_OPEN", "GRIPPER_CLOSE"}
+        self.actions = ( "FORWARD", "REVERSE", "LEFT", "RIGHT", "LOWER_ARM_DOWN", "LOWER_ARM_UP", "UPPER_ARM_DOWN", "UPPER_ARM_UP", "GRIPPER_OPEN", "GRIPPER_CLOSE", "REWARD", "PENALTY", "ROBOT_OFF_TABLE_PENALTY", "CUBE_OFF_TABLE_REWARD", "NOOP")
+        self.robot_actions = ( "FORWARD", "REVERSE", "LEFT", "RIGHT", "LOWER_ARM_DOWN", "LOWER_ARM_UP", "UPPER_ARM_DOWN", "UPPER_ARM_UP", "GRIPPER_OPEN", "GRIPPER_CLOSE")
 
         # Reward computation constants
         self.ALLOCATED_MOVES_CUBE_PICKUP =  300.0
@@ -460,8 +571,11 @@ class SIR_DDQN():
         ############
         # DDQN variables
         ############
-        self.replay_initial = 10000
-        self.replay_buffer  = ReplayBuffer(100000)
+        # self.replay_initial = 10000
+        self.replay_initial = 5000   # assumes that this is immitation learning data
+        self.replay_buffer  = ReplayBuffer(capacity=100000, name="replay")
+        # allow for 20 rewards in active buffer
+        self.active_buffer  = ReplayBuffer(capacity=self.MAX_MOVES+20, name="active")  
         
         # self.epsilon_by_frame = lambda frame_idx: epsilon_final + (epsilon_start - epsilon_final) * math.exp(-1. * frame_idx / epsilon_decay)
         
@@ -470,7 +584,8 @@ class SIR_DDQN():
         self.batch_size = 32
         self.gamma      = 0.99
 
-        self.Variable = lambda *args, **kwargs: autograd.Variable(*args, **kwargs).cuda() if USE_CUDA else autograd.Variable(*args, **kwargs)
+        self.USE_CUDA = torch.cuda.is_available()
+        self.Variable = lambda *args, **kwargs: autograd.Variable(*args, **kwargs).cuda() if self.USE_CUDA else autograd.Variable(*args, **kwargs)
         
         # self.losses = []
         # self.all_rewards = []
@@ -480,21 +595,37 @@ class SIR_DDQN():
         # add to history
         
         self.num_actions = len(self.robot_actions)
+        self.current_model = None
+        self.target_model = None
+        self.init_model = initialize_model
+        self.train_model = do_train_model
+        
+    def nn_init(self, app_name, NN_num, gather_mode=False):
         self.current_model = CnnDQN(self.num_actions)
         self.target_model = CnnDQN(self.num_actions)
-        if (initialize_model):
+        if (self.init_model):  # probably done on laptop
             self.parse_dataset(self.TTFUNC_DATASET_INDEX_FILE, self.TTDQN_PATH_PREFIX)
+            self.save_replay_buffer()
+            if (self.train_model):
+              self.train_DQN_qvalue()
         else:
-            self.current_model.load_state_dict(torch.load(self.BEST_MODEL_PATH))
+            self.load_replay_buffer()
+            if (self.train_model):
+              self.train_DQN_qvalue()
+            else:
+              self.current_model.load_state_dict(torch.load(self.BEST_MODEL_PATH))
 
-        # target_model = CnnDQN(env.observation_space.shape, env.action_space.n)
-        # if USE_CUDA:
-        #     current_model = current_model.cuda()
-        #     target_model  = target_model.cuda()
-            
+        # self.frame_num = len(self.active_buffer)
+        self.frame_num = 0
         # target_model = copy.deepcopy(current_model)
         self.update_target(self.current_model, self.target_model)
-        
+        # robot DQN can return self.robot_actions
+        # joystick + robot can return self.actions
+        return False, self.actions
+
+
+    def nn_set_automatic_mode(self, TF):
+        pass
 
     def update_target(self, current_mdl, target_mdl):
         target_mdl.load_state_dict(current_mdl.state_dict())
@@ -503,37 +634,238 @@ class SIR_DDQN():
         ## t_state = target_mdl.state_dict()
         ##  t_state.update(current_mdl.state_dict())
     
-    def compute_td_loss(self, batch_size, path_prefix):
-        state, action, reward, next_state, done = self.replay_buffer.sample(batch_size)
+    def transform_image(self, img, mode='val'):
+        # data transforms, for pre-processing the input image before feeding into the net
+        # Data augmentation and normalization for training
+
+        # Just normalization for validation
+#        input_size = 224
+#        data_transforms = {
+#            'train': transforms.Compose([
+#                transforms.RandomResizedCrop(input_size),
+#                transforms.RandomHorizontalFlip(),
+#                transforms.ToTensor(),
+#                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+#            ]),
+#            'val': transforms.Compose([
+#                transforms.Resize(input_size),
+#                transforms.CenterCrop(input_size),
+#                transforms.ToTensor(),
+#                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+#            ]),
+#        }
+#        transformed_img = {data_transforms[mode](img)}
+        data_transforms = transforms.Compose([
+            transforms.Resize((224,224)),  # resize to 224x224
+            transforms.ToTensor(),         # tensor format
+            transforms.Normalize([0.485, 0.456, 0.406],
+                [0.229, 0.224, 0.225])  ])
+        # pre-process the input
+        transformed_img = data_transforms(img)
+        # transformed_img = transforms(transformed_img.to("cuda")) # done in Variable decl
+        return transformed_img
+
+    def transform_image_from_path(self, image_filepath):
+        # state_image = []
+        for batch_item_num, path in enumerate(image_filepath):
+            try:
+                #filepath = self.TTFUNC_PATH_PREFIX + bytestring.decode(path)
+                #filepath = self.TTFUNC_PATH_PREFIX + path.decode("utf-8").strip('\n')
+                # filepath = self.TTFUNC_PATH_PREFIX + path.astype("U13").str.strip('\n')
+                try:
+                  filepath = self.TTFUNC_PATH_PREFIX + path.decode("utf-8").strip('\n')
+                except:
+                  print("path:", path)
+                  filepath = str(self.TTFUNC_PATH_PREFIX) + str(path.astype("U13")).strip('\n')
+                # print("1 ", filepath)
+                img = Image.open(filepath)
+                img = self.transform_image(img)
+                # TypeError: float() argument must be a string or a number, not 'set'
+                img = self.Variable(torch.FloatTensor(np.float32(img)))
+                state_image = torch.unsqueeze(img, 0)
+                # unsqueeze to add artificial first dimension
+                # img = ToTensor()(img).unsqueeze(batch_item_num) 
+                # img = torch.unsqueeze(img, 0)
+                # if batch_item_num == 0:
+                #    state_image = img
+                #else:
+                #    state_image = torch.cat((state_image,img),0)
+
+	        # read input image
+	        # input_img = cv2.imread(img_path)
+	        # do transformations
+	        # img = self.transform_image(input_img)
+	        # img = transform_image(input_img)["image"]
+	        # batch_data = torch.unsqueeze(input_data, 0)
+
+                ## JIT loader doesn't seem to work on Jetson for image file...
+                ## lib_dir = osp.abspath(osp.join(osp.dirname(__file__), ".."))
+                ## loader_details = (
+                ##     importlib.machinery.ExtensionFileLoader,
+                ##     importlib.machinery.EXTENSION_SUFFIXES
+                ## )
+                ## extfinder = importlib.machinery.FileFinder(lib_dir, loader_details)  
+                ## ext_specs = extfinder.find_spec("image")
+                ## if ext_specs is not None:
+                ##   torch.ops.load_library(ext_specs.origin)
+                ## img = torch.ops.image.read_file(path)
+                ## img = torch.ops.image.decode_image(img)
+                # img = read_file(path)
+                # img = decode_image(img)
+                # img = torch.ops.read_file(path)
+                # img = torch.ops.decode_image(img)
+                # img = read_image(filepath)
+                # img = decode_image(img)
+                # img = torchvision.io.image.read_image(filepath)
+                # img = torchvision.io.image.decode_image(img)
+                # img = Image.open(filepath)
+                # filehandle = open(filepath, 'r')
+                # img  = cv2.imread(filepath)
+                # load the raw data from the file as a string
+                # img = tf.io.read_file(file_path)
+                # img = tf.image.decode_jpeg(img, channels=3)
+
+            except:
+                filepath = self.TTDQN_PATH_PREFIX + path.decode("utf-8").strip('\n')
+                # print("2 ", filepath)
+                img = Image.open(filepath)
+                img = self.transform_image(img)
+                img = torch.unsqueeze(img, 0)
+                if batch_item_num == 0:
+                    state_image = img
+                else:
+                    state_image = torch.cat((state_image,img),0)
+            # close the pointer to that file
+            # img.close()
+        # state_image = tuple(state_image)
+        return state_image
+
+    # import json
+    # json.dump(self.replay_buffer, filehandle)
+    # json.load(filehandle)
+    def save_replay_buffer(self):
+        with open(self.REPLAY_BUFFER_PATH, 'wb') as filehandle:
+          # store the data as binary data stream
+          pickle.dump(self.replay_buffer, filehandle)
+        filehandle.close()
+
+    def load_replay_buffer(self):
+        with open(self.REPLAY_BUFFER_PATH, 'rb') as filehandle:
+          self.replay_buffer = pickle.load(filehandle)
+        filehandle.close()
+        print("loaded replay_buffer. Len = ", len(self.replay_buffer))
+        if self.replay_buffer.entry_len() == 5:
+          # state, action, reward, next_state, done
+          print("adding q_values to replay_buffer")
+          self.replay_buffer.compute_real_q_values(gamma=self.gamma)
+          self.save_replay_buffer()
+
+    def train_DQN_qvalue(self):
+        loss = 0
+        while loss is not None:
+          loss = self.compute_td_loss(batch_size = self.batch_size, mode = "IMITATION_TRAINING")
+        self.current_model.save_state(self.BEST_MODEL_PATH)
+        print("Initial model trained by imitation learning")
+
+    def shape(self, tensor):
+        # s = tensor.get_shape()
+        s = tensor.size()
+        print("s: ", s)
+        return tuple([s[i].value for i in range(0, len(s))])
+
+    def compute_td_loss(self, batch_size=32, mode="REAL_Q_VALUES"):
+        self.current_model.train()  # Set model to training mode
+        if mode == "IMITATION_TRAINING":
+          state_path, action, rewards, next_state_path, done_val, q_val = self.replay_buffer.get_next_sample(batch_size)
+        elif mode == "REAL_Q_VALUES":
+          state_path, action, rewards, next_state_path, done_val, q_val = self.active_buffer.get_next_sample(batch_size=batch_size, name="active")
+        elif mode == "EXPERIENCE_REPLAY":
+          # The learning phase is then logically separate from gaining experience, and based on 
+          # taking random samples from the buffer. 
+          #
+          # Advantages: More efficient use of previous experience, by learning with it multiple times.
+          # This is key when gaining real-world experience is costly, you can get full use of it.
+          # The Q-learning updates are incremental and do not converge quickly, so multiple passes 
+          # with the same data is beneficial, especially when there is low variance in immediate 
+          # outcomes (reward, next state) given the same state, action pair.
+          #
+          # Disadvangage: It is harder to use multi-step learning algorithms
+          state_path, action, rewards, next_state_path, done_val, q_val = self.replay_buffer.random_sample(batch_size)
+        else:
+          print("Unknown mode for computed td_loss:", mode)
+          exit()
+        try:
+          if state_path is None:
+            print("Completed replay buffer training.")
+            return None
+        except:
+          pass
 
         # transform state paths to images
-        img_filepath = path_prefix + state
-        state = self.transform_image(img_filepath)
-        img_filepath = path_prefix + next_state
-        next_state = self.transform_image(img_filepath)
+        # print(state_path, next_state_path)
+        # print(rewards, action, done_val)
+        state        = self.transform_image_from_path(state_path)
+        next_state   = self.transform_image_from_path(next_state_path)
         # transform action string to number
-        action = self.actions.index(action)
+        # print("self.actions:",self.robot_actions)
+        action_idx = []
+        for a in action:
+          action_idx.append(self.robot_actions.index(a))  # Human readable to integer index
+        action_idx = tuple(action_idx)
+        # print("action:",action)
+        # print("action_idx:",action_idx)
 
-        state      = self.Variable(torch.FloatTensor(np.float32(state)))
-        next_state = self.Variable(torch.FloatTensor(np.float32(next_state)))
-        action     = self.Variable(torch.LongTensor(action))
-        reward     = self.Variable(torch.FloatTensor(reward))
-        done       = self.Variable(torch.FloatTensor(done))
-    
-        q_values      = self.current_model.act(state)
-        next_q_values = self.current_model.act(next_state)
-        next_q_state_values = self.target_model.act(next_state) 
-    
-        q_value       = q_values.gather(1, action.unsqueeze(1)).squeeze(1) 
-        next_q_value = next_q_state_values.gather(1, torch.max(next_q_values, 1)[1].unsqueeze(1)).squeeze(1)
-        expected_q_value = reward + gamma * next_q_value * (1 - done)
-        
-        loss = (q_value - self.Variable(expected_q_value.data)).pow(2).mean()
-            
+        # 4-D tensors are for batches of images, 3-D tensors for individual images.
+        # image_batch is a tensor of the shape (32, 180, 180, 3)
+        # already a Tensor
+        # state      = self.Variable(torch.FloatTensor(np.float32(state)))
+        # next_state = self.Variable(torch.FloatTensor(np.float32(next_state)))
+
+        action_idx = self.Variable(torch.LongTensor(action_idx))
+        reward     = self.Variable(torch.FloatTensor(rewards))
+        done       = self.Variable(torch.FloatTensor(done_val))
+        q_val      = self.Variable(torch.FloatTensor(q_val))  # real q value computed from done end-pt
+
+        # Computed q-values from Alexnet
+        current_q_values      = self.current_model.alexnet_model(state)
+        current_next_q_values = self.current_model.alexnet_model(next_state)
+        target_next_q_values  = self.target_model.alexnet_model(next_state)
+        # print(current_q_values)
+        # print(current_next_q_values)
+        # print(target_next_q_values)
+
+        q_value      =     current_q_values.gather(1, action_idx.unsqueeze(0)).squeeze(1)
+        # print("q_value", q_value)
+        next_q_value = target_next_q_values.gather(1, torch.max(current_next_q_values, 1)[1].unsqueeze(1)).squeeze(1)
+
+        # the real q value is precomputed in q_val
+        # the real q value is likely dependent on a reward beyond the batch size.
+        expected_q_value = reward + self.gamma * next_q_value * (1-done)
+        # print("expected_q_value: ", expected_q_value)
+        # print("q_value         : ", q_value)
+        # print("next_q_value    : ", next_q_value)
+        print("reward: ", reward)
+        print("q_val : ", q_val)
+        if mode == "IMITATION_TRAINING":
+          loss = (q_value - q_val).pow(2).mean()
+          print("q_value:", q_value)
+          print("IMITATION_TRAINING:", loss)
+        elif mode == "REAL_Q_VALUES":
+          loss = (q_value - q_val).pow(2).mean()
+          print("q_value:", q_value)
+          print("REAL_Q_VALUES:", loss)
+        elif mode == "EXPERIENCE_REPLAY":
+          loss = (q_value - expected_q_value).pow(2).mean()
+          print("exp_q_value:", expected_q_value)
+          print("EXPERIENCE_REPLAY FROM TARGET:", loss)
+          # loss = (q_value - expected_q_value.data).pow(2).mean()
+          # loss = (q_value - q_val).pow(2).mean()
+          # print("EXPERIENCE_REPLAY WITH REAL Q_VAL:", loss)
+
+        self.current_model.train()  # Set model to training mode
         self.current_model.alexnet_optimizer.zero_grad()
         loss.backward()
         self.current_model.alexnet_optimizer.step()
-        
         return loss
     
 #    def plot(self, frame_num, rewards, losses):
@@ -564,7 +896,7 @@ class SIR_DDQN():
           return (reward / self.estimated_variance), done
         elif action == "CUBE_OFF_TABLE_REWARD":
           return (self.CUBE_OFF_TABLE_REWARD / self.estimated_variance), True
-        elif action == "ROBOT_OFF_TABLE_PENALTY":
+        elif action == "ROBOT_OFF_TABLE_PENALTY" or action == "PENALTY":
           return (self.ROBOT_OFF_TABLE_PENALTY / self.estimated_variance), True
         elif self.curr_phase == self.POST_CUBE or self.curr_phase == self.PRE_CUBE:
           return (self.PER_MOVE_PENALTY / self.estimated_variance), False
@@ -610,84 +942,59 @@ class SIR_DDQN():
         if not found:
           print("action not found: ", line)
         return line_action 
-    
+
     # for parsing either TT_FUNC or TT_DQN app dataset
     def parse_dataset(self, filename, app_path_prefix):
         # open the file for reading
         filehandle = open(filename, 'r')
-        #
-        # format of DATASET_INDEX_FILE:
-        #  "18:31:28 ./NN1/LOWER_ARM_DOWN/a1099b28-4334-11eb-8cce-3413e860d1ff.jpg"
-        #   0123456789012345
-        # # fixed size offsets
-        # file   = line[9] 
-        # NN#    = line[13]
-        # action = line[15]
-        # 
-        FILE_OFFSET   = 9
-      
-        frame_num = 1
-        reward = 0
-        done = True
-        while True:
-          if done:
-            # initialize; no reward on first move!
-            frame_num = 1
-            self.curr_phase = self.PRE_CUBE
-            prev_action = None
-            prev_state = None
-            line = filehandle.readline()
-            if not line:
-              break
-            action = self.get_action(line)
-            state = line[FILE_OFFSET:]
-            done = False
-          # read a single line
-          next_line = filehandle.readline()
-          if not next_line:
-              print("no next line")
-              break
-          next_action = self.get_action(next_line)
-          if next_action == "NOOP":
-            # NOOP is only for multi-function NN apps in automatic mode and no replay_buffer.
-            print("NOOP")
-            continue
-          next_state = next_line[FILE_OFFSET:]
-          nn_num = int(next_line[13:14]) 
-          # print("action ", action, " NN# ", nn_num)
-          print("action ", action, frame_num, self.curr_phase)
-          reward, done = self.compute_reward(frame_num, action)
-          if reward != 0:
-            print("reward:", reward*self.estimated_variance, done)
-          if action == "REWARD":
-            self.replay_buffer.push(prev_state, prev_action, reward, state, done)
-          else:
-            self.replay_buffer.push(state, action, reward, next_state, done)
-          frame_num += 1
-          prev_state  = state
-          prev_action = action
-          state  = next_state
-          action = next_action
-          if len(self.replay_buffer) > self.replay_initial:
-            loss = compute_td_loss(batch_size, app_path_prefix)
-          if frame_num % 1000 == 0 or done:
-            self.update_target(self.current_model, self.target_model)
-          if done:
-            # self.all_rewards.append(self.total_reward)
-            self.current_model.save_state(self.BEST_MODEL_PATH)
-            print("completed run")
-
+        encoded_img = filehandle.read()
         # close the pointer to that file
         filehandle.close()
-    
-    def process_frame(self, next_state):
-        epsilon_start = 1.0
+
+    def nn_process_image(self, NN_num, next_state, reward_penalty = None):
+        # NN_num is unused by ddqn, but keeping nn_apps API
+
+        if len(self.replay_buffer) > self.replay_initial:
+            # assume immitation learning initialization reduces need for pure random ations
+            epsilon_start = .3 * self.replay_initial / len(self.replay_buffer)
+        else:
+            epsilon_start = 1.0
         epsilon_final = 0.01
         epsilon_decay = 30000
         epsilon_by_frame = lambda frame_idx : epsilon_final + (epsilon_start - epsilon_final) * math.exp(-1. * frame_idx / epsilon_decay)
-        epsilon = epsilon_by_frame(self.frame_num)
+        fr_num = self.frame_num + len(self.replay_buffer)
+        epsilon = epsilon_by_frame(fr_num)
+        rand_num = random.random()
 
-        next_action = current_model.act(next_state, epsilon)
+        if reward_penalty in ["REWARD", "PENALTY", "ROBOT_OFF_TABLE_PENALTY", "CUBE_OFF_TABLE_REWARD"]:
+            next_action = reward_penalty
+            print("reward/penalty: ", next_action)
+        elif rand_num < epsilon:
+            next_action_num = random.randrange(self.num_actions)
+            next_action = list(self.robot_actions)[next_action_num]
+            print("random action: ", next_action, epsilon, rand_num, fr_num, self.frame_num)
+        else:
+            # print("next_state:",next_state)
+            # next_state = self.transform_image_from_path(next_state)
+            # next_state = self.transform_image(next_state)
+            # next_state = torch.unsqueeze(next_state, 0)
+
+            # (0): Conv2d(3, 64, kernel_size=(11, 11), stride=(4, 4), padding=(2, 2)), weights=((64, 3, 11, 11), (64,)), parameters=23296
+            #  weight 64 3 11 11, but got 3-dimensional input of size [224, 224, 3] instead
+            # RuntimeError: Given groups=1, weight of size 64 3 11 11, expected input[1, 224, 224, 3] to have 3 channels, but got 224 channels instead
+
+
+            next_state = next_state.transpose((2, 0, 1))
+            next_state_tensor = self.Variable(torch.FloatTensor(np.float32(next_state)))
+            next_state_tensor = torch.unsqueeze(next_state_tensor, 0)
+            # batch_item_num = 0 
+            ## Doesn't use CUDA. Use self.Variable()
+            # next_state_tensor = torchvision.transforms.ToTensor()(next_state).unsqueeze(batch_item_num) 
+            # next_state_tensor = torch.unsqueeze(next_state_tensor, 0)
+            # torch.transpose(next_state_tensor, 0, 1)
+            next_action_num = self.current_model.act(next_state_tensor)
+            next_action = list(self.robot_actions)[next_action_num]
+            print("NN: ", next_action)
         if self.frame_num == 0 and self.state == None:
           self.frame_num += 1
           self.state  = next_state
@@ -699,31 +1006,44 @@ class SIR_DDQN():
         # Note that events like REWARD/PENALTY aren't a real robot move, so these events 
         # are ignored and the previous real move is used (self.prev_action, self.prev_state)
         phase = self.curr_phase     # changes upon reward
-        reward, done = compute_reward(self.frame_num, self.action)
-        self.total_reward += reward
+        action_reward, action_done = self.compute_reward(self.frame_num, self.action)
+        print("reward: ", self.frame_num, self.action, action_reward, action_done)
+        self.total_reward += action_reward
 
         if self.action != "REWARD":
-          self.replay_buffer.push(self.state, self.action, reward, next_state, done)
+          # add dummy 0 q_val for now. Compute q_val at end of run.
+          self.active_buffer.push(self.state, self.action, action_reward, next_state, action_done, 0)
         else:
-          self.replay_buffer.push(self.prev_state, self.prev_action, reward, self.state, done)
+          # add dummy 0 q_val for now. Compute q_val at end of run.
+          self.active_buffer.push(self.prev_state, self.prev_action, action_reward, self.state, action_done, 0)
 
         if len(self.replay_buffer) > self.replay_initial:
-            loss = compute_td_loss(batch_size, TTDQN_PATH_PREFIX)
-            
+          loss = self.compute_td_loss(batch_size=self.batch_size, mode="EXPERIENCE_REPLAY")
+          print("experience replay loss: ",loss)
+
         # if frame_num % 10000 == 0:
         #    plot(frame_num, self.all_rewards, self.losses)
     
-        if frame_num % 1000 == 0 or phase != self.curr_phase or done:
-           self.update_target(self.current_model, self.target_model)
-
-        if done:
+        if action_done:
+            self.active_buffer.compute_real_q_values(gamma=self.gamma)
+            self.active_buffer.reset_sample(name="active", start=0)
+            loss = 0
+            while loss is not None:
+              loss = self.compute_td_loss(batch_size=self.batch_size, mode="REAL_Q_VALUES")
+              print("real q values loss: ",loss)
+            print("loss: ",loss)
+            self.replay_buffer.concat(self.active_buffer)
+            self.save_replay_buffer()
+            self.current_model.save_state(self.BEST_MODEL_PATH)
+            # torch.save(model.state_dict(), self.BEST_MODEL_PATH)
+            self.update_target(self.current_model, self.target_model)
             self.prev_state = None
             self.state = None
             self.curr_phase = self.PRE_CUBE
             # self.all_rewards.append(self.total_reward)
             self.frame_num = 0
-            self.current_model.save_state(self.BEST_MODEL_PATH)
             print("Episode is done; reset robot and cube")
+            return "DONE"
         else:
             self.frame_num += 1
             self.prev_state = self.state 

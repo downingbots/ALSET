@@ -40,6 +40,7 @@ def webcam_captureFrames():
     while True and video_capture.isOpened():
         return_key, frame = video_capture.read()
         if not return_key:
+            print("no return key")
             break
 
         # Create a copy of the frame and store it in the global variable,
@@ -48,7 +49,18 @@ def webcam_captureFrames():
             webcam_video_frame = frame.copy()
 
         # if appropriate, store image in designated robot training directory 
-        image_loc = webcam_robot.capture_frame_location()
+        if webcam_robot.do_process_image():
+            webcam_robot.capture_frame(webcam_video_frame)
+            image_loc = webcam_robot.process_image()
+            if image_loc == "DONE":
+                webcam_robot.capture_frame_completed()
+                exit()
+            elif image_loc != None:
+              print("process_image loc:",image_loc)
+        else:
+            image_loc = webcam_robot.capture_frame_location()
+            if image_loc != None:
+              print("capture_frame loc:",image_loc)
         if image_loc != None:
             return_key, encoded_image = cv2.imencode(".jpg", webcam_video_frame)
             if return_key:
@@ -61,13 +73,6 @@ def webcam_captureFrames():
             # if bottleneck, optimistically move up before encode/write
             webcam_robot.capture_frame_completed()
 
-        # if appropriate, return frame
-        if webcam_robot.get_NN_mode() and webcam_robot.ready_for_capture():
-            webcam_robot.capture_frame(webcam_video_frame)
-            # return_key, encoded_image = cv2.imencode(".jpg", webcam_video_frame)
-            # if return_key:
-            #   webcam_robot.capture_frame(encoded_image)
-        
         key = cv2.waitKey(30) & 0xff
         if key == 27:
             break

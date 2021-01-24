@@ -2,7 +2,7 @@ from .nn import *
 
 class tabletop_functional_nn():
   def __init__(self, sir_robot):
-      print("TableTop: 8 Functional NNs")
+      # print("TableTop: 8 Functional NNs")
       self.robot = sir_robot
       self.NN = []
       self.last_arm_action = "LOWER_ARM_DOWN"
@@ -13,6 +13,7 @@ class tabletop_functional_nn():
       print("NN_INIT: %d" % NN_num)
       gather_mode = False  # ARD: why does gather_mode matter for nn_init?
       if NN_num == 1:
+        print("TableTop: 8 Functional NNs")
         self.robot.sir_robot.stop_all()
         print("Park Arm: Upper/Lower Arm Up/Down")
         print("  Press Success: parked")
@@ -20,10 +21,11 @@ class tabletop_functional_nn():
                    "LOWER_ARM_UP", "LOWER_ARM_DOWN", "REWARD",
                    "FORWARD", "REVERSE", "LEFT", "RIGHT"] 
         # if gather_mode:
-        if True:
+        if len(self.NN) < NN_num:
+            # SIRNN is an actual torch NN. 
+            # Torch NN Not needed during gather mode.
             self.NN.append(SIRNN(self.robot, outputs))
-            # ARD: why does gather_mode matter for nn_init?
-            self.NN[NN_num-1].nn_init(app_name, NN_num, True)
+            self.NN[NN_num-1].nn_init(app_name, NN_num, gather_mode)
         return False, outputs
       elif NN_num == 2:
         self.robot.sir_robot.stop_all()
@@ -35,12 +37,12 @@ class tabletop_functional_nn():
         self.last_arm_action = "LOWER_ARM_DOWN"
         self.curr_automatic_action = "LEFT"
         self.robot.gather_data.set_function(None)
-        self.left_count = 15
+        self.left_count = 45
         outputs = ["LOWER_ARM_UP", "LOWER_ARM_DOWN","LEFT","REWARD","PENALTY"]
         # if gather_mode:
-        if True:
+        if len(self.NN) < NN_num:
             self.NN.append(SIRNN(self.robot, outputs))
-            self.NN[NN_num-1].nn_init(app_name, NN_num, True)
+            self.NN[NN_num-1].nn_init(app_name, NN_num, gather_mode)
         return True, outputs
       elif NN_num == 3:
         self.robot.sir_robot.stop_all()
@@ -52,10 +54,9 @@ class tabletop_functional_nn():
         print("  Press Failure: block out of image go back to 1")
         outputs = ["LOWER_ARM_UP", "LOWER_ARM_DOWN",
                 "FORWARD", "REVERSE", "LEFT", "RIGHT", "REWARD", "PENALTY"]
-        # if gather_mode:
-        if True:
+        if len(self.NN) < NN_num:
             self.NN.append(SIRNN(self.robot, outputs))
-            self.NN[NN_num-1].nn_init(app_name, NN_num, True)
+            self.NN[NN_num-1].nn_init(app_name, NN_num, gather_mode)
         return False, outputs
       elif NN_num == 4:
         self.robot.sir_robot.stop_all()
@@ -68,49 +69,47 @@ class tabletop_functional_nn():
                 "LOWER_ARM_UP", "LOWER_ARM_DOWN",
                 "GRIPPER_CLOSE", "REWARD", "PENALTY"]
         # if gather_mode:
-        if True:
+        if len(self.NN) < NN_num:
             self.NN.append(SIRNN(self.robot, outputs))
-            self.NN[NN_num-1].nn_init(app_name, NN_num, True)
+            self.NN[NN_num-1].nn_init(app_name, NN_num, gather_mode)
         return False, outputs
       elif NN_num == 5:
         self.robot.sir_robot.stop_all()
         self.robot.gather_data.set_function(None)
         print("Park Arm with block: Upper/Lower Arm Up/Down")
         print("  Press Success: parked")
-        outputs = [ "GRIPPER_OPEN", "UPPER_ARM_UP", "UPPER_ARM_DOWN", "LOWER_ARM_UP", "LOWER_ARM_DOWN", "REWARD"]
-        # if gather_mode:
-        if True:
+        outputs = [ "GRIPPER_OPEN", "UPPER_ARM_UP", "UPPER_ARM_DOWN", "LOWER_ARM_UP", "LOWER_ARM_DOWN", "REWARD", "PENALTY"]
+        if len(self.NN) < NN_num:
             self.NN.append(SIRNN(self.robot, outputs))
+            self.NN[NN_num-1].nn_init(app_name, NN_num, gather_mode)
         return False, outputs
       elif NN_num == 6:
         self.robot.sir_robot.stop_all()
         self.last_arm_action = "LOWER_ARM_DOWN"
         self.curr_automatic_action = "LEFT"
         self.robot.gather_data.set_function(None)
-        self.left_count = 15
+        self.left_count = 45
         print("Automatic: scan for box")
         print("  Press Failure: scan direction completed")
         print("  Press Success: found block")
         outputs = ["LOWER_ARM_UP", "LOWER_ARM_DOWN","LEFT","REWARD","PENALTY"]
-        # if gather_mode:
-        if True:
+        if len(self.NN) < NN_num:
             self.NN.append(SIRNN(self.robot, outputs))
-            self.NN[NN_num-1].nn_init(app_name, NN_num, True)
+            self.NN[NN_num-1].nn_init(app_name, NN_num, gather_mode)
         return True, outputs
       elif NN_num == 7:
         self.robot.sir_robot.stop_all()
         self.robot.gather_data.set_function(None)
         print("Keep box in center while moving forward")
         print("  Press Lower Arm UP/Down; Left; Right; Forward")
-        print("  Press Forward: block in center of image")
-        print("  Press Success: block in center and close enough to pick up")
-        print("  Press Failure: block out of image go back to 8")
+        print("  Press Forward: box in center of image")
+        print("  Press Success: box in center and close enough to pick up")
+        print("  Press Failure: box out of image go back to 5")
         outputs = ["LOWER_ARM_UP", "LOWER_ARM_DOWN", "FORWARD", "REVERSE", 
                 "LEFT", "RIGHT", "REWARD", "PENALTY"]
-        # if gather_mode:
-        if True:
+        if len(self.NN) < NN_num:
             self.NN.append(SIRNN(self.robot, outputs))
-            self.NN[NN_num-1].nn_init(app_name, NN_num, True)
+            self.NN[NN_num-1].nn_init(app_name, NN_num, gather_mode)
         return False, outputs
       elif NN_num == 8:
         self.robot.sir_robot.stop_all()
@@ -120,14 +119,13 @@ class tabletop_functional_nn():
                 "LOWER_ARM_UP", "LOWER_ARM_DOWN",
                 "LEFT", "RIGHT", "GRIPPER_OPEN",
                 "REVERSE", "REWARD", "PENALTY"]
-        # if gather_mode:
-        if True:
+        if len(self.NN) < NN_num:
             self.NN.append(SIRNN(self.robot, outputs))
-            self.NN[NN_num-1].nn_init(app_name, NN_num, True)
+            self.NN[NN_num-1].nn_init(app_name, NN_num, gather_mode)
         return False, outputs
 
   def nn_upon_penalty(self, NN_num):
-      if NN_num == 2 or NN_num == 7:
+      if NN_num == 2 or NN_num == 6:
         print("Penalty in automatic mode?")
       elif NN_num <= 4:
         return 1
@@ -159,14 +157,14 @@ class tabletop_functional_nn():
       if NN_num == 2 or NN_num == 6:
           if (self.curr_automatic_action == "LEFT" and
               self.last_arm_action == "LOWER_ARM_DOWN" and
-              self.left_count >= 15):
+              self.left_count >= 45):
               # 15 pulses is actually 3 rotation pulses
               self.left_count = 0
               self.curr_automatic_action = "LOWER_ARM_UP"
               self.last_arm_action = "LOWER_ARM_UP"
           elif (self.curr_automatic_action == "LEFT" and
                 self.last_arm_action == "LOWER_ARM_UP" and
-                self.left_count >= 15):
+                self.left_count >= 45):
               # 15 pulses is actually 3 rotation pulses
               self.left_count = 0
               self.curr_automatic_action = "LOWER_ARM_DOWN"
@@ -183,5 +181,7 @@ class tabletop_functional_nn():
               print("nn_automatic_action: %s" % self.curr_automatic_action)
           self.robot.gather_data.set_function(self.curr_automatic_action)
           return self.curr_automatic_action
+      else:
+          return feedback
       return None
 

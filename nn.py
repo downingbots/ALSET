@@ -25,6 +25,7 @@ class SIRNN():
 
     def nn_init(self, app_name, NN_num, gather_mode=False):
         # if gather_mode:
+        self.model = None
         if True:
             self.model = torchvision.models.alexnet(pretrained=True)
             self.model.classifier[6] = torch.nn.Linear(self.model.classifier[6].in_features, self.num_outputs)
@@ -36,7 +37,7 @@ class SIRNN():
               torch.save(self.model.state_dict(), model_path)
             self.device = torch.device('cuda')
             self.model = self.model.to(self.device)
-            self.full_action_set = ["UPPER_ARM_UP", "UPPER_ARM_DOWN", 
+        self.full_action_set = ["UPPER_ARM_UP", "UPPER_ARM_DOWN", 
                 "LOWER_ARM_UP", "LOWER_ARM_DOWN", 
                 "GRIPPER_OPEN", "GRIPPER_CLOSE",
                 "FORWARD", "REVERSE", "LEFT", "RIGHT", "SUCCESS", "FAILURE"]
@@ -58,7 +59,7 @@ class SIRNN():
          x = x[None, ...]
          return x
 
-    def nn_process_image(self, NN_num = 0, image=None):
+    def nn_process_image(self, NN_num = 0, image=None, reward_penalty=None):
         # if image == None:
         if image is None:
           return
@@ -85,18 +86,21 @@ class SIRNN():
                 if best_action == -1:
                     print("invalid action " + self.outputs[i] + "not in " + self.full_action_set)
                     exit()
+
+        # self.robot_actions = { "FORWARD", "REVERSE", "LEFT", "RIGHT", "LOWER_ARM_DOWN", "LOWER_ARM_UP", "UPPER_ARM_DOWN", "UPPER_ARM_UP", "GRIPPER_OPEN", "GRIPPER_CLOSE"}
         if best_action == 0:
             print("NN FORWARD") 
             self.robot.forward()
         elif best_action == 1:
-            print("NN GRIPPER_CLOSE") 
-            self.robot.gripper("CLOSE")
+            print("NN REVERSE") 
+            self.robot.reverse()
         elif best_action == 2:
-            print("NN GRIPPER_OPEN") 
-            self.robot.gripper("OPEN")
-        elif best_action == 3:
             print("NN LEFT") 
             self.robot.left()
+        elif best_action == 3:
+            print("NN RIGHT") 
+            self.robot.right()
+            # self.robot.left() # for simplified tabletop NN 
         elif best_action == 4:
             print("NN LOWER ARM DOWN") 
             self.robot.lower_arm("DOWN")
@@ -104,29 +108,21 @@ class SIRNN():
             print("NN LOWER ARM UP") 
             self.robot.lower_arm("UP")
         elif best_action == 6:
-            print("NN PENALTY") 
-            self.NN.failure()
+            print("NN UPPER ARM DOWN") 
+            self.robot.upper_arm("DOWN")
         elif best_action == 7:
-            print("NN REVERSE") 
-            self.robot.reverse()
+            print("NN UPPER ARM UP") 
+            self.robot.upper_arm("UP")
         elif best_action == 8:
-            print("NN PENALTY") 
-            self.NN.success()
+            print("NN GRIPPER_CLOSE") 
+            self.robot.gripper("CLOSE")
         elif best_action == 9:
-            print("NN RIGHT") 
-            self.robot.right()
-            # self.robot.left() # for simplified tabletop NN 
-        elif best_action == 10:
-            print("NN LOWER ARM DOWN") 
-            self.robot.lower_arm("DOWN")
-        elif best_action == 11:
-            print("NN LOWER ARM UP") 
-            self.robot.lower_arm("UP")
+            print("NN GRIPPER_OPEN") 
+            self.robot.gripper("OPEN")
         else:
             print("Action:", best_action, max_prob) 
             time.sleep(0.08)
             self.robot.stop()
-        
       
     def nn_set_automatic_mode(self, TF):
         pass
