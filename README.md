@@ -50,6 +50,12 @@ The robot runs in 4 modes: RC telepresence, data-capture, and using trained neur
 
 The #1 rule is no falling off the table (or going out-of-bounds).
 
+The same training can be used for both a sequence of functional
+NNs and for DDQN RL. A potential goal is to train NNs to different
+functions (like above) and then combine the functions together in
+different ways to perform different tasks. Then use DDQN to get
+optimized end-to-end functionality.
+
 REINFORCEMENT LEARNING ON REAL ROBOTS: Lessons Learned
 ------------------------------------------------------
 
