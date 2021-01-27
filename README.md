@@ -200,6 +200,14 @@ To solve the problem of getting the state of the environment that simulations ca
   - add sensors to objects in environment
   - Tons of human-interactons to reset the environment
 
+Some of my previous robots: PR2Lite (with Maxwell, which ROSwell cloned), REPLab, RLDonkeycar
+<p align="center">
+  <img src="https://github.com/downingbots/SIR_jetbot/blob/master/pr2lite_handshake_chess.jpg" width="150" title="RC Excavator">
+  <img src="https://github.com/downingbots/SIR_jetbot/blob/master/replab.jpg" width="150" alt="accessibility text">
+  <img src="https://github.com/downingbots/RLDonkeycar/blob/master/RLDonkeycar.jpg" width="150" alt="accessibility text">
+ 
+</p>
+
 Lessons from PR2-Lite:
   - PR2-Lite isn't light. ROSwell is a much better size. PR2-Lite was an excellent platform for the team of advanced high-school kids who largely designed, coded and built it though (with lots of mentoring.)
   
@@ -210,12 +218,12 @@ Lessons from ROSwell:
   - Honestly, the picking up of a chess piece or similarly light object just isn't inspiring.  I'd suggest going to a SCARA arm with real lift capabilities.
   - I'd love a robot that can go up stairs. Houses often have too many stairs. I'd love a quadruped like Boston Dynamic's Spot.  Lower-end clones of Spot are on their way, but it's doubtful that they can go up stairs and have a weight-bearing arm.
   - Simulations don't match reality at all!  Spent a ton of time trying to get Gazebo physics engine to realistically model a light, top-heavy robot with low-end servos (e.g., dynamixel MX-64).
-  - Problems encountered include incompatible upgrades of components
-  - Difficulty tuning of weights, inertia, friction, pids, transmissions
-  - Physics of torsional friction in gazebo is missing or unrealistic (depending on physics engine release)
-  - Top-heavy robot might flip 10 feet into the air!
-  - Lots of papers on needing different lighting, coloring, etc.
-  - Might as well use no physics engine and assume perfect performance.
+    - Problems encountered include incompatible upgrades of components
+    - Difficulty tuning of weights, inertia, friction, pids, transmissions
+    - Physics of torsional friction in gazebo is missing or unrealistic (depending on physics engine release)
+    - Top-heavy robot might flip 10 feet into the air!
+    - Lots of papers on needing different lighting, coloring, etc.
+    - Might as well use no physics engine and assume perfect performance.
 
 Lessons from Donkey-car:
   - Donkey car perfomance changed as it used up batteries. The RL doesn't adapt for this.
