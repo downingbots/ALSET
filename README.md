@@ -58,6 +58,18 @@ the box and drops the cube in the box.  As dropping off a table
 is dangerous for a robot's health, I have a setup so that the
 tabletop is only inches from the floor during training.
 
+A single NN is sufficient for phase-1 of the tabletop challenge.
+Phase 1 is just go end-to-end and back on a table without falling
+off the table.  The vanilla Jetbot can do that. However, using
+an arm to pick up a cube and having multi-phase objectives is
+much harder resulting in using DQN. DQN is used as the robot isn't
+continuously running in realtime. The robot stops and
+figures out the next move, executes the next move, and repeat.
+In addition, picking up a cube is a sparse-reward (taking hundreds
+of unrewarding moves), as is dropping
+the cube. There's no continuous scoreboard accumulating tons of
+rewards/penaties as you might have on a video game.
+
 The same training can be used for both a sequence of functional
 NNs (i.e. TT_func ) and for DDQN RL. A potential goal is to train NNs to 
 different functions (like above) and then combine the functions together 
@@ -202,4 +214,15 @@ Lessons from REPLab:
 
 Lesson from using the Jetson nano:
   - The Jetson "notebook" is a cool idea for tutorials, but in practice needs very fast wifi - better than my house has and very fast SSD - faster than I bought.  But putting the gamepad/logitech on the robot and using lower overhead video webstreaming worked fine.
+  
+Reinforcment learning in general:
+  - Let's look at some more recent major impressive results in deep learning:
+    - OpenAI published a paper on GPT-3.  A decent summary of it is:
+      - https://in.springboard.com/blog/openai-gpt-3/
+    - OpenAI's blog describes the same model applied to images:
+      - https://openai.com/blog/image-gpt/
+    - Deep Mind's latest breakthrough:
+      - https://deepmind.com/blog/article/muzero-mastering-go-chess-shogi-and-atari-without-rules
+  - These all confirm the trend in deep learning (that has been known for a while) scales to incredible degrees. Basically, if you have a problem that you need to solve, recursively add more data and then add more levels to the NN (now attention-based), until you achieve good results (near-human or better). 
+  - To get anything that seems to be impressive, you need huge datasets and tons of training to such a scale that only big companies with hundreds of thousands of dollars to spend can afford.  Individual developers / researchers can do minor incremental contributions to the area, but to get to the point of gaining common-sense intelligence is out of the reach of all but the biggest, richest companies with the biggest datasets (think Google and Facebook.)
 
