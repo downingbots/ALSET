@@ -64,8 +64,8 @@ optimized end-to-end functionality.
 
 It's relatively easy to add other apps because the training
 is done via teleop.  It's a matter of defining and hooking together
-the different functions to train the NNs on.
-
+the different functions to train the NNs on and defining the DQN
+compute_reward() policies.
 
 HOW TO RUN
 ----------
@@ -78,26 +78,32 @@ could be done on a laptop instead.
 cd to the jetson source directory (or a new directory) and put the
 contents of this github repository there. Add an apps subdirectory, 
 and further subdirectories for:
-apps/TT_DQN/dataset
-apps/TT_func/dataset
-apps/NN/dataset
+
+  - apps/TT_DQN/dataset
+  - apps/TT_func/dataset
+  - apps/NN/dataset
 
 Other subdirectories will be automatically created during execution.
 
 If you are doing active development, I have a script hack that copies the 
 python files to their system directories:
-./copy_to_python 
+
+  - ./copy_to_python 
 
 The robot's camera is streamed while the robot is running. Goto your
 web browser and look at the 8080 port on the robot's ip address like:
-http://10.0.0.31:8080/
+
+  - http://10.0.0.31:8080/
 
 The jetson doesn't seem to always properly cleanup the webcam upon
 killing the robot executable. If so, run the following script:
-./restart_camera
+
+  - ./restart_camera
 
 To execute the teleop app, run:
-python3 ./sir_robot_teleop.py --app_name TT_func
+
+  - python3 ./sir_robot_teleop.py --app_name TT_func
+  
 You can also run with app_name "TT_DQN" and "NN".
 
 To gather data in teleop, hit the top left button to go into "gather data" mode.
@@ -107,26 +113,29 @@ For DQN, gather_data mode executes the NN and gathers data for training.
 Training should automatically be done at the end of every run.
 
 To train, run:
-python3 ./sir_robot_train.py --app_name TT_func
+
+  - python3 ./sir_robot_train.py --app_name TT_func
+  
 You can also train with app_name "TT_DQN" and "NN".
 
 The joystick commands on the logitech controller are:
-TELEOP LEFT_TRACK               => "y" axis
-TELEOP RIGHT_TRACK              => "ry" axis
-TELEOP/DQN REWARD               => "z" axis
-TELEOP/DQN PENALTY              => "rz" axisNN/TELEOP
-TELEOP/DQN GATHER_DATA TOGGLE   => "tl" button
-NN/TELEOP TOGGLE                => "tr" button
-TELEOP LOWER_ARM_DOWN           => "a" button
-TELEOP LOWER_ARM_UP             => "y" button
-DQN ROBOT_OFF_TABLE_PENALTY     => "y" button
-TELEOP UPPER_ARM_DOWN           => "hat0y" axis
-TELEOP UPPER_ARM_UP             => "hat0y" axis
-DQN CUBE_OFF_TABLE_REWARD       => "y" button 
-TELEOP GRIPPER OPEN             => "x" buttons
-TELEOP GRIPPER ClOSE            => "b" button
-TELEOP WRIST ROTATE LEFT/RIGHT  => "hat0x" axis 
-   (note: WRIST is not used by any of the NNs)
+
+  - TELEOP LEFT_TRACK               => "y" axis
+  - TELEOP RIGHT_TRACK              => "ry" axis
+  - TELEOP/DQN REWARD               => "z" axis
+  - TELEOP/DQN PENALTY              => "rz" axisNN/TELEOP
+  - TELEOP/DQN GATHER_DATA TOGGLE   => "tl" button
+  - NN/TELEOP TOGGLE                => "tr" button
+  - TELEOP LOWER_ARM_DOWN           => "a" button
+  - TELEOP LOWER_ARM_UP             => "y" button
+  - DQN ROBOT_OFF_TABLE_PENALTY     => "y" button
+  - TELEOP UPPER_ARM_DOWN           => "hat0y" axis
+  - TELEOP UPPER_ARM_UP             => "hat0y" axis
+  - DQN CUBE_OFF_TABLE_REWARD       => "y" button 
+  - TELEOP GRIPPER OPEN             => "x" buttons
+  - TELEOP GRIPPER ClOSE            => "b" button
+  - TELEOP WRIST ROTATE LEFT/RIGHT  => "hat0x" axis 
+     - (note: WRIST is not used by any of the NNs)
 
 The human uses the joystick to define the REWARD and PENALTY.
 For TT_func, these will result in moving on to the next NN to
