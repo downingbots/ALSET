@@ -190,7 +190,15 @@ To solve the problem of getting the state of the environment that simulations ca
   - add sensors to objects in environment
   - Tons of human-interactons to reset the environment
 
+Lessons from PR2-Lite:
+  - PR2-Lite isn't light. ROSwell is a much better size. PR2-Lite was an excellent platform for the team of advanced high-school kids who largely designed, coded and built it though (with lots of mentoring.)
+  
 Lessons from ROSwell:
+  - ROS is good. SLAM and complex arm planning (through MoveIt) are now doable by hobbyists. However, doing complex things are really hard to do.  Human perception algorithms just aren't good enough.  This has led to my interest in RL.
+  - ROS has a huge learning curve, but I've been using it since C-turtle days.
+  - Human-sized robots are good. But so is transportability. ROSwell / Maxwell is just the right size and pricepoint for a serious robot hobbiest. The current robot's most complex application (chess by Mike Ferguson) is literally out-of-reach for ROSwell's arm. The robot would need to physically move locations to reach the other side of a standard-sized board.
+  - Honestly, the picking up of a chess piece or similarly light object just isn't inspiring.  I'd suggest going to a SCARA arm with real lift capabilities.
+  - I'd love a robot that can go up stairs. Houses often have too many stairs. I'd love a quadruped like Boston Dynamic's Spot.  Lower-end clones of Spot are on their way, but it's doubtful that they can go up stairs and have a weight-bearing arm.
   - Simulations don't match reality at all!  Spent a ton of time trying to get Gazebo physics engine to realistically model a light, top-heavy robot with low-end servos (e.g., dynamixel MX-64).
   - Problems encountered include incompatible upgrades of components
   - Difficulty tuning of weights, inertia, friction, pids, transmissions
@@ -206,14 +214,15 @@ Lessons from Donkey-car:
 
 Lessons from REPLab:
   - Intel 3D Realsense camera gave poor results for any single 3D snapshot. Needed to accumulate and integrate results.  Worked around this by using OctoMaps, but this greatly reduces performance. Most RL implementations just use 2D camera, ignoring 2D camera capabilities.
-  - Used ROS moveit to assume away much of the problem, only using RL for planning the final stage of grasping (e.g., lower straight down from above so only choosing final x/y and theta).
+  - Used ROS moveit to assume away much of the RL problem, only using RL for planning the final stage of grasping (e.g., lower straight down from above so only choosing final x/y and theta).
   - Frequent calibration between robot camera and arm. Simple calibration didn't do very well across robots or across runs on same robot due to overheating or stressing of motors (e.g., pushing down too hard on tray).
-  - Pretrained imagenet models provide some transfer learning for regular cameras, but this doesn't help for 3D cameras.
-  - Using OpenCV to evaluate state needed for RL is almost a difficult as solving the problem itself.  For example,identifying the blocks and stacking them can be made easier by adding fiducials pr sensors to blocks (blah)
+  - Pretrained imagenet models provide some transfer learning for regular cameras, but this doesn't help for 3D cameras.  Most of the RL on REPLab really only used the 2D camera functionality.
+  - Using OpenCV to evaluate state needed for RL is almost a difficult as solving the problem itself.  For example,identifying the blocks and stacking them can be made easier by adding fiducials or sensors to blocks (blah... feels like cheating.)
   - Need to park arm so that it was away from tray so that state of objects on tray could be accurately assessed.
 
-Lesson from using the Jetson nano:
+Lesson from using the Jetson nano / Jetbot:
   - The Jetson "notebook" is a cool idea for tutorials, but in practice needs very fast wifi - better than my house has and very fast SSD - faster than I bought.  But putting the gamepad/logitech on the robot and using lower overhead video webstreaming worked fine.
+  - I immediately outgrew the functionality provided by the Jebot. I was able to start with the jetbot code and tutorials to incremental build an armed jetbot (sir_jetbot1).
   
 Reinforcment learning in general:
   - Let's look at some more recent major impressive results in deep learning:
