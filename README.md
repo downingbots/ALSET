@@ -7,7 +7,7 @@ This robot is an inexpensive platform to run DDQN reinforcement learning. Howeve
 the software is not specific to the Sharper Image Robot. In theory, it could easily
 be generalized to many inexpensive RC toys with tracked or differential-drive wheels and 
 an arm or crane or dozer or shovel. Just add a Jetson Nano, battery, and camera mounted
-near the end of the arm/crane/shovel as described below. Contact me if interested.
+near the end of the arm/excavator/bulldozer/crane/shovel as described below. Contact me if interested.
 
 The Sharper Image robot was hacked as followed:
 
