@@ -13,10 +13,11 @@ near the end of the arm/excavator/bulldozer/crane/shovel as described below. Con
   <img src="https://github.com/downingbots/SIR_jetbot/blob/master/sharper_image_robot.jpg" width="350" title="Sharper Image Robot">
   <img src="https://github.com/downingbots/SIR_jetbot/blob/master/sharper_image_robot2.jpg" width="350" alt="accessibility text">
 </p>
-Think: Remote Control Bulldozer Toy 1:16 Hobby RC Trucks Caterpillar Front Loader 4WD 
- + Top Race 15 Channel RC Excavator + Top Race Remote Control Construction Dump Truck.
-
-
+Think: Remote Control Bulldozer + Top Race 15 Channel RC Excavator
+<p align="center">
+  <img src="https://github.com/downingbots/SIR_jetbot/blob/master/excavator.jpg" width="200" title="RC Excavator">
+  <img src="https://github.com/downingbots/SIR_jetbot/blob/master/bulldozer.jpg" width="200" alt="accessibility text">
+</p>
 
 The Sharper Image robot was hacked as followed:
 
