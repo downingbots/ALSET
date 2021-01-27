@@ -48,13 +48,99 @@ The robot runs in 4 modes: RC telepresence, data-capture, and using trained neur
     - drops object in box
     - backs up and park arm (back to phase 1)
 
-The #1 rule is no falling off the table (or going out-of-bounds).
+The default app is the HBRC tabletop challenge phase 3:
+https://www.hbrobotics.org/robot-challanges/
+Basically, the robot is on a table, searches for a cube, drives
+to the cube, picks the cube up, searches for a box, drives to
+the box and drops the cube in the box.  As dropping off a table
+is dangerous for a robot's health, I have a setup so that the
+tabletop is only inches from the floor during training.
 
 The same training can be used for both a sequence of functional
 NNs and for DDQN RL. A potential goal is to train NNs to different
 functions (like above) and then combine the functions together in
 different ways to perform different tasks. Then use DDQN to get
 optimized end-to-end functionality.
+
+It's relatively easy to add other apps because the training
+is done via teleop.  It's a matter of defining and hooking together
+the different functions to train the NNs on.
+
+
+HOW TO RUN
+----------
+First, follow the NVIDIA instructions to install the jebot onto the
+Jetson Nano. Use a huge SD card as images for the datasets will be
+stored there and training will (by default) be done on the Nano.
+It is possible to follow the Jetson instructions so that training 
+could be done on a laptop instead.
+
+cd to the jetson source directory (or a new directory) and put the
+contents of this github repository there. Add an apps subdirectory, 
+and further subdirectories for:
+apps/TT_DQN/dataset
+apps/TT_func/dataset
+apps/NN/dataset
+
+Other subdirectories will be automatically created during execution.
+
+If you are doing active development, I have a script hack that copies the 
+python files to their system directories:
+./copy_to_python 
+
+The robot's camera is streamed while the robot is running. Goto your
+web browser and look at the 8080 port on the robot's ip address like:
+http://10.0.0.31:8080/
+
+The jetson doesn't seem to always properly cleanup the webcam upon
+killing the robot executable. If so, run the following script:
+./restart_camera
+
+To execute the teleop app, run:
+python3 ./sir_robot_teleop.py --app_name TT_func
+You can also run with app_name "TT_DQN" and "NN".
+
+To gather data in teleop, hit the top left button to go into "gather data" mode.
+You can toggle off gather_data mode to teleop reposition the robot.
+
+For DQN, gather_data mode executes the NN and gathers data for training.
+Training should automatically be done at the end of every run.
+
+To train, run:
+python3 ./sir_robot_train.py --app_name TT_func
+You can also train with app_name "TT_DQN" and "NN".
+
+The joystick commands on the logitech controller are:
+TELEOP LEFT_TRACK               => "y" axis
+TELEOP RIGHT_TRACK              => "ry" axis
+TELEOP/DQN REWARD               => "z" axis
+TELEOP/DQN PENALTY              => "rz" axisNN/TELEOP
+TELEOP/DQN GATHER_DATA TOGGLE   => "tl" button
+NN/TELEOP TOGGLE                => "tr" button
+TELEOP LOWER_ARM_DOWN           => "a" button
+TELEOP LOWER_ARM_UP             => "y" button
+DQN ROBOT_OFF_TABLE_PENALTY     => "y" button
+TELEOP UPPER_ARM_DOWN           => "hat0y" axis
+TELEOP UPPER_ARM_UP             => "hat0y" axis
+DQN CUBE_OFF_TABLE_REWARD       => "y" button 
+TELEOP GRIPPER OPEN             => "x" buttons
+TELEOP GRIPPER ClOSE            => "b" button
+TELEOP WRIST ROTATE LEFT/RIGHT  => "hat0x" axis 
+   (note: WRIST is not used by any of the NNs)
+
+The human uses the joystick to define the REWARD and PENALTY.
+For TT_func, these will result in moving on to the next NN to
+train.
+For DQN, these will end the run. Different terminal penalties
+and rewards can be awarded by ROBOT_OFF_TABLE_PENALTY and
+CUBE_OFF_TABLE_PENALTY.
+
+The DQN tabletop reward policies are defined in compute_reward().
+Basically, the rewards are for picking up the cube, dropping the
+cube into the box, or a smaller reward for dropping/pushing the 
+cube off the table.  The penalties are a small per-move penalty,
+the robot going off the table (or other bad state), or taking too
+many moves.
 
 REINFORCEMENT LEARNING ON REAL ROBOTS: Lessons Learned
 ------------------------------------------------------
