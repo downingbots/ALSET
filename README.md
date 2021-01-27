@@ -31,8 +31,8 @@ significantly. The Notebook tutorials barely ran on my Jetson with the wifi conn
     - The camera is streamed using much lower overhead video webserver for teleoperation.
     - The images are saved directly to the Robot SD card.
     - a poor-man's pwm changes the commands to start/stop up to every tenth of a second or so.
-        -- takes the picture when stopped.  
-        -- records the command sent by the joystick (lower or upper arm up/down, open/close gripper, etc.) along with the picture in the directory associated with the NN's command.
+        - takes the picture when stopped.  
+        - records the command sent by the joystick (lower or upper arm up/down, open/close gripper, etc.) along with the picture in the directory associated with the NN's command.
     
       This data is then gathered and used to train the robot. Note: a tenth of a second of start/stop proved too much for one of the boards and the robot will stop moving after a few minutes of continuous use. Eventually changed the pwm rate to two-moves-per-second.
 
@@ -49,7 +49,9 @@ The robot runs in 4 modes: RC telepresence, data-capture, and using trained neur
     - backs up and park arm (back to phase 1)
 
 The default app is the HBRC tabletop challenge phase 3:
-https://www.hbrobotics.org/robot-challanges/
+
+  - https://www.hbrobotics.org/robot-challanges/
+  
 Basically, the robot is on a table, searches for a cube, drives
 to the cube, picks the cube up, searches for a box, drives to
 the box and drops the cube in the box.  As dropping off a table
@@ -103,8 +105,7 @@ killing the robot executable. If so, run the following script:
 To execute the teleop app, run:
 
   - python3 ./sir_robot_teleop.py --app_name TT_func
-  
-You can also run with app_name "TT_DQN" and "NN".
+    - You can also run with app_name "TT_DQN" and "NN".
 
 To gather data in teleop, hit the top left button to go into "gather data" mode.
 You can toggle off gather_data mode to teleop reposition the robot.
@@ -115,8 +116,7 @@ Training should automatically be done at the end of every run.
 To train, run:
 
   - python3 ./sir_robot_train.py --app_name TT_func
-  
-You can also train with app_name "TT_DQN" and "NN".
+    - You can also train with app_name "TT_DQN" and "NN".
 
 The joystick commands on the logitech controller are:
 
