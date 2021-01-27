@@ -59,15 +59,17 @@ is dangerous for a robot's health, I have a setup so that the
 tabletop is only inches from the floor during training.
 
 The same training can be used for both a sequence of functional
-NNs and for DDQN RL. A potential goal is to train NNs to different
-functions (like above) and then combine the functions together in
-different ways to perform different tasks. Then use DDQN to get
+NNs (i.e. TT_func ) and for DDQN RL. A potential goal is to train NNs to 
+different functions (like above) and then combine the functions together 
+in different ways to perform different tasks. Then use DDQN to get
 optimized end-to-end functionality.
 
 It's relatively easy to add other apps because the training
 is done via teleop.  It's a matter of defining and hooking together
 the different functions to train the NNs on and defining the DQN
-compute_reward() policies.
+compute_reward() policies.  You can also add "automatic mode" NNs
+to assist in training, as is done for the "scan for cube" and 
+"scan for box" NNs.
 
 HOW TO RUN
 ----------
