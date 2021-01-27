@@ -8,6 +8,10 @@ the software is not specific to the Sharper Image Robot. In theory, it could eas
 be generalized to many inexpensive RC toys with tracked or differential-drive wheels and 
 an arm or crane or dozer or shovel. Just add a Jetson Nano, battery, and camera mounted
 near the end of the arm/excavator/bulldozer/crane/shovel as described below. Contact me if interested.
+Think: Remote Control Bulldozer Toy 1:16 Hobby RC Trucks Caterpillar Front Loader 4WD 
+ + Top Race 15 Channel RC Excavator + Top Race Remote Control Construction Dump Truck.
+
+
 
 The Sharper Image robot was hacked as followed:
 
