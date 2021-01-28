@@ -210,14 +210,14 @@ Some of my previous robots: PR2Lite (with Maxwell, which ROSwell cloned), REPLab
 
 Lessons from PR2-Lite:
   - PR2-Lite isn't light. ROSwell is a much better size. PR2-Lite was an excellent platform for the team of advanced high-school kids who largely designed, coded and built it though (with lots of mentoring.)
+  - ROS has a huge learning curve, but I've been using it since C-turtle days.
   
 Lessons from ROSwell:
   - ROS is good. SLAM and complex arm planning (through MoveIt) are now doable by hobbyists. However, doing complex things are really hard to do.  Human perception algorithms just aren't good enough.  This has led to my interest in RL.
-  - ROS has a huge learning curve, but I've been using it since C-turtle days.
   - Human-sized robots are good. But so is transportability. ROSwell / Maxwell is just the right size and pricepoint for a serious robot hobbiest. The current robot's most complex application (chess by Mike Ferguson) is literally out-of-reach for ROSwell's arm. The robot would need to physically move locations to reach the other side of a standard-sized board.
   - Honestly, the picking up of a chess piece or similarly light object just isn't inspiring.  I'd suggest going to a SCARA arm with real lift capabilities.
   - I'd love a robot that can go up stairs. Houses often have too many stairs. I'd love a quadruped like Boston Dynamic's Spot.  Lower-end clones of Spot are on their way, but it's doubtful that they can go up stairs and have a weight-bearing arm.
-  - Simulations don't match reality at all!  Spent a ton of time trying to get Gazebo physics engine to realistically model a light, top-heavy robot with low-end servos (e.g., dynamixel MX-64).
+  - In an attempt to use ROSwell for RL, I tried to get ROSwell working within a physics-simulator so that I didn't risk wearing out or damaging the robot in humongous numbers of random trials. Unfortuantely, the simulations don't match reality at all!  Spent a ton of time trying to get Gazebo physics engine to realistically model a light, top-heavy robot with low-end servos (e.g., dynamixel MX-64).
     - Problems encountered include incompatible upgrades of components
     - Difficulty tuning of weights, inertia, friction, pids, transmissions
     - Physics of torsional friction in gazebo is missing or unrealistic (depending on physics engine release)
