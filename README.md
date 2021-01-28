@@ -177,7 +177,6 @@ many moves.
 
 REINFORCEMENT LEARNING ON REAL ROBOTS: Lessons Learned
 ------------------------------------------------------
-
 I want to do Reinforcement Learning (RL) on real robots (specifically mobile manipulators with high-end hobbyist-grade hardware such as dynamixel MX-64 servos.) These robots cost less than a few thousand dollars. Such robots would be considered very low-end by university research robotics labs.
 
 ROS is a good place to start with real robots, but you'll eventually hit the limits of what custom software can achieve.  Robot perception is still not solved and the best human-designed algorithms leave a lot to be desired.  My hope is that RL can adapt to handle low-end hardware and fill some of the intelligence void in robotics. Unfortunately, RL presents its own set of challenges.  I want to learn these challenges and try to solve subsets of these open-end research problems.
@@ -242,7 +241,7 @@ Lesson from using the Jetson nano / Jetbot:
   - The Jetson "notebook" is a cool idea for tutorials, but in practice needs very fast wifi - better than my house has and very fast SSD - faster than I bought.  But putting the gamepad/logitech on the robot and using lower overhead video webstreaming worked fine.
   - I immediately outgrew the functionality provided by the Jebot. I was able to start with the jetbot code and tutorials to incremental build an armed jetbot (sir_jetbot1).
   
-Reinforcment learning in general:
+Reinforcement learning in general:
   - Let's look at some more recent major impressive results in deep learning:
     - OpenAI published a paper on GPT-3.  A decent summary of it is:
       - https://in.springboard.com/blog/openai-gpt-3/
