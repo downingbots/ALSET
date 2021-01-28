@@ -80,6 +80,9 @@ of unrewarding moves), as is dropping
 the cube. There's no continuous scoreboard accumulating tons of
 rewards/penaties as you might have on a video game.
 
+Here's Sir_jetbot1 running the phase1 tabletop (2x speed):
+https://youtu.be/QVFHAMyEyaI
+
 The same training can be used for both a sequence of functional
 NNs (i.e. TT_func ) and for DDQN RL. A potential goal is to train NNs to 
 different functions (like above) and then combine the functions together 
