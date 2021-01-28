@@ -230,10 +230,10 @@ Lessons from Donkey-car:
   - You do a lot of training but still overfits to environment, (fails at big DIY robocar events due to the addition of spectators or change in location.)  You need to train on many tracks, in many lighting conditions, with and without spectators, etc.
 
 Lessons from REPLab:
-  - Intel 3D Realsense camera gave poor results for any single 3D snapshot. Needed to accumulate and integrate results.  Worked around this by using OctoMaps, but this greatly reduces performance. Most RL implementations just use 2D camera, ignoring 2D camera capabilities.
-  - Used ROS moveit to assume away much of the RL problem, only using RL for planning the final stage of grasping (e.g., lower straight down from above so only choosing final x/y and theta).
+  - Intel 3D Realsense camera gave poor results for any single 3D snapshot. Needed to accumulate and integrate results.  Worked around this by using OctoMaps, but this greatly reduces performance. Most RL implementations just use 2D camera, ignoring 3D camera capabilities.
+  - Used ROS moveit to assume away much of the RL problem, only using RL for planning the final stage of grasping (e.g., lower straight down from above so only choosing final x/y and theta).  The numerous RL papers on grasping often try to show that they are slightly faster than the previous state of the art. Really, who cares if one algorithm is slightly faster in computing x/y/theta when other real-world concerns like the time of moving the arm dominates?  Provide more complex functionality instead.
   - Frequent calibration between robot camera and arm. Simple calibration didn't do very well across robots or across runs on same robot due to overheating or stressing of motors (e.g., pushing down too hard on tray).
-  - Pretrained imagenet models provide some transfer learning for regular cameras, but this doesn't help for 3D cameras.  Most of the RL on REPLab really only used the 2D camera functionality.
+  - Pretrained imagenet models provide some transfer learning for regular cameras, but this doesn't help for 3D cameras.
   - Using OpenCV to evaluate state needed for RL is almost a difficult as solving the problem itself.  For example,identifying the blocks and stacking them can be made easier by adding fiducials or sensors to blocks (blah... feels like cheating.)
   - Need to park arm so that it was away from tray so that state of objects on tray could be accurately assessed.
 
