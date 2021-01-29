@@ -96,6 +96,13 @@ compute_reward() policies.  You can also add "automatic mode" NNs
 to assist in training, as is done for the "scan for cube" and 
 "scan for box" NNs.
 
+The DQN tabletop reward policies are defined in compute_reward().
+Basically, the rewards are for picking up the cube, dropping the
+cube into the box, or a smaller reward for dropping/pushing the 
+cube off the table.  The penalties are a small per-move penalty,
+the robot going off the table (or other bad state), or taking too
+many moves.
+
 HOW TO RUN
 ----------
 First, follow the NVIDIA instructions to install the jebot onto the
@@ -133,6 +140,9 @@ To execute the teleop app, run:
 
   - python3 ./sir_robot_teleop.py --app_name TT_FUNC
     - You can also run with app_name "TT_DQN" and "TT_NN".
+    
+HOW TO TRAIN
+------------
 
 To gather data in teleop, hit the top left button to go into "gather data" mode.
 You can toggle off gather_data mode to teleop reposition the robot.
@@ -167,16 +177,57 @@ The joystick commands on the logitech controller are:
 The human uses the joystick to define the REWARD and PENALTY.
 For TT_func, these will result in moving on to the next NN to
 train.
-For DQN, these will end the run. Different terminal penalties
+For DQN, these will end the run. Different DQN terminal penalties
 and rewards can be awarded by ROBOT_OFF_TABLE_PENALTY and
 CUBE_OFF_TABLE_PENALTY.
 
-The DQN tabletop reward policies are defined in compute_reward().
-Basically, the rewards are for picking up the cube, dropping the
-cube into the box, or a smaller reward for dropping/pushing the 
-cube off the table.  The penalties are a small per-move penalty,
-the robot going off the table (or other bad state), or taking too
-many moves.
+The steps for training the robot:
+ - For the safety of the robot, have a tabletop-like surface elevated
+inches from the ground. 
+ - Put a box at the end of the table or justoff the table, typically 
+ in the middle of the long-end of the table.
+ - Put a cube on the table.  
+ - Put the robot on the table. Initially the cube and robot placement/orientation
+ can be random, but eventually you'll want to place them deliberately so that
+ more scenarios can be covered, so for example, the robot will learn not to
+ drive off the table.
+ - Run TT_FUNC in teleop. 
+ - Point your browser at the webcam. There will be some lag.
+ - You can reposition by teleop while not in gather_data mode.  
+ - Put in gather_data mode.  
+ - The robot will be in NN1, which  means to park the arm.  
+ Using the RC, position the arm facing down so that the camera 
+ can see the robot base.  The grippers should be approximately 
+straight down, with both grippers touching the base.
+ - when done parking the arm, press reward. Then you can train
+NN2, which is searching for the cube. 
+ - For NN2, the arm will scan up automatically. When the webcam
+ shows beyond the edges of the table, press penalty.
+ - Still training NN2,the robot will rotate left for a bit and
+ then the arm will scan down. When the robot arm has reached the
+ park position, press penalty. The robot will then rotate left
+ and scan upwards.
+ - Continue training NN2 until the cube can be completely seen
+ within the webcam. At this time, press reward to train NN3.
+ - For NN3, drive to the cube. When within reach of the cube,
+ press reward to train NN4.
+ - For NN4, pick up the cube via the joystick. When the cube
+ is successfully off the ground, press reward for NN5.
+ - For NN5, the robot scans for the box in automatic mode like
+ for NN2. Press penalty at the top/bottom of arm scans until
+ you can clearly see the box in webcam, at which time press
+ reward.
+ - For NN6, drive towards the box until within dropping distance.
+ Then press reward to move to NN7.
+ - For NN7, drop the cube in the box and press reward.
+ - for NN8, drive backwards a bit (e.g. 4 moves) and park the arm. 
+ and press reward.  At this time, put the cube at another place
+ on the table and optionally reposition the robot. Ready for another
+ training run.
+ 
+ When done enough runs, run NN training for the TT_NN, TT_FUNC, TT_DQN
+ apps. Gather more data if necessary.
+
 
 REINFORCEMENT LEARNING ON REAL ROBOTS: Lessons Learned
 ------------------------------------------------------
