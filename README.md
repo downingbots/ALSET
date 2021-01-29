@@ -1,4 +1,4 @@
-# SIR_jetbot
+# SIR_JETBOT
 
 This is SIRjetbot1. The SIR stands for Sharper Image Robot, which I purchased on
  clearance for less than $20. The 1 is because we bought 3 of them that worked.
@@ -102,6 +102,27 @@ cube into the box, or a smaller reward for dropping/pushing the
 cube off the table.  The penalties are a small per-move penalty,
 the robot going off the table (or other bad state), or taking too
 many moves.
+
+HOW TO BUILD
+------------
+Full list of parts with Amazon-searchable names:
+
+    - SanDisk Extreme Pro SDXC UHS-I U3 A2 V30 128GB + Adapter, SDSQXCY-128G-GN6MA
+    - Cookie Wheel Camera Case for The Raspberry Pi Camera v1 and v2 (not Included) mounted on wrist after taking off half of the black plastic
+    - Adafruit Flex Cable for Raspberry Pi Camera - 24" / 610mm
+    - Raspberry Pi Camera Module V2-8 Megapixel,1080p (RPI-CAM-V2)
+    - Waveshare Power Supply Applicable for Jetson Nano 5V/4A OD 5.5mm ID 2.1mm (US Adapter only)
+    - seeed studio NVIDIA Jetson Nano Developer Kit Single Board Computer for AI Development - B01 Version. Note the B01 version (for potential future camera)
+    - Portable Charger 30000mAh, (Ultra High Capacity)(Flashlight)(Outdoor) BONAI 5.6A 4-Port Output External Battery Pack, Polymer Fast 4A Input Power Bank for iPhone iPad Samsung Galaxy and More - Mint
+    - Onite 20AWG USB to DC 5.5x2.1mm Barrel Jack Center Pin Positive Power Cable Charger Cord for LED Strip, 3.3ft, 2-Pack
+    - Logitech Gamepad F710
+    - female-female connector wires (I have extra if you need)
+    - Geekworm DC 5V 4007 40MM 4CM 40x40x7MM Cooling Fan for NVIDIA Jetson Nano Developer Kit and Jetson Nano Metal Case/T100 Case/T300 Case 
+    - Geekworm DC 5V 4007 40MM 4CM 40x40x7MM Cooling Fan for NVIDIA Jetson Nano Developer Kit and Jetson Nano Metal Case/T100 Case/T300 Case
+    - Waveshare AC8265 Wireless NIC Module for Jetson Nano Supports 2.4GHz / 5GHz Dual Band WiFi and Bluetooth 4.2
+    - Waveshare MCP23017 IO Expansion Board I2C Interface Expands 16 I/O Pins Stack to 8 pcs Used at The Same Time Allow Multi I2C Modules to be Stacked
+    - plastic zip ties, 9 volt battery connector
+    
 
 HOW TO RUN
 ----------
