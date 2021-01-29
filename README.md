@@ -124,11 +124,17 @@ Full list of parts with Amazon-searchable names:
     - plastic zip ties, 9 volt battery connector
     
 I made a simple cheap press-board harness glued to wooden right-angle brackets so that the boards go on either side of the arm just on the inside of the tank-tracks and supported by the robot body. You could get a lot fancier if you like. The press-boards are slightly bigger than the battery. The battery is attached via plastic zip ties through holes in the board on one side. On the other side goes the Nano, the MCP23017, the insides of the RC joystick.
+
 Put the fan and wifi on the nano.
-Take apart the joystick RC controller for the robot. Take out the board. Solder wires to the other side of the buttons up/down on the board. Also, solder the positive voltage. Also solder the 9 volt battery connector to the 9volt wires that are integrated into the plastic controller.
+
+Take apart the joystick RC controller for the robot. Take out the board. Solder wires to the other side of the buttons up/down on the board. Also, solder the positive voltage. Also solder the 9 volt battery connector to the 9volt wires that are integrated into the plastic controller.  The RC controller is the key to the integration with the toy and the Nano to provide simple autonomy.  As long as you can do similar soldering to a different toy's joystick, you can use much of the same code and board layout for a toy crane, excavator, bulldozer, etc.  The fact that the joystick was a simple up/down set of switches (with no speed control) makes the joystick easier to integrate.
+
 The other side of the joystick wires go to the MCP23017.
+
 The MCP23017 are also connected to the Nano via female-female connector wires.
+
 TODO: add lots of pictures.  add Amazon links.  Contact me using my downingbots gmail, if you have questions in the meantime. This section is mostly a place-holder to give you an idea of the scope of the project.  I was able to put this all together in an afternoon.
+
 The robot has separate batteries for the joystick and the base. The Nano has its own battery. The Nano battery was selected because it is one of the few able to provide enough amps to run multiple NNs concurrently.
 
 HOW TO RUN
