@@ -109,8 +109,8 @@ contents of this github repository there. Add an apps subdirectory,
 and further subdirectories for:
 
   - apps/TT_DQN/dataset
-  - apps/TT_func/dataset
-  - apps/NN/dataset
+  - apps/TT_FUNC/dataset
+  - apps/TT_NN/dataset
 
 Other subdirectories will be automatically created during execution.
 
@@ -131,8 +131,8 @@ killing the robot executable. If so, run the following script:
 
 To execute the teleop app, run:
 
-  - python3 ./sir_robot_teleop.py --app_name TT_func
-    - You can also run with app_name "TT_DQN" and "NN".
+  - python3 ./sir_robot_teleop.py --app_name TT_FUNC
+    - You can also run with app_name "TT_DQN" and "TT_NN".
 
 To gather data in teleop, hit the top left button to go into "gather data" mode.
 You can toggle off gather_data mode to teleop reposition the robot.
@@ -142,8 +142,8 @@ Training should automatically be done at the end of every run.
 
 To train, run:
 
-  - python3 ./sir_robot_train.py --app_name TT_func
-    - You can also train with app_name "TT_DQN" and "NN".
+  - python3 ./sir_robot_train.py --app_name TT_FUNC
+    - You can also train with app_name "TT_DQN" and "TT_NN".
 
 The joystick commands on the logitech controller are:
 
