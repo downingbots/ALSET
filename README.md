@@ -14,13 +14,13 @@ an arm or crane or dozer blade or shovel. Just add a Jetson Nano, battery, and c
 near the end of the arm/excavator/bulldozer/crane/shovel as described below. Contact me if interested.
 
 <p align="center">
-  <img src="https://github.com/downingbots/SIR_jetbot/blob/master/sharper_image_robot.jpg" width="200 title="Sharper Image Robot">
-  <img src="https://github.com/downingbots/SIR_jetbot/blob/master/sharper_image_robot2.jpg" width="200" alt="accessibility text">
+  <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/sharper_image_robot.jpg" width="200 title="Sharper Image Robot">
+  <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/sharper_image_robot2.jpg" width="200" alt="accessibility text">
 </p>
 Other potential platforms that code might work for (with jetson nano and minor mods): Remote Control Bulldozer + Top Race 15 Channel RC Excavator. You can train the robot via Remote Control to do Bulldozer-like behavior or Excavator-like behavior without explicitly programming anything.  With minimal changes, you can train individual "functionality" like put down the bulldozer blade and drive forward and then lift the blade and drive in reverse. You can link functionality together to do a higher-level task. Then, finally you can define some "policy" so that the linked functionalities can be optimized via end-to-end reinforcement learning.
 <p align="center">
-  <img src="https://github.com/downingbots/SIR_jetbot/blob/master/excavator.jpg" width="200" title="RC Excavator">
-  <img src="https://github.com/downingbots/SIR_jetbot/blob/master/bulldozer.jpg" width="200" alt="accessibility text">
+  <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/excavator.jpg" width="200" title="RC Excavator">
+  <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/bulldozer.jpg" width="200" alt="accessibility text">
 </p>
 
 The Sharper Image robot was hacked as followed:
@@ -298,9 +298,9 @@ To solve the problem of getting the state of the environment that simulations ca
 
 Some of my previous robots: PR2Lite (with Maxwell, which ROSwell cloned), REPLab, RLDonkeycar
 <p align="center">
-  <img src="https://github.com/downingbots/SIR_jetbot/blob/master/pr2lite_handshake_chess.jpg" width="150" title="RC Excavator">
-  <img src="https://github.com/downingbots/SIR_jetbot/blob/master/replab.jpg" width="150" alt="accessibility text">
-  <img src="https://github.com/downingbots/RLDonkeycar/blob/master/RLDonkeycar.jpg" width="150" alt="accessibility text">
+  <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/pr2lite_handshake_chess.jpg" width="150" title="RC Excavator">
+  <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/replab.jpg" width="150" alt="accessibility text">
+  <img src="https://github.com/downingbots/RLDonkeycar/blob/master/ReadMeImages/RLDonkeycar.jpg" width="150" alt="accessibility text">
  
 </p>
 
