@@ -1,0 +1,1 @@
+sudo cp *.py /usr/local/lib/python3.6/dist-packages/jetbot-0.4.0-py3.6.egg/jetbot ; sudo cp *.py /usr/local/lib/python3.6/dist-packages/jetbot-0.3.0-py3.6.egg/jetbot/

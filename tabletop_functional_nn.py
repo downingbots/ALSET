@@ -8,9 +8,21 @@ class tabletop_functional_nn():
       self.last_arm_action = "LOWER_ARM_DOWN"
       self.curr_automatic_action = "LEFT"
       self.automatic_mode = False
+      self.robot_actions = ["UPPER_ARM_UP", "UPPER_ARM_DOWN", "LOWER_ARM_UP", "LOWER_ARM_DOWN",
+                "GRIPPER_OPEN", "GRIPPER_CLOSE", "FORWARD", "REVERSE", "LEFT", "RIGHT"]
+      self.joystick_actions = ["REWARD","PENALTY"]
+      self.automatic_actions = [ "NOOP", "REWARD", "PENALTY"]
+      self.automatic_mode_noop_mapping = ["LEFT", "LOWER_ARM_UP", "LOWER_ARM_DOWN"]
+      self.full_action_set = self.robot_actions + self.joystick_actions
+      self.model_dir = "./apps/TT_FUNC/"
+      self.model_prefix = "TTFUNC_model"
+      self.ds_prefix = "./apps/TT_FUNC/dataset/NN"
+      self.TTFUNC_NUM_NN = 8
 
   def nn_init(self, app_name, NN_num, gather_mode=False):
       print("NN_INIT: %d" % NN_num)
+      # defaults
+
       gather_mode = False  # ARD: why does gather_mode matter for nn_init?
       if NN_num == 1:
         print("TableTop: 8 Functional NNs")
@@ -185,3 +197,9 @@ class tabletop_functional_nn():
           return feedback
       return None
 
+  def train(self):
+      for nn_num in range(1, self.TTFUNC_NUM_NN+1):
+        ds = self.ds_prefix + str(nn_num)
+        dataset_root_list = [ds]
+        model = self.model_dir + self.model_prefix + str(nn_num) + ".pth"
+        self.NN[nn_num-1].train(dataset_root_list, model)

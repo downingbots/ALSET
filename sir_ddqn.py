@@ -20,6 +20,7 @@ import torch.nn.functional as F
 # from torch import read_file, decode_image
 
 import pickle
+from dataset_utils import *
 
 # import sir_image 
 
@@ -56,7 +57,7 @@ class ReplayBuffer():
 
     def find_done(self, start=0):
         len_buf = len(self.buffer)
-        random_start = random.randint(0,(len_buf-1))
+        # random_start = random.randint(0,(len_buf-1))
         for i in range(start, len_buf):
            state, action, reward, next_state, done, q_val = zip(*itertools.islice(self.buffer,i,i+1))
            if done[0]:
@@ -526,14 +527,14 @@ import importlib.machinery
 class SIR_DDQN():
 
     def __init__(self, initialize_model=False, do_train_model=False):
-        self.TTFUNC_DATASET_INDEX_FILE = "./apps/TT_func/dataset/run_details_sorted.txt"
-        self.TTFUNC_PATH_PREFIX = './apps/TT_func/dataset/'
-        self.BEST_MODEL_PATH = './apps/TT_DQN/dataset/best_model.pth'
-        self.TTDQN_DATASET_INDEX_FILE = "./apps/TT_DQN/dataset/run_details_sorted.txt"
+        self.BEST_MODEL_PATH = './apps/TT_DQN/dataset/TTDQN_model1.pth'
         self.TTDQN_PATH_PREFIX = "./apps/TT_DQN/dataset/"
         self.REPLAY_BUFFER_PATH = './apps/TT_DQN/dataset/replay_buffer.data'
 
         # these are the directories. Joystick can specify reward/penalty + robot actions.
+        # NOOP should not have a directory. TT_FUNC has an index that should translate images
+        # into a NOOP for automatic mode.
+        # Automatic mode should not use a dataloader for the NN.
         self.actions = ( "FORWARD", "REVERSE", "LEFT", "RIGHT", "LOWER_ARM_DOWN", "LOWER_ARM_UP", "UPPER_ARM_DOWN", "UPPER_ARM_UP", "GRIPPER_OPEN", "GRIPPER_CLOSE", "REWARD", "PENALTY", "ROBOT_OFF_TABLE_PENALTY", "CUBE_OFF_TABLE_REWARD", "NOOP")
         self.robot_actions = ( "FORWARD", "REVERSE", "LEFT", "RIGHT", "LOWER_ARM_DOWN", "LOWER_ARM_UP", "UPPER_ARM_DOWN", "UPPER_ARM_UP", "GRIPPER_OPEN", "GRIPPER_CLOSE")
 
@@ -599,17 +600,31 @@ class SIR_DDQN():
         self.target_model = None
         self.init_model = initialize_model
         self.train_model = do_train_model
+        print("DQN initialization: ",self.init_model, self.train_model)
         
     def nn_init(self, app_name, NN_num, gather_mode=False):
         self.current_model = CnnDQN(self.num_actions)
         self.target_model = CnnDQN(self.num_actions)
+
+        self.robot_actions = ["UPPER_ARM_UP", "UPPER_ARM_DOWN", "LOWER_ARM_UP", "LOWER_ARM_DOWN",
+                "GRIPPER_OPEN", "GRIPPER_CLOSE", "FORWARD", "REVERSE", "LEFT", "RIGHT"]
+        self.joystick_actions = ["REWARD","PENALTY", "CUBE_OFF_TABLE_REWARD", "ROBOT_OFF_TABLE_PENALTY"]
+        self.full_action_set = self.robot_actions + self.joystick_actions
+        self.model_dir = "./apps/TT_DQN/"
+        self.model_prefix = "TTDQN_model"
+        self.ds_prefix = "./apps/TT_FUNC/dataset/NN"
+
         if (self.init_model):  # probably done on laptop
-            self.parse_dataset(self.TTFUNC_DATASET_INDEX_FILE, self.TTDQN_PATH_PREFIX)
+            # starts from the first dataset
+            self.parse_dataset(init=True)
             self.save_replay_buffer()
             if (self.train_model):
               self.train_DQN_qvalue()
         else:
             self.load_replay_buffer()
+            # get new datasets
+            self.parse_dataset(init=False)
+            self.save_replay_buffer()
             if (self.train_model):
               self.train_DQN_qvalue()
             else:
@@ -810,7 +825,8 @@ class SIR_DDQN():
         # print("self.actions:",self.robot_actions)
         action_idx = []
         for a in action:
-          action_idx.append(self.robot_actions.index(a))  # Human readable to integer index
+          # action_idx.append(self.robot_actions.index(a))  # Human readable to integer index
+          action_idx.append(self.full_action_set.index(a))  # Human readable to integer index
         action_idx = tuple(action_idx)
         # print("action:",action)
         # print("action_idx:",action_idx)
@@ -923,33 +939,48 @@ class SIR_DDQN():
         # set by joystick: REWARD, PENALTY, ROBOT_OFF_TABLE, CUBE_OFF_TABLE
         return self.dqn_action
     
-    
-    def get_action(self, line):
-        NN_NUM_OFFSET = 13
-        ACTION_OFFSET = 15
-        NN_REAL_REWARD = [4, 8]  # pick_up_cube, drop_cube_in_box
-        found = False
-        for action in self.actions:
-          line_action = line[ACTION_OFFSET:ACTION_OFFSET+len(action)]
-          if line_action == action:
-            found = True
-            if action == "REWARD":
-              NN_num = int(line[NN_NUM_OFFSET:NN_NUM_OFFSET+1])
-              if NN_num not in NN_REAL_REWARD:
-                print("action to NOOP, NN#", action, NN_num)
-                line_action = "NOOP"
-            break
-        if not found:
-          print("action not found: ", line)
-        return line_action 
-
     # for parsing either TT_FUNC or TT_DQN app dataset
-    def parse_dataset(self, filename, app_path_prefix):
-        # open the file for reading
-        filehandle = open(filename, 'r')
-        encoded_img = filehandle.read()
-        # close the pointer to that file
-        filehandle.close()
+    def parse_dataset(self, init=False):
+        ds_util = DatasetUtils("TT_DQN")
+        if init:
+          # start at the beginning
+          ds_util.save_dataset_idx_processed(app_nm = "TT_DQN", dataset_idx=None)
+        while True:
+          full_path, ds_name = ds_util.next_dataset_idx(app_nm = "TT_DQN", init=init)
+          if ds_name is None:
+            break
+          filehandle = open(full_path, 'r')
+          frame_num = 0
+          reward = []
+          line = filehandle.readline()
+          while True:
+            # read a single line
+            next_line = filehandle.readline()
+            if not next_line:
+                break
+            [tm, state, action, nn_num] = ds_util.get_dataset_info(line)
+            [tm, next_state, next_action, nn_num] = ds_util.get_dataset_info(next_line)
+            if action == "REWARD":
+                if NN_num not in NN_REAL_REWARD:
+                  print("action to NOOP, NN#", action, NN_num)
+                  line_action = "NOOP"
+            reward, done = compute_reward(frame_num, action)
+            frame_num += 1
+            self.replay_buffer.push(state, action, reward, next_state, done)
+  
+            if next_action != "REWARD":
+              line = next_line
+            if len(self.replay_buffer) > self.replay_initial:
+              loss = compute_td_loss(batch_size, app_path_prefix)
+            if frame_num % 1000 == 0 or done:
+              update_target(self.current_model, self.target_model)
+            if done:
+              state = None
+              self.all_rewards.append(self.total_reward)
+              torch.save(model.state_dict(), self.BEST_MODEL_PATH)
+  
+          # close the pointer to that file
+          filehandle.close()
 
     def nn_process_image(self, NN_num, next_state, reward_penalty = None):
         # NN_num is unused by ddqn, but keeping nn_apps API
@@ -971,7 +1002,8 @@ class SIR_DDQN():
             print("reward/penalty: ", next_action)
         elif rand_num < epsilon:
             next_action_num = random.randrange(self.num_actions)
-            next_action = list(self.robot_actions)[next_action_num]
+            # next_action = list(self.robot_actions)[next_action_num]
+            next_action = list(self.full_action_set)[next_action_num]
             print("random action: ", next_action, epsilon, rand_num, fr_num, self.frame_num)
         else:
             # print("next_state:",next_state)
@@ -993,7 +1025,8 @@ class SIR_DDQN():
             # next_state_tensor = torch.unsqueeze(next_state_tensor, 0)
             # torch.transpose(next_state_tensor, 0, 1)
             next_action_num = self.current_model.act(next_state_tensor)
-            next_action = list(self.robot_actions)[next_action_num]
+            # next_action = list(self.robot_actions)[next_action_num]
+            next_action = list(self.full_action_set)[next_action_num]
             print("NN: ", next_action)
         if self.frame_num == 0 and self.state == None:
           self.frame_num += 1
@@ -1052,6 +1085,10 @@ class SIR_DDQN():
             self.action = next_action 
             
         return next_action
+
+    def train(self):
+        self.train_model = True
+        self.nn_init("TT_DQN", 2, False)
 
 # TODO: Allow states self.CUBE_OFF_TABLE, self.ROBOT_OFF_TABLE, REWARD, PENALTY 
 # add syntax to call DDQN, PRETRAIN

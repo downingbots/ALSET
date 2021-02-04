@@ -16,13 +16,15 @@ class Robot(SingletonConfigurable):
         Scripts to drive a Smarter Image Robot and train a model for it.
 
         Usage:
-            SIR_robot_teleop.py --app_num num
-            SIR_robot_teleop.py --app_name name
+            sir_robot_{teleop,train}.py [--app_num=num] [--app_name=name] [--init] [--train_new_data]
 
         Options:
             -h --help        Show this screen.
-            --app_num num    see app_registry in nn_apps.py
-            --app_name name  see app_registry in nn_apps.py
+            --app_num=num    see app_registry in nn_apps.py
+            --app_name=name  see app_registry in nn_apps.py
+            --init           initialize models and directories (if needed)
+            --train_new_data train models on newly collected TT_FUNC data. Implied by --init.
+                             otherwise, just reuse existing models and data (e.g., replay buffer)
         """
         # print(__doc__)
         args = docopt(__doc__)
@@ -31,6 +33,7 @@ class Robot(SingletonConfigurable):
         find_app_num  = args['--app_num'] 
         self.NN_apps = nn_apps(self, find_app_num, find_app_name)
         for [self.app_num,self.app_name,self.num_NN] in self.NN_apps.app_registry:
+            print(args['--app_name'] ,self.app_name)
             if args['--app_name'] == self.app_name:
                 found = True
                 break
@@ -38,7 +41,12 @@ class Robot(SingletonConfigurable):
                 found = True
                 break
         if not found:
-            [self.app_num,self.app_name,self.num_NN] = self.NN_apps.app_regestry[0]
+            [self.app_num,self.app_name,self.num_NN] = self.NN_apps.app_registry[0]
+        print("init: ", args['--init'], args['--train_new_data'])
+        self.initialize = args['--init']
+        self.train_new_data = args['--train_new_data']
+        if self.initialize:
+          self.train_new_data = True
         print(self.app_num, self.app_name, self.num_NN)
         # super(Robot, self).__init__(*args, **kwargs)
         self.gather_data = GatherData(self.NN_apps)
@@ -46,7 +54,7 @@ class Robot(SingletonConfigurable):
         self.sir_robot = SIR_control(self)
         self.left_motor = Motor(self.sir_robot, "LEFT")
         self.right_motor = Motor(self.sir_robot, "RIGHT")
-        self.NN_apps.nn_init()
+        self.NN_apps.nn_init(self.initialize, self.train_new_data)
         self.DQN = None
         sir_joystick_daemon(self)
         
@@ -173,8 +181,8 @@ class Robot(SingletonConfigurable):
     # run pytorch NN to determine next move
     def set_NN_mode(self, mode): 
         self.NN_apps.set_nn_mode(mode)
-        # if mode == "DQN" and self.DQN == None:
-        #   self.DQN = SJB_DDQN()
+        if mode == "DQN" and self.DQN == None:
+          self.DQN = SIR_DDQN(self.initialize, self.train_new_data)
 
     def robot_off_table_penalty(self):
         self.gather_data.set_function("ROBOT_OFF_TABLE_PENALTY")
@@ -206,3 +214,5 @@ class Robot(SingletonConfigurable):
     def process_image(self):
         return self.gather_data.process_image()
 
+    def train(self):
+        self.NN_apps.train()

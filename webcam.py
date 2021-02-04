@@ -2,6 +2,7 @@ import cv2
 import time
 import threading
 from flask import Response, Flask
+import dataset_utils
 
 # Image frame sent to the Flask object
 global webcam_video_frame

@@ -2,6 +2,7 @@ import os
 import cv2
 from uuid import uuid1
 import time
+from dataset_utils import *
 
 class GatherData():
 
@@ -13,6 +14,7 @@ class GatherData():
         directory = os.path.join(self.nn_app.get_snapshot_dir(), self.function_name)
         # directory = self.robot_dir[self.function_name]
         self.frame_location = os.path.join(directory, str(uuid1()) + '.jpg')
+        frm_loc = self.frame_location
       i = 0
       while self.frame_location != None:
           i = i+1
@@ -24,6 +26,11 @@ class GatherData():
               break
           if self.frame_location == "DONE":
               exit()
+      if i <= 100:
+        ds_line = self.ds_util.dataset_line(frm_loc)
+        with open(self.current_ds_idx, 'a') as f:
+          f.write(ds_line)
+
       print("save snapshot wait time: %f" % (i*.01), self.frame_location)
       return self.process_image_action
 
@@ -75,3 +82,7 @@ class GatherData():
         self.process_image_value = False
         self.process_image_action = None
         # Video capture is done in __main__()
+        self.ds_util =  DatasetUtils(self.nn_app.app_num)
+        print(self.nn_app.app_name)
+        self.current_ds_idx = self.ds_util.new_dataset_idx_name(self.nn_app.app_name)
+

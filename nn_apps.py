@@ -47,7 +47,7 @@ import time
 class nn_apps():
     # initialize app registry
     def __init__(self, sir_robot, sir_app_num=None, sir_app_name=None):
-      self.app_registry = [[0, "SIRNN", 1], [1, "TT_func", 8], [2, "TT_DQN", 1]]
+      self.app_registry = [[0, "TT_NN", 1], [1, "TT_FUNC", 8], [2, "TT_DQN", 1]]
       if sir_app_num != None:
           if sir_app_num >= len(self.app_registry) or sir_app_num < 0:
               print("Error: unknown app number %d" % sir_app_num)
@@ -176,7 +176,7 @@ class nn_apps():
 
     # called to initialize or switch to a new NN for gathering data or exec
     # idempotent
-    def nn_init(self):
+    def nn_init(self, init, train_new_data):
       gather_mode = self.robot.get_gather_data_mode()
       self.robot.gather_data.set_function(None)
       # automatic_mode must be set to false until after the directories
@@ -237,3 +237,43 @@ class nn_apps():
       self.curr_nn_num = self.app_instance[self.app_num].nn_upon_penalty(self.curr_nn_num)
       self.nn_init()
       return self.curr_nn_num
+
+    def train(self):
+      # TODO: clean this up to keep the abstractions
+      self.app_instance[self.app_num].train()
+
+#     return
+#      if self.app_name == "TT_NN":
+#          # recomputes from scratch every time using dataset loader
+#          # combine all datasets into a single NN
+#          MODEL_PREFIX = "./apps/TT_NN/"
+#          TT_MODEL = "TTNN_model1.pth"
+#          DS_PREFIX = "./apps/TT_FUNC/dataset/NN"
+#          found = False
+#          for [TTFUNC_app_num, TTFUNC_app_name, TTFUNC_num_nn] in self.app_registry:
+#               if TTFUNC_app_name == "TT_FUNC":
+#                   found = True
+#                   break
+#          if not found:
+#              print("Error: unknown app name %s" % TTFUNC_app_name)
+#              exit()
+#          model = MODEL_PREFIX + TT_MODEL
+#          dataset = []
+#          for nn_num in range(1, TTFUNC_num_nn+1):
+#              ds = DS_PREFIX + str(nn_num)
+#              dataset.append(ds)
+#          dataset, model = self.app_instance[self.app_num].get_train_info(dataset, model)
+#          self.app_instance[self.app_num].train(dataset, model)
+#      elif self.app_name == "TT_FUNC":
+#          # recomputes from scratch every time using dataset loader
+#          # each datasets has a corresponding NN
+#          MODEL_PREFIX = "./apps/TT_FUNC/"
+#          TT_MODEL = "TTFUNC_model"
+#          DS_PREFIX = "dataset/NN"
+#          for nn_num in range(1, self.num_nn+1):
+#              model = MODEL_PREFIX + TT_MODEL + str(nn_num) + ".pth"
+#              ds = [MODEL_PREFIX + DS_PREFIX + str(nn_num)]
+#              self.app_instance[self.app_num].train(nn_num, ds, model)
+#      elif self.app_name == "TT_DQN":
+#          # recomputes incrementally
+#          self.app_instance[self.app_num].train()

@@ -1,0 +1,3 @@
+cp ./apps/TT_DQN/best_model.pth.bck ./apps/TT_DQN/best_model.pth
+cp ./apps/TT_DQN/replay_buffer.data.bck ./apps/TT_DQN/replay_buffer.data
+rm ./apps/TT_DQN/NN1/*/*.jpg
