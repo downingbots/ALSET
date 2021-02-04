@@ -300,7 +300,7 @@ Some of my previous robots: PR2Lite (with Maxwell, which ROSwell cloned), REPLab
 <p align="center">
   <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/pr2lite_handshake_chess.jpg" width="150" title="RC Excavator">
   <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/replab.jpg" width="150" alt="accessibility text">
-  <img src="https://github.com/downingbots/RLDonkeycar/blob/master/ReadMeImages/RLDonkeycar.jpg" width="150" alt="accessibility text">
+  <img src="https://github.com/downingbots/RLDonkeycar/blob/master/RLDonkeycar.jpg" width="150" alt="accessibility text">
  
 </p>
 
