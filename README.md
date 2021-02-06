@@ -185,6 +185,14 @@ To execute the teleop app, run:
   - python3 ./sir_robot_teleop.py --app_name TT_FUNC
     - You can also run with app_name "TT_DQN" and "TT_NN".
     
+When you start executing, the default mode is teleoperation. To gather
+data, use the TT_FUNC app on the command line and toggle the "gather_data" 
+button.  To run the imitation-learning NN for the TT_FUNC or TT_NN apps, 
+toggle the "NN" button. The DQN app uses reinforcement learning, which 
+combines imitation learning from the TT_FUNC app for initialization and
+then then does realtime gathering data and training.  To run the DQN
+RL NN, toggle the "gather_data" button.
+    
 ## HOW TO TRAIN
 
 To gather data in teleop, hit the top left button to go into "gather data" mode.
