@@ -199,7 +199,15 @@ To gather data in teleop, hit the top left button to go into "gather data" mode.
 You can toggle off gather_data mode to teleop reposition the robot.
 
 For DQN, gather_data mode executes the NN and gathers data for training.
-Training should automatically be done at the end of every run.
+Training should automatically be done at the end of every run.  New data gathered
+from the TT_FUNC app will be automatically processed at the beginning of every
+run.  So, there's no reason to explicitly train the DQN app as it does automated
+incremental training.
+
+The TT_FUNC and TT_NN apps are trained from scratch every time and require training
+by executing sir_robot_train.py as discussed below.  All three
+apps (TT_NN, TT_FUNC, and DQN) use the TT_FUNC app to gather data and will be
+trained from the TT_FUNC data.
 
 To train, run:
 
