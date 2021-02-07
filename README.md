@@ -182,7 +182,7 @@ killing the robot executable. If so, run the following script:
   - ./restart_camera
 
 To execute the teleop app, run:
-  - python3 ./sir_robot_teleop.py --app_name TT_FUNC
+  - python3 ./sir_jetbot_teleop.py --app_name TT_FUNC
     - You can also run with app_name "TT_DQN" and "TT_NN".
     
 When you start executing, the default mode is teleoperation. To gather
@@ -205,13 +205,13 @@ run.  So, there's no reason to explicitly train the DQN app as it does automated
 incremental training.
 
 The TT_FUNC and TT_NN apps are trained from scratch every time and require training
-by executing sir_robot_train.py as discussed below.  All three
+by executing sir_jetbot_train.py as discussed below.  All three
 apps (TT_NN, TT_FUNC, and DQN) use the TT_FUNC app to gather data and will be
 trained from the TT_FUNC data.
 
 To train, run:
 
-  - python3 ./sir_robot_train.py --app_name TT_FUNC
+  - python3 ./sir_jetbot_train.py --app_name TT_FUNC
     - You can also train with app_name "TT_DQN" and "TT_NN".
 
 The joystick commands on the logitech controller are:
