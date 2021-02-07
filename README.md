@@ -1,8 +1,8 @@
 # SIR_JETBOT
 
 Every robot builder hears the question: "What does your robot do?"  A goal of this
-project is "Whatever you train the robot to do."  Another goal is to relatively 
-easily add this autonomous capibility to inexpensive remote control toys.
+project is answer: "Whatever you train the robot to do."  Another goal is to relatively 
+easily add this autonomous capability to many inexpensive remote control toys.
 
 This is SIRjetbot1. The SIR stands for Sharper Image Robot, which I purchased on
 clearance for less than $20. The 1 is because we bought 3 of them that worked.
@@ -93,7 +93,7 @@ like the Jetson Nono to determine the next move.
 Unfortunately DQN isn't perfect for a tabletop robot because
 DQN has difficulty handling some situations. For example, 
 picking up a cube is a sparse-reward (taking hundreds
-of unrewarding moves), as is droppingthe cube.
+of unrewarding moves), as is dropping the cube in a box.
 Also, there's no continuous scoreboard accumulating tons of
 rewards/penaties as you might have on a video game. 
 
@@ -288,15 +288,18 @@ NN2, which is searching for the cube.
  on the table and optionally reposition the robot. Ready for another
  training run.
  
- When done enough runs, run NN training for the TT_NN, TT_FUNC, TT_DQN
- apps. Gather more data if necessary.
+ When done enough runs, run NN training for the TT_NN and TT_FUNC apps.
+ TT_DQN will automatically train from the TT_FUNC data. Gather more data 
+ if necessary via the TT_FUNC app in gather_data mode. TT_DQN will 
+ incremetally train on this data automatically, while the command-line
+ training for TT_NN or TT_FUNC will train the NNs from scratch.
  
 ## WHAT'S NEXT
 
 The key infrastructure is working. There's many directions that we can go from here. Each of the following aren't very hard for me to implement on top of the existing infrastructure. If you are interested in any of these (or other suggestions), contact me via my downingbots gmail:
  - Define single-level NN that provide specific named functionality (line following, stay-on-table). Currently possible with some file-copying of NN or training data in the current code. The idea is to expose this functionality.
  - Allow simple linking together of the functional NN to define an app. Currently, this functionality is available via straight-forward coding of a TT_FUNC-like application. The idea is to replace an hour's worth of coding with some declarative or graphical approach.
- - Associate Fiducials with the NN functionalities. When the fiducial is seen, launch a new functional NN.
+ - Associate Fiducials with the NN functionalities. When the fiducial is seen, launch a new functional NN or assign a reward/penalty for reinforcement learning.
  - Generalize to other analogous "platforms" like a bulldozer, an excavator, a dump truck, etc.
  - Generalize to more dissimilar platforms like a hexipod that I've previously competed at the April 2018 Robogames tabletop and obstacle challenges.
  - Experiment with multiple robots working together on tasks.
