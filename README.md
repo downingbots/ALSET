@@ -31,15 +31,15 @@ The Sharper Image robot was hacked as followed:
  - Jetson Nano Developer Board with wifi
  - raspberry pi camera v2 with 2 ft cable mounted on a cookie wheel case near the end of the arm.
  - A hacked RC:
-   - the inside of the low-end RC control that came with the robot. 
-   - You can see/use the buttons here control the robot. 
+   - the circuit board from inside of the low-end RC control that came with the robot. 
+   - You can see/use the buttons from the RC ciruit board to control the robot. 
    - the other side of the board was soldered to wire it up with the IO expansion board.
  - The IO expansion board was required :
    - the RC control uses Tri-state logic on 6 pins.
    - The expansion board uses I2C to communicate with the Jetson Development board
    - The expansion board is connected to the RC control via wires
  - It is powered by a mongo BONAI 5.6A battery pack. 
- - Logitech gamepad joystick
+ - Logitech gamepad joystick communicates with the jetson to provide more sophisticated and specialized RC control.
 
 The code started with the Jetson Notebook tutorial on Obstacle avoidance, but was changed 
 significantly. The Notebook tutorials barely ran on my Jetson with the wifi connectivity from my working area. The tutorials were replaced with:
@@ -140,7 +140,7 @@ Full list of parts with Amazon-searchable names:
  - Waveshare MCP23017 IO Expansion Board I2C Interface Expands 16 I/O Pins Stack to 8 pcs Used at The Same Time Allow Multi I2C Modules to be Stacked
  - plastic zip ties, 9 volt battery connector
     
-I made a simple cheap press-board harness glued to wooden right-angle brackets so that the boards go on either side of the arm just on the inside of the tank-tracks and supported by the robot body. You could get a lot fancier if you like. The press-boards are slightly bigger than the battery. The battery is attached via plastic zip ties through holes in the board on one side. On the other side goes the Nano, the MCP23017, the insides of the RC joystick.
+I made a simple cheap press-board harness glued to wooden right-angle brackets so that the boards go on either side of the arm just on the inside of the tank-tracks and supported by the robot body. You could get a lot fancier if you like. The press-boards are slightly bigger than the battery. The battery is attached via plastic zip ties through holes in the board on one side. On the other side goes the Nano, the MCP23017, the circuit board from inside of the RC joystick.
 
 Put the fan and wifi on the nano.
 
