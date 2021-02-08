@@ -38,8 +38,8 @@ The Sharper Image robot was hacked as followed:
    - the RC control uses Tri-state logic on 6 pins.
    - The expansion board uses I2C to communicate with the Jetson Development board
    - The expansion board is connected to the RC control via wires
- - It is powered by a mongo BONAI 5.6A battery pack
-   - Logitech gamepad joystick
+ - It is powered by a mongo BONAI 5.6A battery pack. 
+ - Logitech gamepad joystick
 
 The code started with the Jetson Notebook tutorial on Obstacle avoidance, but was changed 
 significantly. The Notebook tutorials barely ran on my Jetson with the wifi connectivity from my working area. The tutorials were replaced with:
