@@ -306,6 +306,7 @@ The key infrastructure is working. There's many directions that we can go from h
    - Example: excavator fills up a dump truck from gravel in a pit. The dump truck drives around and fills up the same pit on the other side then drives back again for the next refill.  
    - Example: one armed robot picks up cubes and dumps them in a box.  Another armed robot picks cubes from a box and dumps them someplace on the ground.
  - Write an iPhone / Android app to display the webcam and control the robot via bluetooth. No need to understanding Linux. No Joystick required. No wifi required on the jetson nano. Needs a pre-configured SD card.
+ - Support PPO RL for continuous action in addition to the stop/go DQN. You need to make sure that the Jetson can keep up with the RC response time. PPO was used on the RL donkeycar but required the car to be running slow.  However, the Sharper Image Robot on the tabletop would run right off the table. The response time to process an image might be a half-second, and a half-second isn't fast enough for many continuous actions.
 
 ## REINFORCEMENT LEARNING ON REAL ROBOTS: Lessons Learned
 
