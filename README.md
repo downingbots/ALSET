@@ -61,7 +61,6 @@ The robot runs in 4 modes: RC telepresence, data-capture, and using trained neur
  - scans for the box
  - goes to the box (keeping box in center of vision)
  - drops object in box
- - backs up and park arm (back to phase 1)
 
 The default app is the HBRC tabletop challenge phase 3:
 
@@ -274,19 +273,18 @@ NN2, which is searching for the cube.
  within the webcam. At this time, press reward to train NN3.
  - For NN3, drive to the cube. When within reach of the cube,
  press reward to train NN4.
- - For NN4, pick up the cube via the joystick. When the cube
- is successfully off the ground, press reward for NN5.
- - For NN5, the robot scans for the box in automatic mode like
+ - For NN4, reach out to the cube via the joystick. When ready to
+ grab, press reward to train NN5.
+ - For NN5, grab the cube and lift it up. When the cube
+ is successfully off the ground, press reward for NN6.
+ - For NN6, the robot scans for the box in automatic mode like
  for NN2. Press penalty at the top/bottom of arm scans until
  you can clearly see the box in webcam, at which time press
  reward.
- - For NN6, drive towards the box until within dropping distance.
+ - For NN7, drive towards the box until within dropping distance.
  Then press reward to move to NN7.
- - For NN7, drop the cube in the box and press reward.
- - for NN8, drive backwards a bit (e.g. 4 moves) and park the arm. 
- and press reward.  At this time, put the cube at another place
- on the table and optionally reposition the robot. Ready for another
- training run.
+ - For NN8, drop the cube in the box and press reward.
+ - End training run
  
  When done enough runs, run NN training for the TT_NN and TT_FUNC apps.
  TT_DQN will automatically train from the TT_FUNC data. Gather more data 
