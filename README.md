@@ -297,7 +297,7 @@ NN2, which is searching for the cube.
 The key infrastructure is working. There's many directions that we can go from here. Each of the following aren't very hard for me to implement on top of the existing infrastructure. If you are interested in any of these (or other suggestions), contact me via my downingbots gmail:
  - Define single-level NN that provide specific named functionality (line following, stay-on-table). Currently possible with some file-copying of NN or training data in the current code. The idea is to expose this functionality.
  - Allow simple linking together of the functional NN to define an app. Currently, this functionality is available via straight-forward coding of a TT_FUNC-like application. The idea is to replace an hour's worth of coding with some declarative or graphical approach.
- - Associate Fiducials with the NN functionalities. When the fiducial is seen, launch a new functional NN or assign a reward/penalty for reinforcement learning.
+ - Associate Fiducials with the NN functionalities. When the fiducial is seen, launch a new functional NN or assign a reward/penalty for reinforcement learning.  Maybe do line-following to go from fiducial to fiducial.
  - Generalize to other analogous "platforms" like a bulldozer, an excavator, a dump truck, etc.
  - Generalize to more dissimilar platforms like a hexipod that I've previously competed at the April 2018 Robogames tabletop and obstacle challenges.
  - Experiment with multiple robots working together on tasks.
