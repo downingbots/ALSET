@@ -8,20 +8,20 @@ This is SIRjetbot1. The SIR stands for Sharper Image Robot, which I purchased on
 clearance for less than $20. The 1 is because we bought 3 of them.  We tested
 the robots on clearance with batteries to check if they 100% worked, and most of them
 did not.  The robot can be trained to do simple jetbot-like functionality like "stay on a table."
-The bot is an educational robot with just 2 motored wheels from NVIDIA. The
-jetbot has a set of nice tutorials of running neural nets on the Jetson Nano AI computer.
-SIRjetbot1 can run all the jebot tutorias. In addition,,
+The NVIDIA jetbot is an educational robot with just 2 motored wheels from NVIDIA. The
+jetbot has a set of nice tutorials of running neural nets (NNs) on the Jetson Nano AI computer.
+SIRjetbot1 can run all the jebot tutorials. In addition,
 the software for SIRjetbot1 can be trained to do a sequence of individual tasks like 
 "search for cube", "drive to cube",and "pick up cube". SIRjetbot1 has a robot arm
 for mobile manipulation. Finally, SIRjetbot1 can do end-to-end optimizations
 of the sequence of individual tasks via reinforcement learning. 
- 
+
 <p align="center">
   <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/sharper_image_robot.jpg" width="200 title="Sharper Image Robot">
   <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/sharper_image_robot2.jpg" width="200" alt="accessibility text">
 </p>
 
-SIRjetbo1 is an inexpensive platform to run DDQN reinforcement learning on a mobile manipulator. 
+SIRjetbot1 is an inexpensive platform to run NNs and DDQN reinforcement learning on a mobile manipulator. 
 However, the software is not specific to the Sharper Image Robot. In theory, it could easily
 be generalized to many inexpensive RC toys with tracked or differential-drive wheels that have 
 an arm or crane or dozer blade or shovel. Just add a Jetson Nano, battery, and camera mounted
@@ -58,7 +58,7 @@ significantly. The Notebook tutorials barely ran on my Jetson with the wifi conn
     
 This data is then gathered and used to train the robot. Note: a tenth of a second of start/stop proved too much for one of the boards and the robot will stop moving after a few minutes of continuous use. Eventually changed the pwm rate to two-moves-per-second.
 
-The robot runs in 4 modes: RC telepresence, data-capture, and using trained neural net(s) including a single CNN, a multi-part sequence of CNNs, and DDQN reinforcement learning.  The data capture and neural net can be for a single alexnet NN, or a sequence of alexnet NNs with function-specific knowledge. For example, the 8-parts are for an HBRC phase-3 tabletop bot is:
+The robot runs in 4 modes: RC telepresence, data-capture, and using trained neural net(s) including a single CNN, a multi-part sequence of CNNs, and DDQN reinforcement learning. The CNNs are pre-trained using over 14 million classified images using the Alexnet model. The data capture and neural net can be for a single alexnet NN, or a sequence of alexnet NNs with function-specific knowledge. For example, the 8-parts are for an HBRC phase-3 tabletop bot is:
  - get the arm to a known position
  - scans for object on the floor (or table)
  - goes to object, keeping object in center of vision
