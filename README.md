@@ -105,20 +105,23 @@ of unrewarding moves), as is dropping the cube in a box.
 Also, there's no continuous scoreboard accumulating tons of
 rewards/penaties as you might have on a video game. 
 
-DQN can be computed after the final reward. For a game like
+DQN can be trained after the final reward for each run. For a game like
 chess, there's only one reward based upon who won the game.
-Then, the reward is spread out over the preceeding moves.
-So, the reward before the checkmate is 99% of the final reward.
-The 3rd to last reward is .99 * .99 * final_reward, etc.  A neural
-net is then trained based over many games using the chess
-board states and the associated spread-out rewards to predict 
-the quality (or Q-value) of each next move.
+Then, the DQN algorithm retroactively goes over the history of
+preceeding moves to give a "quality" score or Q-value.
+The Q-value for the move before the checkmate is 99% of the final reward.
+The Q-value for the 3rd to last move is .99 * .99 * final_reward, etc.  
+A neural net is then trained over many moves (i.e. the chess
+board state and the associated Q-value) over many games. Eventually,
+the NN is able to predict the Q-value of each possible next move.
+
 DQN also uses an experience replay buffer that intermix the
 acting and learning phases of RL.  DDQN is an evolution of the DQN 
 algorithm that addresses various technical deficiencies of DQN.
 
-The SIRjetbot software allows intermediate rewards to be assigned.
-For DQN, minor penalties are assigned for each move to
+The SIRjetbot software allows intermediate rewards to be assigned
+by the user. SIRjetbot uses a jpg image to represent the state after 
+each move. For DQN, minor penalties are assigned for each move to
 encourage learning more efficient actions.
 
 Here's Sir_jetbot1 running the phase1 tabletop (2x speed):
