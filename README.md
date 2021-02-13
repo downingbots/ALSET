@@ -338,7 +338,7 @@ ROS is a good place to start with real robots, but you'll eventually hit the lim
 SIR_jetbot_the_first addresses several lessons learned the hard way.
   - Over time, I've become convinced that inexpensive Robot Arms should have camera attached directly to the arm and use RL for digital servoing. SIR_jetbot1 does this with its only sensor - the RPi camera on its gripper (just below the "wrist").
   - SIR_jetbot1 does discrete moves to avoid realtime processing and also to handle low-end hardware limations (mcp23017 communication rate).
-  - on-board Jetson is the most expensive component. Total price of the whole robot is a few hundred dollars.
+  - The on-board Jetson is the most expensive component. Total price of the whole robot is a few hundred dollars.
   - Use imitation-learning to reduce amount of RL episodes that you have to run.
   
   There are many obstacles of doing RL on real robots:
@@ -379,8 +379,8 @@ Lessons from ROSwell:
     - Might as well use no physics engine and assume perfect performance.
 
 Lessons from Donkey-car:
-  - Donkey car perfomance changed as it used up batteries. The RL doesn't adapt for this.
   - Continuous realtime RL is hard. On-board processing needs better performance for continuous realtime RL. On the other hand, Off-loaded processing to a laptop needs better communication performance for continuous realtime RL.
+  - Due to the Raspberry Pi limitations, the donkeycar had to drive disappointingly slowly.  Then unexpected real-world factors became an issue.  For example, the Donkey car performance quickly changed as it used up batteries and the donkeycar didn't easily adapt for this without enhancements.
   - You do a lot of training but still overfits to environment, (fails at big DIY robocar events due to the addition of spectators or change in location.)  You need to train on many tracks, in many lighting conditions, with and without spectators, etc.
 
 Lessons from REPLab:
