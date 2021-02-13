@@ -5,22 +5,28 @@ project is answer: "Whatever you train the robot to do."  Another goal is to rel
 easily add this autonomous capability to many inexpensive remote control toys.
 
 This is SIRjetbot1. The SIR stands for Sharper Image Robot, which I purchased on
-clearance for less than $20. The 1 is because we bought 3 of them that worked.
-The robot can be trained to do simple jetbot-like functionality like "stay on a table."
-The robot can be trained to do a sequence of individual tasks like "search for cube",
-"drive to cube",and "pick up cube". Finally, the robot can do end-to-end optimizations
+clearance for less than $20. The 1 is because we bought 3 of them.  We tested
+the robots on clearance with batteries to check if they 100% worked, and most of them
+did not.  The robot can be trained to do simple jetbot-like functionality like "stay on a table."
+The bot is an educational robot with just 2 motored wheels from NVIDIA. The
+jetbot has a set of nice tutorials of running neural nets on the Jetson Nano AI computer.
+SIRjetbot1 can run all the jebot tutorias. In addition,,
+the software for SIRjetbot1 can be trained to do a sequence of individual tasks like 
+"search for cube", "drive to cube",and "pick up cube". SIRjetbot1 has a robot arm
+for mobile manipulation. Finally, SIRjetbot1 can do end-to-end optimizations
 of the sequence of individual tasks via reinforcement learning. 
  
-This robot is an inexpensive platform to run DDQN reinforcement learning. However, 
-the software is not specific to the Sharper Image Robot. In theory, it could easily
-be generalized to many inexpensive RC toys with tracked or differential-drive wheels that have 
-an arm or crane or dozer blade or shovel. Just add a Jetson Nano, battery, and camera mounted
-near the end of the arm/excavator/bulldozer/crane/shovel as described below. Contact me if interested.
-
 <p align="center">
   <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/sharper_image_robot.jpg" width="200 title="Sharper Image Robot">
   <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/sharper_image_robot2.jpg" width="200" alt="accessibility text">
 </p>
+
+SIRjetbo1 is an inexpensive platform to run DDQN reinforcement learning on a mobile manipulator. 
+However, the software is not specific to the Sharper Image Robot. In theory, it could easily
+be generalized to many inexpensive RC toys with tracked or differential-drive wheels that have 
+an arm or crane or dozer blade or shovel. Just add a Jetson Nano, battery, and camera mounted
+near the end of the arm/excavator/bulldozer/crane/shovel as described below. Contact me if interested.
+
 Other potential platforms that code might work for (with jetson nano and minor mods): Remote Control Bulldozer + Top Race 15 Channel RC Excavator. You can train the robot via Remote Control to do Bulldozer-like behavior or Excavator-like behavior without explicitly programming anything.  With minimal changes, you can train individual "functionality" like put down the bulldozer blade and drive forward and then lift the blade and drive in reverse. You can link functionality together to do a higher-level task. Then, finally you can define some "policy" so that the linked functionalities can be optimized via end-to-end reinforcement learning.  Other possible RC toys: firetrucks with RC ladder/firehose, RC Forklifts, RC Utility Bucket Trucks, RC tanks.
 <p align="center">
   <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/excavator.jpg" width="200" title="RC Excavator">
@@ -95,6 +101,22 @@ picking up a cube is a sparse-reward (taking hundreds
 of unrewarding moves), as is dropping the cube in a box.
 Also, there's no continuous scoreboard accumulating tons of
 rewards/penaties as you might have on a video game. 
+
+DQN can be computed after the final reward. For a game like
+chess, there's only one reward based upon who won the game.
+Then, the reward is spread out over the preceeding moves.
+So, the reward before the checkmate is 99% of the final reward.
+The 3rd to last reward is .99 * .99 * final_reward, etc.  A neural
+net is then trained based over many games using the chess
+board states and the associated spread-out rewards to predict 
+the quality (or Q-value) of each next move.
+DQN also uses an experience replay buffer that intermix the
+acting and learning phases of RL.  DDQN is an evolution of the DQN 
+algorithm that addresses various technical deficiencies of DQN.
+
+The SIRjetbot software allows intermediate rewards to be assigned.
+For DQN, minor penalties are assigned for each move to
+encourage learning more efficient actions.
 
 Here's Sir_jetbot1 running the phase1 tabletop (2x speed):
 https://youtu.be/QVFHAMyEyaI
