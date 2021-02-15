@@ -368,7 +368,7 @@ Some of my previous robots: PR2Lite (with Maxwell, which ROSwell cloned), REPLab
 </p>
 
 Lessons from PR2-Lite:
-  - PR2-Lite isn't light. ROSwell is a much better size. PR2-Lite was an excellent platform for the team of advanced high-school kids who largely designed, coded and built it though (with lots of mentoring.)
+  - PR2-Lite isn't light. ROSwell is a much better size. PR2-Lite was an excellent platform for the team of advanced high-school kids who largely designed, coded and built it (with mentoring.)
   - ROS has a huge learning curve, but I've been using it since C-turtle days.
   
 Lessons from ROSwell:
@@ -388,6 +388,8 @@ Lessons from Donkey-car:
   - Continuous realtime RL is hard. On-board processing needs better performance for continuous realtime RL. On the other hand, Off-loaded processing to a laptop needs better communication performance for continuous realtime RL.
   - Due to the Raspberry Pi limitations, the donkeycar had to drive disappointingly slowly.  Then unexpected real-world factors became an issue.  For example, the Donkey car performance quickly changed as it used up batteries and the donkeycar didn't easily adapt for this without enhancements.
   - You do a lot of training but still overfits to environment, (fails at big DIY robocar events due to the addition of spectators or change in location.)  You need to train on many tracks, in many lighting conditions, with and without spectators, etc.
+  - I'm a big fan of the Donkeycar open source project and its meet-ups. I can only hope that SIRjetbot achieves a fraction of its success.  
+  - I also use the open source project as a guideline in some decision making, and the donkeycar code may be used as an starting point for some future features (e.g., the web controller.)
 
 Lessons from REPLab:
   - Intel 3D Realsense camera gave poor results for any single 3D snapshot. Needed to accumulate and integrate results.  Worked around this by using OctoMaps, but this greatly reduces performance. Most RL implementations just use 2D camera, ignoring 3D camera capabilities.
@@ -406,7 +408,7 @@ Reinforcement learning in general:
     - OpenAI published a paper on GPT-3.  A decent summary of it is:
       - https://in.springboard.com/blog/openai-gpt-3/
     - OpenAI's blog describes the same model applied to images:
-      - https://openai.com/blog/image-gpt/
+      - https://openai.com/blog/dall-e/
     - Deep Mind's latest breakthrough:
       - https://deepmind.com/blog/article/muzero-mastering-go-chess-shogi-and-atari-without-rules
   - These all confirm the trend in deep learning (that has been known for a while) scales to incredible degrees. Basically, if you have a problem that you need to solve, recursively add more data and then add more levels to the NN (now attention-based), until you achieve good results (near-human or better). 
