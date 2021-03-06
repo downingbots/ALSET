@@ -8,6 +8,7 @@
 
 
 https://github.com/downingbots/SIR_jetbot
+
 downingbots @ gmail.com
 
 ========================================
@@ -15,7 +16,7 @@ downingbots @ gmail.com
 # Sharper Image Robot 
 
  - RC Armed Mobile Manipulator 
-    -- $20 on clearance
+    - $20 on clearance
 
 <p align="center">
   <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/sharper_image_robot.jpg" width="200 title="Sharper Image Robot">
@@ -54,12 +55,13 @@ Converted to Autonomous robot:
 2. Telepresence data-capture 
 3. Autonomous:
     - a single CNN or pretrained function
-    - App defined as a multi-part sequence of CNNs
+    - App defined as a behavior tree of CNNs
     - DDQN reinforcement learning. 
 4. End-to-End Pre-Training of DQN Model based on:
+    - incrementally trained functions
     - outputs from random runs of each function
-    - outputs from end-to-end run of App
-    - Reinforcment Learning via DQN
+    - incremental outputs from end-to-end run of App
+    - Reinforcement Learning via DQN
 
 ========================================
 
@@ -102,24 +104,24 @@ https://youtu.be/....
 
 ========================================
 
-# Simple Functions
+# Simple Functions Combined to Define App Behavior
 
  - Parking the robot arm in known positions
  - Different searches for objects (pretrained, newly trained, faces, ficucials)
  - Drive to objects
  - Pick up or push objects
  - Drop or place objects
- - Stay on Table 
- - Movement checks
  - Line, face or object following
  - object avoidance
+ - Stay on Table 
+ - Movement verification
  - scripts (e.g., dance)
- - 
+
 ========================================
 
 # Convert Other RC Toys to Autonomous Vehicles
 
-Same software and analogous mods to support: 
+Same software and analogous RC/HW mods to support: 
  - Excavator
  - BullDozer
  - Dump Truck
