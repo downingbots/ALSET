@@ -4,9 +4,15 @@
 #   only interacts with NN_apps
 # 
 # NN_apps (nn_apps.py)
-#   currently 2 apps are defined:
+#   currently 3 apps are defined:
 #      1. a single SIRNN
 #      2. one tabletop_nn that will define 8 SIRNN
+#      3. DDQN reinforcement learning
+#   Each of these Apps has a set of functions that are called
+#      by the NN_apps function of the same name in a poor-man's
+#      encapsolation.  Eventually, this should be cleaned up
+#      so that a superset class defines these functions in
+#      an object-oriented manner.
 #   sets up directory for dataset
 #   stores image in appropriate directory for gather_mode
 #   knows curr_nn_num
@@ -40,14 +46,14 @@ import cv2
 import numpy as np
 from .robot import *
 from .sir_ddqn import *
-from .tabletop_functional_nn import *
+from .functional_app import *
+from .automated_funcs import *
 from .nn import *
 import time
 
 class nn_apps():
     # initialize app registry
     def __init__(self, sir_robot, sir_app_num=None, sir_app_name=None):
-      self.app_registry = [[0, "TT_NN", 1], [1, "TT_FUNC", 8], [2, "TT_DQN", 1]]
       if sir_app_num != None:
           if sir_app_num >= len(self.app_registry) or sir_app_num < 0:
               print("Error: unknown app number %d" % sir_app_num)
@@ -80,7 +86,7 @@ class nn_apps():
       # 0
       self.app_instance.append(SIRNN(sir_robot, self.action_set))
       # 1
-      self.app_instance.append(tabletop_functional_nn(sir_robot))
+      self.app_instance.append(functional_app(sir_robot))
       # 2
       self.app_instance.append(SIR_DDQN(True, False))
       robot_dirs = []
@@ -95,6 +101,7 @@ class nn_apps():
       self.robot = sir_robot
       self.curr_nn_num = 1 # start with 1
       self.nn_dir = None
+      self.auto_funcs = AutomatedFuncs()
 
     ####################################################
     # COMMON APP CONTROL FUNCTIONS
@@ -176,7 +183,7 @@ class nn_apps():
 
     # called to initialize or switch to a new NN for gathering data or exec
     # idempotent
-    def nn_init(self, init, train_new_data):
+    def nn_init(self):
       gather_mode = self.robot.get_gather_data_mode()
       self.robot.gather_data.set_function(None)
       # automatic_mode must be set to false until after the directories
@@ -205,6 +212,8 @@ class nn_apps():
           rew_pen = self.function_name
       else:
           rew_pen = None
+      if self.frame is None:
+          print("nn_apps process_image None")
       action = self.app_instance[self.app_num].nn_process_image(self.curr_nn_num, self.frame, reward_penalty = rew_pen)
       if action == None:
           return None
@@ -226,7 +235,7 @@ class nn_apps():
           self.curr_nn_num = self.nn_upon_reward()
           self.nn_init()
           return "REWARD"
-      return self.app_instance[self.app_num].nn_automatic_action(self.curr_nn_num, feedback)
+      return self.app_instance[self.app_num].nn_automatic_action(self.curr_nn_num, self.frame, feedback)
 
     def nn_upon_reward(self):
       self.curr_nn_num = self.app_instance[self.app_num].nn_upon_reward(self.curr_nn_num)

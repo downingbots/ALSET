@@ -6,6 +6,7 @@ import cv2
 import numpy as np
 from .robot import *
 from .image_folder2 import *
+from .config import *
 import torch.nn.functional as F
 import time
 import torch
@@ -16,24 +17,17 @@ import torchvision.models as models
 import torchvision.transforms as transforms
 
 
+
 class SIRNN():
     def __init__(self,sir_robot,outputs):
-        # self.mode = False
-        # self.ready_for_frame = False
-        # self.frame = None
         self.robot = sir_robot
         self.device = None
         self.model = None
-        self.outputs = outputs
+        self.outputs = outputs   # outputs may be much smaller than full_action_set for a function
         self.num_outputs = len(outputs)
-        self.robot_actions = ["UPPER_ARM_UP", "UPPER_ARM_DOWN", "LOWER_ARM_UP", "LOWER_ARM_DOWN", 
-                "GRIPPER_OPEN", "GRIPPER_CLOSE", "FORWARD", "REVERSE", "LEFT", "RIGHT"]
         self.joystick_actions = ["REWARD","PENALTY"]
-        self.full_action_set = self.robot_actions + self.joystick_actions
-
-        # mean = 255.0 * np.array([0.485, 0.456, 0.406])
-        # stdev = 255.0 * np.array([0.229, 0.224, 0.225])
-        # normalize = torchvision.transforms.Normalize(mean, stdev)
+        self.ds = DatasetUtils()
+        self.cfg = Config()
 
     def nn_init(self, app_name, NN_num, gather_mode=False):
         # if gather_mode:
@@ -42,6 +36,7 @@ class SIRNN():
             self.model = torchvision.models.alexnet(pretrained=True)
             self.model.classifier[6] = torch.nn.Linear(self.model.classifier[6].in_features, self.num_outputs)
             print(NN_num, str(NN_num))
+            
             model_path = "apps/" + app_name + "/best_model" + str(NN_num) + ".pth"
             try:
               self.model.load_state_dict(torch.load(model_path))
@@ -72,7 +67,9 @@ class SIRNN():
     def nn_process_image(self, NN_num = 0, image=None, reward_penalty=None):
         # if image == None:
         if image is None:
+          print("NN process image None")
           return
+        print("NN process image")
         x = image
         x = self.preprocess(x)
         y = self.model(x)
@@ -84,56 +81,59 @@ class SIRNN():
         print(y.flatten) 
         max_prob = 0
         best_action = -1
-        for i in range(self.num_outputs):
+        # for i in range(self.num_outputs):
+        for i in range(len(self.full_action_set)):
             prob = float(y.flatten()[i])
-            print("PROB", i, prob)
+            print("PROB", i, self.full_action_set[i], prob)
             if max_prob < prob:
-                max_prob = prob
                 for j, name in enumerate(self.full_action_set):
-                    if name == self.outputs[i]:
-                        best_action = j
-                        break
+                    # if name == self.outputs[i]:
+                    if name == self.full_action_set[i]:
+                        if (reward_penalty is not None or 
+                            name not in ["REWARD1", "PENALTY1", "REWARD2", "PENALTY2"]):
+                          max_prob = prob
+                          best_action = j
+                          break
                 if best_action == -1:
-                    print("invalid action " + self.outputs[i] + "not in " + self.full_action_set)
+                    print("invalid action " + self.full_action_set[i] + "not in " + self.full_action_set)
                     exit()
-
-        # self.robot_actions = { "FORWARD", "REVERSE", "LEFT", "RIGHT", "LOWER_ARM_DOWN", "LOWER_ARM_UP", "UPPER_ARM_DOWN", "UPPER_ARM_UP", "GRIPPER_OPEN", "GRIPPER_CLOSE"}
         action_name = self.full_action_set[best_action]
-        if action_name == "FORWARD":
-            print("NN FORWARD") 
-            self.robot.forward()
-        elif action_name == "REVERSE":
-            print("NN REVERSE") 
-            self.robot.reverse()
-        elif action_name == "LEFT":
-            print("NN LEFT") 
-            self.robot.left()
-        elif action_name == "RIGHT":
-            print("NN RIGHT") 
-            self.robot.right()
-            # self.robot.left() # for simplified tabletop NN 
-        elif action_name == "LOWER_ARM_DOWN":
-            print("NN LOWER ARM DOWN") 
-            self.robot.lower_arm("DOWN")
-        elif action_name == "LOWER_ARM_UP":
-            print("NN LOWER ARM UP") 
-            self.robot.lower_arm("UP")
-        elif action_name == "UPPER_ARM_DOWN":
-            print("NN UPPER ARM DOWN") 
-            self.robot.upper_arm("DOWN")
-        elif action_name == "UPPER_ARM_UP":
-            print("NN UPPER ARM UP") 
-            self.robot.upper_arm("UP")
-        elif action_name == "GRIPPER_CLOSE":
-            print("NN GRIPPER_CLOSE") 
-            self.robot.gripper("CLOSE")
-        elif action_name == "GRIPPER_OPEN":
-            print("NN GRIPPER_OPEN") 
-            self.robot.gripper("OPEN")
-        else:
-            print("Action:", best_action, max_prob) 
-            time.sleep(0.08)
-            self.robot.stop()
+        return action_name
+#        if action_name == "FORWARD":
+#            print("NN FORWARD") 
+#            self.robot.forward()
+#        elif action_name == "REVERSE":
+#            print("NN REVERSE") 
+#            self.robot.reverse()
+#        elif action_name == "LEFT":
+#            print("NN LEFT") 
+#            self.robot.left()
+#        elif action_name == "RIGHT":
+#            print("NN RIGHT") 
+#            self.robot.right()
+#            # self.robot.left() # for simplified tabletop NN 
+#        elif action_name == "LOWER_ARM_DOWN":
+#            print("NN LOWER ARM DOWN") 
+#            self.robot.lower_arm("DOWN")
+#        elif action_name == "LOWER_ARM_UP":
+#            print("NN LOWER ARM UP") 
+#            self.robot.lower_arm("UP")
+#        elif action_name == "UPPER_ARM_DOWN":
+#            print("NN UPPER ARM DOWN") 
+#            self.robot.upper_arm("DOWN")
+#        elif action_name == "UPPER_ARM_UP":
+#            print("NN UPPER ARM UP") 
+#            self.robot.upper_arm("UP")
+#        elif action_name == "GRIPPER_CLOSE":
+#            print("NN GRIPPER_CLOSE") 
+#            self.robot.gripper("CLOSE")
+#        elif action_name == "GRIPPER_OPEN":
+#            print("NN GRIPPER_OPEN") 
+#            self.robot.gripper("OPEN")
+#        else:
+#            print("Action:", best_action, max_prob, action_name) 
+#            time.sleep(0.08)
+#            self.robot.stop()
       
     def nn_set_automatic_mode(self, TF):
         pass
@@ -160,21 +160,27 @@ class SIRNN():
     # Use a split of the data so that we know the test accuracy.
     # This test accuracy might help with determining whether there is enough
     # data for TT_DQN.
-    def train(self, dataset_root_list=None, best_model_path=None, full_action_set=None, noop_remap=None):
+    #
+    # Always trains from the full dataset from scratch. Only DQN starts from where
+    # it left off.
+    def train(self, dataset_root_list=None, best_model_path=None, full_action_set=None, noop_remap=None, only_new_images=None):
         # nn.py is a primitive NN that can be used by higher layers like tabletop_func_app.
         # Set default parameters if unset by caller
         if dataset_root_list is None:
-          TTFUNC_NUM_NN = 8
+          num_NN = self.cfg.(self.app_name)
           dataset_root_list = []
           for nn_num in range(1, TTFUNC_NUM_NN+1):
-            ds = "./apps/TT_FUNC/dataset/NN" + str(nn_num)
-            dataset_root_list.append(ds)
-        if best_model_path is None:
-           best_model_path = "./apps/TT_NN/TTNN_model1.pth"
+            dsp = self.ds.dataset_model_path(app_name, nn_name, nn_num):
+            dataset_root_list.append(dsp)
+        best_model_path = self.ds.best_model_path(self.app_name, self.nn_name, nn_num)
         if full_action_set is None:
            full_action_set = self.full_action_set
         if noop_remap is None:
            pass
+
+        # Always train from scratch.
+        # if self.robot.initialize:
+        # elif self.robot.train_new_data:
 
         model = models.alexnet(pretrained=True)
         # Dataset transforms
@@ -213,6 +219,7 @@ class SIRNN():
                 ]),
                 full_action_set = full_action_set,
                 remap_to_noop = noop_remap
+                only_new_images = only_new_images
             )
             # Attributes:
             # classes (list): List of the class names sorted alphabetically.

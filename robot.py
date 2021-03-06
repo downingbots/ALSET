@@ -9,6 +9,7 @@ from .nn import *
 from docopt import docopt
 from .nn_apps import *
 from .sir_ddqn import *
+from .config import *
 
 class Robot(SingletonConfigurable):
     def __init__(self, *args, **kwargs):
@@ -16,22 +17,40 @@ class Robot(SingletonConfigurable):
         Scripts to drive a Smarter Image Robot and train a model for it.
 
         Usage:
-            sir_robot_{teleop,train}.py [--app_num=num] [--app_name=name] [--init] [--train_new_data]
+            sir_robot_{teleop,train}.py [--nn=nn_name] [--app=app_name] [--dqn=app_name]
 
         Options:
             -h --help        Show this screen.
-            --app_num=num    see app_registry in nn_apps.py
-            --app_name=name  see app_registry in nn_apps.py
-            --init           initialize models and directories (if needed)
-            --train_new_data train models on newly collected TT_FUNC data. Implied by --init.
-                             otherwise, just reuse existing models and data (e.g., replay buffer)
+            --func=nn_name   name of a single simple NN/automatic action
+            --app=app_name   App defined as a series of NN/automatic actions in config.py
+            --dqn=app_name   RL trained on a series of NN/automatic actions in config.py
         """
+        self.cfg = Config()
         # print(__doc__)
         args = docopt(__doc__)
+        if args['--func']:
+          self.app_name  = args['--func'] 
+          if self.app_name not in self.cfg.NN_registry:
+            self.app_name  = args['--func'] 
+            if self.app_name not in self.cfg.app_registry:
+              print("NN:
+            print("Function name not found: ", self.app_name)
+            print("Known function names: ", self.cfg.NN_registry)
+          self.app_type  = "FUNC"
+        elif args['--app']:
+          self.app_name  = args['--func'] 
+          if self.app_name not in self.cfg.app_registry:
+            print("Function name not found: ", self.app_registry)
+            print("Known function names: ", self.cfg.composit_app)
+          self.app_type  = "FUNC"
+          name = args['--app'] 
+          name = args['--dqn'] 
+ 
+
         found = False
-        find_app_name = args['--app_name'] 
-        find_app_num  = args['--app_num'] 
-        self.NN_apps = nn_apps(self, find_app_num, find_app_name)
+        name = args['--app'] 
+        name = args['--dqn'] 
+        self.NN_apps  = nn_apps(self, find_app_num, find_app_name)
         for [self.app_num,self.app_name,self.num_NN] in self.NN_apps.app_registry:
             print(args['--app_name'] ,self.app_name)
             if args['--app_name'] == self.app_name:
@@ -42,9 +61,11 @@ class Robot(SingletonConfigurable):
                 break
         if not found:
             [self.app_num,self.app_name,self.num_NN] = self.NN_apps.app_registry[0]
-        print("init: ", args['--init'], args['--train_new_data'])
+        # only for DQN
+        print("init: ", args['--init'])
         self.initialize = args['--init']
-        self.train_new_data = args['--train_new_data']
+        # on DQN trains new-data-only, but does so automatically.
+        # self.train_new_data = args['--train_new_data']
         if self.initialize:
           self.train_new_data = True
         print(self.app_num, self.app_name, self.num_NN)
@@ -54,7 +75,7 @@ class Robot(SingletonConfigurable):
         self.sir_robot = SIR_control(self)
         self.left_motor = Motor(self.sir_robot, "LEFT")
         self.right_motor = Motor(self.sir_robot, "RIGHT")
-        self.NN_apps.nn_init(self.initialize, self.train_new_data)
+        self.NN_apps.nn_init()
         self.DQN = None
         sir_joystick_daemon(self)
         
@@ -93,6 +114,8 @@ class Robot(SingletonConfigurable):
     def forward(self, speed=1.0, duration=None):
         if self.NN_apps.app_name == "TT_DQN" and self.gather_data.is_on():
             pass
+        elif self.NN_apps.app_name in ["TT_NN", "TT_FUNC"] and self.get_NN_mode() == "NN":
+            pass
         elif self.gather_data.is_on():
             self.gather_data.set_function("FORWARD")
             self.sir_robot.drive_forward(speed)
@@ -101,6 +124,8 @@ class Robot(SingletonConfigurable):
 
     def backward(self, speed=1.0):
         if self.NN_apps.app_name == "TT_DQN" and self.gather_data.is_on():
+            pass
+        elif self.NN_apps.app_name in ["TT_NN", "TT_FUNC"] and self.get_NN_mode() == "NN":
             pass
         elif self.gather_data.is_on():
             self.gather_data.set_function("REVERSE")
@@ -111,6 +136,8 @@ class Robot(SingletonConfigurable):
     def left(self, speed=1.0):
         if self.NN_apps.app_name == "TT_DQN" and self.gather_data.is_on():
             pass
+        elif self.NN_apps.app_name in ["TT_NN", "TT_FUNC"] and self.get_NN_mode() == "NN":
+            pass
         elif self.gather_data.is_on():
             self.gather_data.set_function("LEFT")
             self.sir_robot.drive_rotate_left(speed)
@@ -119,6 +146,8 @@ class Robot(SingletonConfigurable):
 
     def right(self, speed=1.0):
         if self.NN_apps.app_name == "TT_DQN" and self.gather_data.is_on():
+            pass
+        elif self.NN_apps.app_name in ["TT_NN", "TT_FUNC"] and self.get_NN_mode() == "NN":
             pass
         elif self.gather_data.is_on():
             self.gather_data.set_function("RIGHT")
@@ -133,6 +162,8 @@ class Robot(SingletonConfigurable):
     def upper_arm(self,direction):
         if self.NN_apps.app_name == "TT_DQN" and self.gather_data.is_on():
             pass
+        elif self.NN_apps.app_name in ["TT_NN", "TT_FUNC"] and self.get_NN_mode() == "NN":
+            pass
         elif direction == "STOP":
           self.gather_data.set_function(None)
           self.sir_robot.upper_arm(direction)
@@ -142,6 +173,8 @@ class Robot(SingletonConfigurable):
 
     def lower_arm(self,direction):
         if self.NN_apps.app_name == "TT_DQN" and self.gather_data.is_on():
+            pass
+        elif self.NN_apps.app_name in ["TT_NN", "TT_FUNC"] and self.get_NN_mode() == "NN":
             pass
         elif direction == "STOP":
           self.gather_data.set_function(None)
@@ -155,6 +188,8 @@ class Robot(SingletonConfigurable):
 
     def gripper(self,direction):
         if self.NN_apps.app_name == "TT_DQN" and self.gather_data.is_on():
+            pass
+        elif self.NN_apps.app_name in ["TT_NN", "TT_FUNC"] and self.get_NN_mode() == "NN":
             pass
         elif direction == "STOP":
           self.gather_data.set_function(None)

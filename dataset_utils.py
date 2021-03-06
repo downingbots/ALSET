@@ -1,10 +1,86 @@
-#  All datasets are stored in the format of the least-common denominator (TT_FUNC). 
-#  TT_FUNC stores from NN1 through NN8, with subdirectories for the actions.
-#  Eight NNs are trained from the dataset in TT_FUNC/datasets/NN[1-8] and 
-#  stored in TTFUNC_model[1-8].pth
+# Examples using TableTop (TT) app. The code is not specific to the TT app
+# and uses definitions in Config.py
 #
-#  TT_NN combines the actions from the 8 NNs together to form a single NN (TT_NN)
-#  and stored in TT_NN_model1.pth
+##############
+##################################################
+# NN mode:
+#
+# ./apps/NN/NN_SEARCH_FOR_CUBE_MODEL.pth
+##  a single NN trained across all SEARCH_FOR_CUBE runs.
+#
+# ./apps/NN/dataset/SEARCH_FOR_CUBE/LOWER_ARM_DOWN/a1099b28-4334-11eb-8cce-3413e860d1ff.jpg
+##  the dataset repository for an atomic NN / autonomous action.
+#
+# ./apps/NN/dataset_indexes/SEARCH_FOR_CUBE_NN_IDX_YY_MM_DDa.txt
+##  contains lines like (when run in TT_FUNC or NN modes only):
+##  18:31:28 ./apps/NN/dataset/SEARCH_FOR_CUBE/LOWER_ARM_DOWN/a1099b28-4334-11eb-8cce-3413e860d1ff.jpg
+#  
+# ./apps/NN/dataset_indexes/NN_SEARCH_FOR_CUBE_IDX_PROCESSED.txt
+##  ./apps/NN/dataset_indexes/NN_SEARCH_FOR_CUBE_IDX_YY_MM_DDa.txt
+#
+##################################################
+# FUNC mode:
+#
+# ./apps/TT_FUNC/dataset_indexes/TT_FUNC_IDX.txt
+##  This index is mainly used by DQN to train on end-to-end NN runs.
+##  contains lines for each TT NN like (when run in TT_FUNC mode only):
+##  1 1 ./apps/NN/dataset_indexes/NN_SEARCH_FOR_CUBE_IDX_YY_MM_DDa.txt
+##  1 2 ./apps/NN/dataset_indexes/NN_DRIVE_TO_CUBE_IDX_YY_MM_DDa.txt
+##  ...
+##  1 8 ./apps/NN/dataset_indexes/NN_DROP_CUBE_IN_BOX_IDX_YY_MM_DDa.txt
+##  2 1 ./apps/NN/dataset_indexes/NN_SEARCH_FOR_CUBE_IDX_YY_MM_DDb.txt
+##  ...
+##  2 8 ./apps/NN/dataset_indexes/NN_DROP_CUBE_IN_BOX_IDX_YY_MM_DDb.txt
+#
+# ./apps/TT_FUNC/dataset_indexes/TT_FUNC_IDX_PROCESSED_BY_DQN.txt
+##  contains single line of the final most recent TT_FUNC run processed by DQN like:
+##  2 8 ./apps/NN/dataset_indexes/NN_DROP_CUBE_IN_BOX_IDX_YY_MM_DDb.txt
+#
+# ./apps/TT_FUNC/TT_FUNC_MODEL.pth
+##  a single NN trained across all 8 NNs.
+#
+# ./apps/TT_FUNC/dataset_indexes/TT_FUNC_IDX_PROCESSED.txt
+##  contains 1 line for each NN used to train the TT_FUNC_MODEL.pth.
+##  Contents not specific to a TT_FUNC run.  It can contain stand-alone NN runs:
+##  ./apps/NN/dataset_indexes/NN_SEARCH_FOR_CUBE_IDX_YY_MM_DDa.txt
+##  ./apps/NN/dataset_indexes/NN_DRIVE_TO_CUBE_IDX_YY_MM_DDc.txt
+##  ...
+##  ./apps/NN/dataset_indexes/NN_DROP_CUBE_IN_BOX_IDX_YY_MM_DDb.txt
+#  
+##################################################
+# DQN
+# 
+# ./apps/TT_DQN/dataset/LOWER_ARM_DOWN/a1099b28-4334-11eb-8cce-3413e860d1ff.jpg
+# DQN dataset as a result of a DQN run
+# 
+# ./apps/TT_DQN/dataset_indexes/TT_DQN_IDX_YY_MM_DDa.txt
+##  contains lines like:
+##  18:31:28 ./apps/TT_DQN/dataset/LOWER_ARM_DOWN/a1099b28-4334-11eb-8cce-3413e860d1ff.jpg
+#
+# ./apps/TT_DQN/dataset_indexes/TT_DQN_NN_TRAINING_COMBOS.txt
+##  random sets of NN runs are played back in TT_FUNC order. Contains lines like:
+##  ./apps/NN/dataset_indexes/NN_SEARCH_FOR_CUBE_IDX_YY_MM_DDa.txt
+##  ./apps/NN/dataset_indexes/NN_DRIVE_TO_CUBE_IDX_YY_MM_DDa.txt
+##  ...
+#
+# ./apps/TT_DQN/dataset_indexes/dataset_idx_processed.txt
+##  contains single line containing the most recently processed DQN run like:
+##  ./apps/TT_DQN/dataset_indexes/TT_DQN_IDX_YY_MM_DDa.txt
+#
+# ./apps/TT_DQN/TT_DQN_MODEL.pth
+##  dump of the DQN model.
+#
+# ./apps/TT_DQN/replay_buffer.data
+##  dump of the replay_buffer
+#
+##################################################
+##############
+#  All datasets are stored in the format of the least-common denominator (TT_NN). 
+#  Each NN is trained from its dataset in TT_NN/datasets/<NN_name> and
+#  stored in <NN_name>_NN_MODEL.pth
+#
+#  TT_FUNC combines the actions from the 8 NNs together to form a single NN (TT_FUNC)
+#  and stored in <NN_name>_NN_model.pth
 #
 #  TT_DQN processes individual actions in the original order created across all 8 NN.
 #  Afterwards, TT_DQN uses the replay buffer and the apps/TT_DQN/dataset/NN1
@@ -19,173 +95,292 @@
 #
 #  The datasets are processed in order of creation. Upon processing, the file
 #  dataset_idx_processed is updated so the entries are only processed once.
+#
 
 # Import the datetime module
 from datetime import datetime
+from dataset_utils import *
 import os
 
 class DatasetUtils():
 
-    def __init__(self, app_nm):
-        # 0123456789012345678901234567890123456789
-        self.TTFUNC_DATASET_IDX_DIR = "./apps/TT_FUNC/dataset/dataset_indexes/"
-        self.TTFUNC_DATASET_IDX_PROCESSED = "dataset_idx_processed.txt"
-        self.TTFUNC_DATASET_IDX_PREFIX = "dataset_idx_%y_%m_%d"
-        self.TTFUNC_PATH_PREFIX = './apps/TT_FUNC/dataset/'
-        self.TTDQN_PATH_PREFIX = './apps/TT_DQN/dataset/'
-        self.REPLAY_BUFFER_PATH = './apps/TT_DQN/dataset/replay_buffer.data'
-        TTFUNC_MODEL_NUM_OFFSET = 33
-        self.actions = ( "FORWARD", "REVERSE", "LEFT", "RIGHT", "LOWER_ARM_DOWN", "LOWER_ARM_UP", "UPPER_ARM_DOWN", "UPPER_ARM_UP", "GRIPPER_OPEN", "GRIPPER_CLOSE", "REWARD", "PENALTY", "ROBOT_OFF_TABLE_PENALTY", "CUBE_OFF_TABLE_REWARD", "NOOP")
+    def __init__(self, app_name):
+        self.app_name = app_name
+        # Note: for non-TT apps, STOP is a legitimate (non)action.  For example, you might
+        # be waiting for an action by another robot to happen.  For object-tracking, you 
+        # might need to stop if the object stops.
         self.processed_datasets = []
         self.processed_dataset_idx = None
 
-    def last_processed_datasets_idx(self, app_nm = "TT_DQN"):
-        filename = self.TTFUNC_DATASET_IDX_DIR + self.TTFUNC_DATASET_IDX_PROCESSED
-        filehandle = open(filename, 'r')
-        while True:
-          line = filehandle.readline()
-          if not line:
-              break
-          dataset_info = line.split()
-          if dataset_info[0] not in ["TT_FUNC", "TT_DQN", "TT_NN"]:
-              print("incorrect app name:", processed_datasets[0], filename)
-              return None
-          self.processed_dataset_idx.append(dataset_info)
-        filehandle.close()
-        return self.processed_dataset_idx
+    ################################
+    # Dataset Index
+    # contains a list of files for a full run at NN, FUNC, and/or DQN level
+    # Name contains date of the run and a letter for unique ordering  
+    ################################
+    # ./apps/NN/dataset_index/
+    # ./apps/TT_FUNC/dataset_index/
+    # ./apps/TT_DQN/dataset_index/
+    def dataset_index_path(self, mode="DQN", nn_name=None):
+        if mode in ["DQN", "FUNC"]:
+          ds_idx_path = self.cfg.APP_DIR + self.app_name + "_" + mode + self.cfg.DATASET_IDX_DIR 
+        elif mode == "NN":
+          ds_idx_path = self.cfg.APP_DIR + mode + self.cfg.DATASET_IDX_DIR 
+        return ds_idx_path
 
-    def next_dataset_idx(self, app_nm = "TT_DQN", init=False):
+    # ./apps/NN/dataset_indexes/NN_SEARCH_FOR_CUBE_IDX_YY_MM_DDa.txt
+    ## contains multiple images, in order obtained, across actions while gathering data for function
+    # ./apps/TT_FUNC/dataset_indexes/TT_FUNC_IDX_YY_MM_DDa.txt
+    ## contains multiple NN_SEARCH_FOR_CUBE_IDX_YY_MM_DDa.tt in order obtained
+    ##  1 1 ./apps/NN/dataset_indexes/NN_SEARCH_FOR_CUBE_IDX_YY_MM_DDa.txt
+    # ./apps/TT_DQN/dataset_indexes/TT_DQN_IDX_YY_MM_DDa.txt
+    ## contains multiple images, in order obtained, across actions
+    # position in ["NEW","NEXT","OLDEST", "NEWEST", "RANDOM"]
+    def dataset_indices(self, mode="DQN", nn_name=None, position="RANDOM"):
+        ds_idx_pth = self.dataset_index_path() 
+        if mode == "NN":
+          ds_idx_nm = "NN_" + nn_name + "_IDX_" 
+        elif mode == "FUNC":
+          ds_idx_nm = self.dataset_index_path() + self.app_name + "_" + mode + "_IDX_" 
+        elif mode == "DQN":
+          ds_idx_nm = self.app_name + "_" + mode + "_IDX_"
+        if position == "NEXT":
+          full_ds_idx = self.next_processed_dataset_idx(ds_idx_pth, ds_idx_nm, mode, nn_name)
+        elif position == "NEW":
+          full_ds_idx = self.new_processed_dataset_idx(ds_idx_pth, ds_idx_nm, mode, nn_name)
+        elif position in ["NEWEST","OLDEST","RANDOM"]:
+          full_ds_idx = self.oldest_newest_random_processed_dataset_idx(ds_idx_pth, ds_idx_nm, mode, nn_name, position)
+        # elif position == "RANDOM" and mode=="NN" and nn_name is not None:
+        #   full_ds_idx = self.random_processed_dataset_idx(ds_idx_pth, ds_idx_nm, mode, nn_name)
+        else:
+          print("Incorrect position option:", position, ds_idx_pth, ds_idx_nm)
+        return full_ds_idx
+
+    def next_dataset_idx(self, ds_idx_pth, ds_idx_nm, mode, nn_name):
         # Sort the list in ascending order of dates
-        path = self.TTFUNC_DATASET_IDX_DIR
-        idx_list = os.listdir(path)
+        idx_list = os.listdir(ds_idx_pth)
         idx_list.sort()
-        lastdataset = self.last_processed_datasets_idx(app_nm)
+        lastdataset = self.last_dataset_idx_processed(mode, nn_name)
         if lastdataset is not None:
           i = idx_list.index(lastdataset) # else value index error
           if i+1 >= len(idx_list):
             print("all datasets processed", lastdataset)
-            return None, None
+            return None
           else:
             next_dataset = idx_list[i+1,:]
         else:
           # should be there unless explicitly skipped by command line option
           if not init:
             print("last data set processed not found")
-            return None, None
+            return None
           found = False
-          for ds_idx in idx_list:
-            if ds_idx[0,len("dataset_idx_")] == "dataset_idx_" and len(ds_idx) == len("dataset_idx_YY_MM_DDa.txt"):
-              next_dataset = ds_idx
+          for idx in idx_list:
+            if idx[0:len(ds_idx)] == ds_idx and len(idx) == len(ds_idx) + len("YY_MM_DDa.txt"):
+              next_dataset = idx
               found = True
               break
           if not found:
             print("No datasets")
-            return None, None
-        full_path = self.TTFUNC_DATASET_IDX_DIR + next_dataset
-        return full_path, next_dataset
+            return None
+        full_path = ds_idx_pth + next_dataset
+        return next_dataset
 
-    def new_dataset_idx_name(self, app_nm = "TT_DQN"):
-        last_ds_idx = self.last_processed_datasets_idx(app_nm=app_nm)
-        if last_ds_idx is None:
-          last_ds_idx = "dataset_idx_"
+    def new_dataset_idx_name(self, ds_idx_pth, ds_idx_nm, mode, nn_name):
+        idx_list = os.listdir(ds_idx_pth)
+        idx_list.sort()
+        print("last ds idx", last_ds_idx)
+        len_idx = len(last_ds_idx)
         now = datetime.now()
         today = now.strftime("%d_%m_%y")
-        prefix = last_ds_idx[0:len("dataset_idx_")] + today
-        if last_ds_idx[0:len(prefix)] == prefix:
-          letter = last_ds_idx[len(prefix)]
-          next_letter = chr(ord(letter.upper())+1)
-        else:
-          next_letter = "a"
-        ds_idx = prefix + next_letter + ".txt"
-        return ds_idx
+        letter = "a"
+        name = ds_idx_nm + today + letter + ".txt"
+        while name in idx_list:
+          letter = chr(ord(letter.upper())+1)
+          name = ds_idx_nm + today + letter + ".txt"
+          print("duplicate name: ", name)
+        print("New name: ", name)
+        full_path = ds_idx_pth + name
+        return full_path
 
-    def save_dataset_idx_processed(self, app_nm = "TT_DQN", dataset_idx = None):
-        last_ds_idx = self.last_processed_datasets_idx(app_nm)
-        if last_ds_idx is None:
-          last_ds_idx = [[app_nm, dataset_idx]] 
+    def oldest_newest_random_dataset_idx_name(self, ds_idx_pth, ds_idx_nm, mode, nn_name, position):
+        idx_list = os.listdir(ds_idx_pth)
+        idx_list.sort()
+        oldest = None
+        newest = None
+        for i, idx in enumerate(idx_list):
+          if idx.startswith(ds_idx_nm) and idx_list.endswith(".txt")
+            if start is None:
+              oldest = i
+            newest = i
+        if oldest is None:
+          return None
+        if position == "RANDOM":
+          idx_num = random.randint(oldest,newest)
+        elif position == "OLDEST":
+          idx_num = oldest
+        elif position == "NEWEST":
+          idx_num = newest
         else:
-          found = False
-          for i in range(3):
-            if last_ds_idx[i][0] == app_nm:
-              last_ds_idx[i][1] = app_nm
-              found = True
-              break
-          if not found:
-            i = len(last_ds_idx)
-            if i > 2:
-              print("bad app_nm", app_nm)
-              return False
-            last_ds_idx.append([app_nm, dataset_idx]) 
-        
-          with open('stats.txt', 'w') as file:
-            for i in len(last_ds_idx):
-              line = last_ds_idx[i][0] + " " + last_ds_idx[i][1]
-              file.writeline( line )
+          print("incorrect position specified: ", position)
+          exit()
+        full_path = ds_idx_pth + idx_list[idx_num]
+        print("random selection of nn idx:", nn_name, full_path)
+        return full_path
 
+    ################################
+    # Dataset Index Processed
+    # Fixed name. 1 file for each of NN nn_name, FUNC, or DQN.
+    # contains a single files with the name of the last Dataset Index that was processed
+    ################################
+    # ./apps/TT_DQN/dataset_indexes/dataset_idx_processed.txt
+    ##  contains single line containing the most recently processed DQN run like:
+    ##  ./apps/TT_DQN/dataset_indexes/TT_DQN_IDX_YY_MM_DDa.txt
+    def dataset_idx_processed(self, mode="DQN", nn_name=None):
+        if mode == "NN":
+          ds_idx_p = self.dataset_index_path() + "NN_" + nn_name + "_IDX_PROCESSED.txt"
+        elif mode == "FUNC":
+          ds_idx_p = self.dataset_index_path() + self.app_name + "_" + mode + "_IDX_PROCESSED_BY_DQN.txt"
+        elif mode == "DQN":
+          ds_idx_p = self.dataset_index_path() + self.app_name + "_" + mode + "_IDX_PROCESSED.txt"
+        return ds_idx_p
+
+    def last_dataset_idx_processed(self, mode="DQN", nn_name=None):
+        filename = self.dataset_idx_processed(mode,nn_name):
+        filehandle = open(full_path, 'r')
+        frame_num = 0
+        line = filehandle.readline()
+        # verify line
+        [time, app, mode, nn_name, action, img_name, img_path] = self.ds_util.get_dataset_info(line)
+        return line
+
+    # save last dataset_index that has been processed for an App 
+    def save_dataset_idx_processed(self, mode = "DQN", nn_name = None, dataset_idx = None):
+        filename = self.dataset_indices(mode", nn_name, position="LAST"):
+        with open(filename, 'w') as file:
+          file.write( dataset_idx )
+
+
+    ################################
+    # NN or DQN store image names.  
+    ################################
     def dataset_line(self, img_nm, tm = None):
         if tm is None:
           tm = datetime.now().strftime("%H:%M:%S")
         line = tm + " " + img_nm
         return line
 
-    def get_dataset_info(self, ds_line):
-        # format of DATASET_INDEX_FILE:
-        #  "18:31:28 ./NN1/LOWER_ARM_DOWN/a1099b28-4334-11eb-8cce-3413e860d1ff.jpg"
-        #   012345678901234567890
-        # # fixed size offsets
-        FILE_OFFSET   = 9
-        NN_NUM_OFFSET = 13
-        ACTION_OFFSET = 15
-        NN_REAL_REWARD = [4, 8]  # pick_up_cube, drop_cube_in_box
+    def get_dataset_info(self, ds_line, mode="DQN"):
+        #  "18:31:28 ./apps/TT_DQN/dataset/LOWER_ARM_DOWN/a1099b28-4334-11eb-8cce-3413e860d1ff.jpg"
+        dataset_info = ds_line.split()
+        ds_line_time = dataset_info[0]
+        full_img_path = dataset_info[1] 
+        dataset_info = full_img_path.split("/")
+        app_mode = dataset_info[1]
+        if app_mode.endswith("NN"):
+          # ./apps/NN/dataset/PICK_UP_CUBE/LOWER_ARM_DOWN/a1099b28-4334-11eb-8cce-3413e860d1ff.jpg"
+          ds_line_mode = "NN"
+          ds_line_nn = dataset_info[3]
+          ds_line_action = dataset_info[4]
+          ds_line_img = dataset_info[5]
+        elif app_mode.endswith("DQN"):
+          # ./apps/TT_DQN/dataset/LOWER_ARM_DOWN/a1099b28-4334-11eb-8cce-3413e860d1ff.jpg"
+          ds_line_app = app_mode[:-4]
+          ds_line_mode = "DQN"
+          ds_line_nn = None
+          ds_line_action = dataset_info[4]
+          ds_line_img = dataset_info[5]
+        elif app_mode.endswith("FUNC"):
+          ds_line_app = app_mode[:-5]
+          ds_line_mode = "FUNC"
+          ds_line_nn = None
+          ds_line_action = dataset_info[4]
+          ds_line_img = dataset_info[5]
+        return [ds_line_time, ds_line_app, ds_line_mode, ds_line_nn, ds_line_action, ds_line_img, full_img_path]
 
-        time = ds_line[0,8]
-        state = ds_line[FILE_OFFSET,:]
-        nn_num = int(ds_line[NN_NUM_OFFSET:NN_NUM_OFFSET+1])
-        found = False
-        for action in self.actions:
-          line_action = ds_line[ACTION_OFFSET:ACTION_OFFSET+len(action)]
-          if line_action == action:
-            found = True
-            break
-        if not found:
-          print("action not found: ", ds_line)
-        return [time, state, action, nn_num]
-
-    # for parsing TT_FUNC dataset
-    def DQN_parse_dataset(self, filename, app_path_prefix):
+    # return a tuple of new images since last dataset training
+    def get_dataset_images(self, mode="DQN", nn_name=None, position="NEXT"):
         # open the file for reading
-        full_path, ds_name = self.ds_util.next_dataset_idx(app_nm = "TT_DQN")
+        idx_list = []
+        full_path = self.ds_util.dataset_indices(mode,nn_name,position)
+        idx_list.append(full_path)
         filehandle = open(full_path, 'r')
-        frame_num = 0
-        reward = []
-        line = filehandle.readline()
-        while True:
-          # read a single line
-          next_line = filehandle.readline()
-          if not next_line:
+        new_image = []
+        if mode in ["DQN", "NN"]:
+          while True:
+            nn_line = filehandle.readline()
+            if not nn_line:
+                break
+            [time, app, mode, nn_name, action, img_name, img_path] = self.ds_util.get_dataset_info(nn_line)
+            new_image.append(image_path)
+        elif mode == "FUNC":
+          while True:
+            nn_idx = filehandle.readline()
+            if not nn_idx:
               break
-          [tm, state, action, nn_num] = self.ds_util.get_dataset_info(line)
-          [tm, next_state, next_action, nn_num] = self.ds_util.get_dataset_info(next_line)
-          if action == "REWARD":
-              if NN_num not in NN_REAL_REWARD:
-                print("action to NOOP, NN#", action, NN_num)
-                line_action = "NOOP"
-          reward, done = compute_reward(frame_num, action)
-          frame_num += 1
-          self.replay_buffer.push(state, action, reward, next_state, done)
-          if next_action != "REWARD":
-            line = next_line
-          if len(self.replay_buffer) > self.replay_initial:
-            loss = compute_td_loss(batch_size, app_path_prefix)
-          if frame_num % 1000 == 0 or done:
-            update_target(self.current_model, self.target_model)
-          if done:
-            state = None
-            self.all_rewards.append(self.total_reward)
-            torch.save(model.state_dict(), self.BEST_MODEL_PATH)
-          ##########################
+            nn_filehandle = open(nn_idx, 'r')
+            idx_lst.append(nn_idx)
+            while True:
+              nn_line = nn_filehandle.readline()
+              if not nn_line:
+                  break
+              [time, app, mode, nn_name, action, img_name, img_path] = self.ds_util.get_dataset_info(nn_line)
+              new_image.append(image_path)
 
         # close the pointer to that file
         filehandle.close()
+        new_image = tuple(new_image)
+        return new_image, indx_lst
 
+    def remove_dataset_images(self, mode="DQN", nn_name=None, position="NEWEST"):
+        if position not in ["OLDEST", "NEWEST"]:
+          print("incorrect position specified: ", position)
+          exit()
+        # open the file for reading
+        new_imgs,idx_lst = self.ds_util.get_dataset_indices(mode,nn_name,position=position)
+
+        for img in len(new_imgs):
+            # os.remove(img) 
+            print("virtual remove image: ",img) 
+        for idx in idx_lst
+          # os.remove(idx)
+          print("virtual remove index: ",idx)
+
+    ##################################################
+    ##  a single NN trained across all SEARCH_FOR_CUBE runs.
+    ##  dump of the DQN model.
+    def best_model_path(mode="DQN", nn_name=None):
+        if mode not in ["DQN", "NN", "FUNC"]:
+          print("Mode must be one of DQN, NN, FUNC. Received: ", mode)
+          exit()
+        if mode = "NN":
+          bmp = self.cfg.APP_DIR + mode + "/" 
+        else:
+          bmp = self.cfg.APP_DIR + self.app_name + "_" + mode + "/" 
+        return bmp
+
+    def best_model(self, mode="DQN", nn_name=None):
+        if mode in ["DQN", "FUNC"]:
+          bm = self.cfg.best_model_path(mode, nn_name) + self.app_name + "_" + mode + "_" + self.cfg.MODEL_POST_FIX 
+        else:
+          # nn_name assumed to already been validated
+          bm = self.cfg.best_model_path(mode, nn_name) + "NN_" + nn_name + self.cfg.MODEL_POST_FIX 
+        return bm
+
+    # ./apps/NN/dataset/DRIVE_TO_CUBE
+    # ./apps/TT_DQN/dataset
+    def dataset_path(self, mode="DQN", nn_name=None):
+        if mode == "DQN":
+          ds_idx_path = self.cfg.APP_DIR + self.app_name + "_NN" + self.cfg.DATASET_PATH + nn_name + "/"
+        elif mode == "NN":
+          ds_idx_path = self.cfg.APP_DIR + "NN" + self.cfg.DATASET_PATH
+        return ds_idx_path
+
+    # ./apps/TT_DQN/dataset_indexes/TT_DQN_replay_buffer.data
+    def dqn_replay_buffer(self):
+        dqn_replay_buff = self.cfg.APP_DIR + self.app_name + "_DQN" + self.cfg.REPLAY_BUFFER
+        return replay_buff
+
+    # ./apps/TT_DQN/dataset_indexes/TT_DQN_NN_TRAINING_COMBOS.txt
+    def dqn_nn_training_combos(self):
+        dqn_nn_train_combo = self.dqn_dataset_path() + self.app_name + self.cfg.DQN_NN_COMBOS 
+        return dqn_nn_train_combo
 

@@ -63,6 +63,7 @@ def webcam_captureFrames():
             if image_loc != None:
               print("capture_frame loc:",image_loc)
         if image_loc != None:
+            # ARD: Bug: TTFUNC in NN mode shouldn't be here.
             return_key, encoded_image = cv2.imencode(".jpg", webcam_video_frame)
             if return_key:
                 try:

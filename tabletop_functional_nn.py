@@ -1,3 +1,4 @@
+## OBSOLETE: replaced by generalized functional_app.py
 from .nn import *
 
 class tabletop_functional_nn():
@@ -5,6 +6,7 @@ class tabletop_functional_nn():
       # print("TableTop: 8 Functional NNs")
       self.robot = sir_robot
       self.NN = []
+      self.app_name = "TT_FUNC"
       self.last_arm_action = "LOWER_ARM_DOWN"
       self.curr_automatic_action = "LEFT"
       self.automatic_mode = False
@@ -14,6 +16,7 @@ class tabletop_functional_nn():
       self.automatic_actions = [ "NOOP", "REWARD", "PENALTY"]
       self.automatic_mode_noop_mapping = ["LEFT", "LOWER_ARM_UP", "LOWER_ARM_DOWN"]
       self.full_action_set = self.robot_actions + self.joystick_actions
+      self.full_action_set.sort()
       self.model_dir = "./apps/TT_FUNC/"
       self.model_prefix = "TTFUNC_model"
       self.ds_prefix = "./apps/TT_FUNC/dataset/NN"
@@ -24,18 +27,20 @@ class tabletop_functional_nn():
       # defaults
 
       gather_mode = False  # ARD: why does gather_mode matter for nn_init?
+      outputs = self.full_action_set
       if NN_num == 1:
         print("TableTop: 8 Functional NNs")
         self.robot.sir_robot.stop_all()
         print("Park Arm: Upper/Lower Arm Up/Down")
         print("  Press Success: parked")
-        outputs = [ "GRIPPER_OPEN", "UPPER_ARM_UP", "UPPER_ARM_DOWN", 
-                   "LOWER_ARM_UP", "LOWER_ARM_DOWN", "REWARD",
-                   "FORWARD", "REVERSE", "LEFT", "RIGHT"] 
+        # outputs = [ "GRIPPER_OPEN", "UPPER_ARM_UP", "UPPER_ARM_DOWN", 
+        #            "LOWER_ARM_UP", "LOWER_ARM_DOWN", "REWARD",
+        #            "FORWARD", "REVERSE", "LEFT", "RIGHT"] 
         # if gather_mode:
         if len(self.NN) < NN_num:
             # SIRNN is an actual torch NN. 
             # Torch NN Not needed during gather mode.
+            # self.NN.append(SIRNN(self.robot, outputs))
             self.NN.append(SIRNN(self.robot, outputs))
             self.NN[NN_num-1].nn_init(app_name, NN_num, gather_mode)
         return False, outputs
@@ -50,7 +55,7 @@ class tabletop_functional_nn():
         self.curr_automatic_action = "LEFT"
         self.robot.gather_data.set_function(None)
         self.left_count = 45
-        outputs = ["LOWER_ARM_UP", "LOWER_ARM_DOWN","LEFT","REWARD","PENALTY"]
+        # outputs = ["LOWER_ARM_UP", "LOWER_ARM_DOWN","LEFT","REWARD","PENALTY"]
         # if gather_mode:
         if len(self.NN) < NN_num:
             self.NN.append(SIRNN(self.robot, outputs))
@@ -64,8 +69,8 @@ class tabletop_functional_nn():
         print("  Press Forward: block in center of image")
         print("  Press Success: block in center and close enough to pick up")
         print("  Press Failure: block out of image go back to 1")
-        outputs = ["LOWER_ARM_UP", "LOWER_ARM_DOWN",
-                "FORWARD", "REVERSE", "LEFT", "RIGHT", "REWARD", "PENALTY"]
+        # outputs = ["LOWER_ARM_UP", "LOWER_ARM_DOWN",
+        #         "FORWARD", "REVERSE", "LEFT", "RIGHT", "REWARD", "PENALTY"]
         if len(self.NN) < NN_num:
             self.NN.append(SIRNN(self.robot, outputs))
             self.NN[NN_num-1].nn_init(app_name, NN_num, gather_mode)
@@ -77,9 +82,9 @@ class tabletop_functional_nn():
         print("  Press Upper/Lower Arm UP/Down")
         print("  Press Success: lift up and confirm block in gripper")
         print("  Press Failure: go back to 1")
-        outputs = ["UPPER_ARM_UP", "UPPER_ARM_DOWN", 
-                "LOWER_ARM_UP", "LOWER_ARM_DOWN",
-                "GRIPPER_CLOSE", "REWARD", "PENALTY"]
+        # outputs = ["UPPER_ARM_UP", "UPPER_ARM_DOWN", 
+        #         "LOWER_ARM_UP", "LOWER_ARM_DOWN",
+        #         "GRIPPER_CLOSE", "REWARD", "PENALTY"]
         # if gather_mode:
         if len(self.NN) < NN_num:
             self.NN.append(SIRNN(self.robot, outputs))
@@ -90,7 +95,7 @@ class tabletop_functional_nn():
         self.robot.gather_data.set_function(None)
         print("Park Arm with block: Upper/Lower Arm Up/Down")
         print("  Press Success: parked")
-        outputs = [ "GRIPPER_OPEN", "UPPER_ARM_UP", "UPPER_ARM_DOWN", "LOWER_ARM_UP", "LOWER_ARM_DOWN", "REWARD", "PENALTY"]
+        # outputs = [ "GRIPPER_OPEN", "UPPER_ARM_UP", "UPPER_ARM_DOWN", "LOWER_ARM_UP", "LOWER_ARM_DOWN", "REWARD", "PENALTY"]
         if len(self.NN) < NN_num:
             self.NN.append(SIRNN(self.robot, outputs))
             self.NN[NN_num-1].nn_init(app_name, NN_num, gather_mode)
@@ -104,7 +109,7 @@ class tabletop_functional_nn():
         print("Automatic: scan for box")
         print("  Press Failure: scan direction completed")
         print("  Press Success: found block")
-        outputs = ["LOWER_ARM_UP", "LOWER_ARM_DOWN","LEFT","REWARD","PENALTY"]
+        # outputs = ["LOWER_ARM_UP", "LOWER_ARM_DOWN","LEFT","REWARD","PENALTY"]
         if len(self.NN) < NN_num:
             self.NN.append(SIRNN(self.robot, outputs))
             self.NN[NN_num-1].nn_init(app_name, NN_num, gather_mode)
@@ -117,8 +122,8 @@ class tabletop_functional_nn():
         print("  Press Forward: box in center of image")
         print("  Press Success: box in center and close enough to pick up")
         print("  Press Failure: box out of image go back to 5")
-        outputs = ["LOWER_ARM_UP", "LOWER_ARM_DOWN", "FORWARD", "REVERSE", 
-                "LEFT", "RIGHT", "REWARD", "PENALTY"]
+        # outputs = ["LOWER_ARM_UP", "LOWER_ARM_DOWN", "FORWARD", "REVERSE", 
+        #         "LEFT", "RIGHT", "REWARD", "PENALTY"]
         if len(self.NN) < NN_num:
             self.NN.append(SIRNN(self.robot, outputs))
             self.NN[NN_num-1].nn_init(app_name, NN_num, gather_mode)
@@ -127,10 +132,10 @@ class tabletop_functional_nn():
         self.robot.sir_robot.stop_all()
         self.robot.gather_data.set_function(None)
         print("Reach out arm and drop cube in center and back up")
-        outputs = ["UPPER_ARM_UP", "UPPER_ARM_DOWN", 
-                "LOWER_ARM_UP", "LOWER_ARM_DOWN",
-                "LEFT", "RIGHT", "GRIPPER_OPEN",
-                "REVERSE", "REWARD", "PENALTY"]
+        # outputs = ["UPPER_ARM_UP", "UPPER_ARM_DOWN", 
+        #         "LOWER_ARM_UP", "LOWER_ARM_DOWN",
+        #         "LEFT", "RIGHT", "GRIPPER_OPEN",
+        #         "REVERSE", "REWARD", "PENALTY"]
         if len(self.NN) < NN_num:
             self.NN.append(SIRNN(self.robot, outputs))
             self.NN[NN_num-1].nn_init(app_name, NN_num, gather_mode)
@@ -150,10 +155,11 @@ class tabletop_functional_nn():
         return 1
       return NN_num+1
 
-  def nn_process_image(self, NN_num, image):
+  def nn_process_image(self, NN_num = 0, image=None, reward_penalty=None):
       # run NN
       print("TT process_image %d" % NN_num)
-      return self.NN[NN_num-1].nn_process_image(image=image)
+      # allow reward/penalty to be returned by NN by setting to non-None
+      return self.NN[NN_num-1].nn_process_image(NN_num = NN_num, image=image, reward_penalty="REWARD_PENALTY")
 
   def nn_set_automatic_mode(self, TF):
       self.automatic_mode = TF
@@ -197,8 +203,13 @@ class tabletop_functional_nn():
           return feedback
       return None
 
+  # trains from scratch based on images saved in TT_FUNC dataset
   def train(self):
       for nn_num in range(1, self.TTFUNC_NUM_NN+1):
+        if len(self.NN) < nn_num:
+            self.nn_init(self.app_name, nn_num, gather_mode=False)
+        # elif self.robot.initialize:
+        # elif self.robot.train_new_data:
         ds = self.ds_prefix + str(nn_num)
         dataset_root_list = [ds]
         model = self.model_dir + self.model_prefix + str(nn_num) + ".pth"

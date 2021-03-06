@@ -7,6 +7,7 @@ from dataset_utils import *
 class GatherData():
 
     def save_snapshot(self, process_image=False):
+      frm_loc = None
       if (process_image):
         self.set_process_image(True)
         self.frame_location = "dummy"
@@ -21,17 +22,21 @@ class GatherData():
           time.sleep(.01)
           # ARD: to debug when camera errors occur and camera not needed
           # if i >= 1:
-          if i > 100:
+          # if i > 100:
+          # Increasing wait time in case first time initializing NN.
+          if i > 1500:
               print("save snapshot race condition; break loop")
               break
           if self.frame_location == "DONE":
               exit()
-      if i <= 100:
-        ds_line = self.ds_util.dataset_line(frm_loc)
-        with open(self.current_ds_idx, 'a') as f:
-          f.write(ds_line)
+      if i <= 100 and not process_image:
+        if frm_loc is not None:
+          ds_line = self.ds_util.dataset_line(frm_loc)
+          with open(self.current_ds_idx, 'a') as f:
+            f.write(ds_line)
+          print("save to idx:", self.current_ds_idx, ds_line)
 
-      print("save snapshot wait time: %f" % (i*.01), self.frame_location)
+      print("save snapshot wait time: %f" % (i*.01), frm_loc, process_image)
       return self.process_image_action
 
     def set_process_image(self, value):
@@ -41,14 +46,23 @@ class GatherData():
         return self.process_image_value
 
     def process_image(self):
-        self.process_image_action = self.nn_app.nn_process_image()
+        if self._driver.gather_data.is_on() and self._driver.NN_apps.nn_automatic_mode():
+          self.process_image_action = self.nn_apps.nn_automatic_action(self.function_name)
+        else:
+          self.process_image_action = self.nn_app.nn_process_image()
+        print( self.nn_app.get_snapshot_dir(), self.process_image_action)
         directory = os.path.join(self.nn_app.get_snapshot_dir(), self.process_image_action)
-        frame_location = os.path.join(directory, str(uuid1()) + '.jpg')
+        if self.do_process_image() and not self.is_on():
+            frame_location = None
+        else:
+            frame_location = os.path.join(directory, str(uuid1()) + '.jpg')
+        time.sleep(.5) # ARD: debugging hack
         self.set_process_image(False)
         if self.process_image_action == "DONE":
             return "DONE"
         return frame_location
 
+    # gather_data mode
     def is_on(self):
         return self.mode
 
@@ -83,6 +97,6 @@ class GatherData():
         self.process_image_action = None
         # Video capture is done in __main__()
         self.ds_util =  DatasetUtils(self.nn_app.app_num)
-        print(self.nn_app.app_name)
         self.current_ds_idx = self.ds_util.new_dataset_idx_name(self.nn_app.app_name)
+        print("current_ds_idx:", self.current_ds_idx)
 

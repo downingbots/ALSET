@@ -8,6 +8,8 @@ import torchvision.datasets as datasets
 # or reverse) but the NN is consistently trained across all possible robot actions.
 # Another example is "automatic mode", where the primitive actions can be mapped to to NOOPs
 # if determined programatically.
+# 
+# only_new_images: root directory 
 class ImageFolder2(datasets.ImageFolder):
     def __init__(
             self,
@@ -18,6 +20,7 @@ class ImageFolder2(datasets.ImageFolder):
             is_valid_file = None,
             full_action_set = None,
             remap_to_noop = None,
+            only_new_images = None,
     ):
         # super(datasets.ImageFolder, self).__init__(root, loader, IMG_EXTENSIONS if is_valid_file is None else None,
         super(ImageFolder2, self).__init__(root, 
@@ -52,7 +55,19 @@ class ImageFolder2(datasets.ImageFolder):
           for old_class in remap_to_noop: 
               old_class_idx.append( old_classes.index(old_class))
 
-        if full_action_set is not None or remap_to_noop is not None:
+        if only_new_images is not None:
+          ds_util = DatasetUtils("TT_NN")
+          new_images = ds_util.new_images(root)
+          img_lst = []
+          for i, [image_path, old_class_index] in enumerate(self.imgs): 
+               if image_path in new_images:
+                  img_list.append(self.imgs[i])
+          print("original number of images in dataset:", len(self.imgs))
+          print("number of new images in dataset     :", len(img_lst))
+          print("number of new images in dataset idx :", len(new_images))
+          self.imgs = img_lst
+
+        if full_action_set is not None or remap_to_noop is not None or only_new_images is not None:
           for i, [image_path, old_class_index] in enumerate(self.imgs): 
               if (remap_to_noop is not None and old_class_index in old_class_idx):
                   item = image_path, noop_idx
