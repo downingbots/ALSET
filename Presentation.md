@@ -112,10 +112,11 @@ https://youtu.be/....
  - Pick up or push objects
  - Drop or place objects
  - Line, face or object following
- - object avoidance
+ - Object avoidance
  - Stay on Table 
  - Movement verification
- - scripts (e.g., dance)
+ - Scripts (e.g., dance)
+ - Train your own function
 
 ========================================
 
@@ -127,8 +128,8 @@ Same software and analogous RC/HW mods to support:
  - Dump Truck
  - Firetrucks with RC ladder/firehose
  - Forklifts
- - Utility Bucket Trucks,
- - Tank
+ - Utility Bucket Trucks
+ - Tanks
 
 Have the robots work together!
 
