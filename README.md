@@ -128,7 +128,7 @@ Here's Sir_jetbot1 running the phase1 tabletop (2x speed):
 https://youtu.be/QVFHAMyEyaI
 
 The same training can be used for both a sequence of functional
-NNs (i.e. TT_FUNC ) and for DDQN RL. A potential goal is to train NNs to 
+NNs (i.e. TT_APP ) and for DDQN RL. A potential goal is to train NNs to 
 different functions (like above) and then combine the functions together 
 in different ways to perform different tasks. Then use DDQN to get
 optimized end-to-end functionality.
@@ -213,8 +213,11 @@ killing the robot executable. If so, run the following script:
   - ./restart_camera
 
 To execute the teleop app, run:
-  - python3 ./sir_jetbot_teleop.py --app_name TT_FUNC
-    - You can also run with app_name "TT_DQN" and "TT_NN".
+  - sir_robot_{teleop,train}.py [--func=nn_name] [--app=app_name] [--dqn=app_name] [--init]
+  - For example: 
+    - python3 ./sir_jetbot_teleop.py --app="TT"
+    - python3 ./sir_jetbot_teleop.py --func="STAY_ON_TABLE"
+    - python3 ./sir_jetbot_teleop.py --dqn="TT"
     
 When you start executing, the default mode is teleoperation. To gather
 data, use the TT_FUNC app on the command line and toggle the "gather_data" 
@@ -231,19 +234,26 @@ You can toggle off gather_data mode to teleop reposition the robot.
 
 For DQN, gather_data mode executes the NN and gathers data for training.
 Training should automatically be done at the end of every run.  New data gathered
-from the TT_FUNC app will be automatically processed at the beginning of every
+from the DQN app will be automatically processed at the beginning of every
 run.  So, there's no reason to explicitly train the DQN app as it does automated
 incremental training.
 
-The TT_FUNC and TT_NN apps are trained from scratch every time and require training
+The FUNC and TT APP are also trained incrementally and require training
 by executing sir_jetbot_train.py as discussed below.  All three
-apps (TT_NN, TT_FUNC, and DQN) use the TT_FUNC app to gather data and will be
-trained from the TT_FUNC data.
+app types (FUNC, APP, and DQN) use the FUNC app to gather data and will be
+trained from the FUNC data. 
+
+DQN only uses FUNC dataset for the initial training. DQN can be initially trained by
+randomly combining FUNC dataset runs in the correct order and/or by training on
+APP composite dataset runs that run the functions end-to-end. After the initial
+training, DQN will collect its own dataset and train using reinforcement learning
+from there.  The huge advantage of the DQN initially training from the FUNC or
+APP datasets is that thousands of random initial runs can be avoided.
 
 To train, run:
 
-  - python3 ./sir_jetbot_train.py --app_name TT_FUNC
-    - You can also train with app_name "TT_DQN" and "TT_NN".
+  - python3 ./sir_jetbot_train.py --app="TT"
+  - python3 ./sir_jetbot_train.py --func="QUICK_SCAN_FOR_CUBE"
 
 The joystick commands on the logitech controller are:
 
@@ -271,7 +281,7 @@ For DQN, these will end the run. Different DQN terminal penalties
 and rewards can be awarded by ROBOT_OFF_TABLE_PENALTY and
 CUBE_OFF_TABLE_PENALTY.
 
-The steps for training the robot:
+The steps for training the robot for the option --app=="TT":
  - For the safety of the robot, have a tabletop-like surface elevated
 inches from the ground. 
  - Put a box at the end of the table or justoff the table, typically 
@@ -285,10 +295,9 @@ inches from the ground.
  - Point your browser at the webcam. There will be some lag.
  - You can reposition by teleop while not in gather_data mode.  
  - Put in gather_data mode.  
- - The robot will be in NN1, which  means to park the arm.  
- Using the RC, position the arm facing down so that the camera 
- can see the robot base.  The grippers should be approximately 
-straight down, with both grippers touching the base.
+ - The robot will be in NN1, which  means to park the arm.  To
+automatically park the run, the camera should not see lots of 
+movement happening beyond the table (e.g., spectators)
  - when done parking the arm, press reward. Then you can train
 NN2, which is searching for the cube. 
  - For NN2, the arm will scan up automatically. When the webcam
@@ -314,11 +323,10 @@ NN2, which is searching for the cube.
  - For NN8, drop the cube in the box and press reward.
  - End training run
  
- When done enough runs, run NN training for the TT_NN and TT_FUNC apps.
- TT_DQN will automatically train from the TT_FUNC data. Gather more data 
- if necessary via the TT_FUNC app in gather_data mode. TT_DQN will 
- incremetally train on this data automatically, while the command-line
- training for TT_NN or TT_FUNC will train the NNs from scratch.
+ When done enough runs, train FUNC training for the TT_NN and TT_FUNC apps.
+ TT_DQN will train from the FUNC or APP datasets. Gather more data 
+ if necessary via the TT_FUNC app in gather_data mode. TT_DQN, FUNC and TT_APP
+ will all train incrementally.
  
 ## WHAT'S NEXT
 
