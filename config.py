@@ -1,23 +1,21 @@
-# TODO: not fully implemented
 class Config():
-  def __init_(self)
-      
+    def __init__(self):
       ###################################
       # Action Sets: 
       ###################################
       self.gather_data_modes = ["GATHER_DATA_ON", "GATHER_DATA_OFF"]
       self.modes = ["TELEOP", "NN"]
       self.base_actions  = ["FORWARD", "REVERSE", "LEFT", "RIGHT"]
-      self.arm_actions  = ["UPPER_ARM_UP", "UPPER_ARM_DOWN", "GRIPPER_OPEN", "GRIPPER_CLOSE",
-                           "LOWER_ARM_UP", "LOWER_ARM_DOWN", 
-                           "WRIST_ROTATE_LEFT", "WRIST_ROTATE_RIGHT"]
-      self.arm_actions_no_wrist  = self.arm_actions - ["WRIST_ROTATE_LEFT", "WRIST_ROTATE_RIGHT"]
+      self.arm_actions_no_wrist  = ["UPPER_ARM_UP", "UPPER_ARM_DOWN", "GRIPPER_OPEN", "GRIPPER_CLOSE",
+                                    "LOWER_ARM_UP", "LOWER_ARM_DOWN"]
+      self.arm_actions = self.arm_actions_no_wrist + ["WRIST_ROTATE_LEFT", "WRIST_ROTATE_RIGHT"]
       # Note: Wrist Rotate is unreliable. Should just support horiz and vert positioning
       # via a NN.
-      self.robot_actions_set = self.base_actions + self.arm_actions
+      self.robot_actions = self.base_actions + self.arm_actions
       self.joystick_actions  = ["REWARD1", "REWARD2", "PENALTY1", "PENALTY2"]
-      self.full_action_set = self.robot_action_set + self.joystick_set
-      self.full_action_set = tuple(self.full_action_set.sort())
+      self.full_action_set = self.robot_actions + self.joystick_actions
+      self.full_action_set.sort()
+      self.full_action_set = tuple(self.full_action_set)
 
       # NOOP: obsolete?
       self.NOOP = "NOOP"
@@ -28,20 +26,23 @@ class Config():
       self.func_registry = [
                             # TABLETOP ATOMIC NNs
                             "PARK_ARM_HIGH",
+                            "PARK_ARM_HIGH_WITH_CUBE",
                             "PARK_ARM_RETRACTED",
+                            "PARK_ARM_RETRACTED_WITH_CUBE",
                             "QUICK_SEARCH_FOR_CUBE",
                             "QUICK_SEARCH_FOR_BOX_WITH_CUBE",
-                             "GOTO_OBJECT",
+                            "GOTO_CUBE",
                             "PICK_UP_CUBE",
                             "HIGH_SLOW_SEARCH_FOR_CUBE",
                             "HIGH_SLOW_SEARCH_FOR_BOX_WITH_CUBE",
-                            "GOTO_BOX",
+                            "GOTO_BOX_WITH_CUBE",
                             "DROP_CUBE_IN_BOX",
-                             TABLETOP ATOMIC NNs FOR SUBSUMPTION
+                             # TABLETOP ATOMIC NNs FOR SUBSUMPTION
                             "STAY_ON_TABLE",
                             "MOVEMENT_CHECK",
                             ## JETBOT ATOMIC NNs 
                             # "LINE_FOLLOWING", "FACE_RECOGNITION", "OBJECT_FOLLOWING", 
+                            # "GOTO_OBJECT",
                             # "OBJECT_AVOIDANCE", 
                             ## OTHER ATOMIC NNs FOR SUBSUMPTION
                             # "GOTO_DARK_PLACE", "GOTO_BRIGHT_PLACE",
@@ -70,6 +71,7 @@ class Config():
 
       self.func_comments = [
 		    ["PARK_ARM_HIGH", "Arm parked with upper arm vertical and lower arm pointing down, with base of robot slightly visible between grippers."],
+                    ["PARK_ARM_RETRACTED_WITH_CUBE","PARK_ARM_HIGH with cube in gripper"],
 		    ["PARK_ARM_RETRACTED", "Arm parked with upper arm flat backwards and lower arm flat pointing forward. Gripper is open and ground seen a few inches in front of robot.", "ALEXNET"],
 		    ["QUICK_SEARCH_FOR_CUBE", "Rotate Left in place, searching for cube. If cube not found, relocate to a different spot and search again."],
 		    ["QUICK_SEARCH_FOR_BOX_WITH_CUBE", "Rotate Left in place while gripping a cube while searching for the box. If box not found, relocate to a different spot and search again.", "ALEXNET"],
@@ -90,8 +92,8 @@ class Config():
       # [Specialized trained versions of general automated_function]
       # Get name of automated function to run and different datasets associated with the function.
       self.func_automated = [["HIGH_SLOW_SEARCH_FOR_CUBE", "HIGH_SLOW_SEARCH"],  
-                             ["HIGH_SLOW_SEARCH_FOR_BOX_WITH_CUBE", "HIGH_SLOW_SEARCH"]],
-                             ["QUICK_SEARCH_FOR_BOX_WITH_CUBE","QUICK_SEARCH_AND_RELOCATE"],
+                             ["HIGH_SLOW_SEARCH_FOR_BOX_WITH_CUBE", "HIGH_SLOW_SEARCH"],
+                             ["QUICK_SEARCH_FOR_CUBE","QUICK_SEARCH_AND_RELOCATE"],
                              ["QUICK_SEARCH_FOR_BOX_WITH_CUBE", "QUICK_SEARCH_AND_RELOCATE"],
                              ["QUICK_SEARCH_AND_RELOCATE", None],
                              ["PARK_ARM_RETRACTED", None],
@@ -108,6 +110,7 @@ class Config():
                              ["GOTO_BOX_WITH_CUBE", self.base_actions],
                              ["DROP_CUBE_IN_BOX", self.robot_actions],
                              ["STAY_ON_TABLE", ["LEFT"]]
+                           ]
 
       self.func_classifier = []
       # TODO: self.classifier = [FIDUCIAL, OBJECT, FACE, DARK_LIGHT]
@@ -133,7 +136,7 @@ class Config():
 		  ]
 
       # optical flow thresholds for detected movement; a nested k-v pair
-      self.func_attributes = [["MOVEMENT_CHECK",[["OPTFLOWTHRESH", 0.8], ["MAX_NON_MOVEMENT",2]]]
+      self.func_attributes = [["MOVEMENT_CHECK",[["OPTFLOWTHRESH", 0.8], ["MAX_NON_MOVEMENT",2]]]]
 
       # TODO: use for verification before gathering data
       # ["NON_BASE_ONLY", "BASE_ONLY", ["ONLY", ...], ["START_POSITION", ...]
@@ -147,7 +150,7 @@ class Config():
       # case statement: use for bounding box of classification
 
       # denormalizes each
-      self.add_to_func_key_value("COMMENT", self.func_comment)
+      self.add_to_func_key_value("COMMENT", self.func_comments)
       self.add_to_func_key_value("SUBSUMPTION", self.func_subsumption)
       self.add_to_func_key_value("AUTOMATED", self.func_automated)
       self.add_to_func_key_value("ATTRIBUTES", self.func_attributes)
@@ -194,7 +197,7 @@ class Config():
             [[],["START", 0]],
             [[0,1,2,4,5,6], ["IF", "REWARD1", "NEXT"] ], 
             [[3], ["IF", "REWARD1", "NEXT_WITH_REWARD1"]], 
-            # TODO: [[3], ["IF", "REWARD1", ["GOTO_WITH_REWARD1", [4]]], 
+            # TODO: [[3], ["IF", "REWARD1", ["GOTO_WITH_REWARD1", [4]]]], 
             [[7], ["IF", "REWARD1", "STOP_WITH_REWARD1" ]], 
             ["ALL", ["IF", "REWARD2", "STOP_WITH_REWARD2"]],
             [[2, 3, 4], ["IF", "PENALTY1", [0]]],
@@ -213,11 +216,11 @@ class Config():
       # BACKGROUND: STAY_ON_TABLE, MOVEMENT_CHECK
 
       # for composite apps, key-value pirs
-      self.app_registry = [["TT",[self.TT_func, self.TT_func_flow_model]]
+      self.app_registry = [["TT",[self.TT_func, self.TT_func_flow_model]]]
 
       ######################
       # define TT DQN policy
-      self.TT_DQN_Policy = [
+      self.TT_DQN_policy = [
                          # reward_ph0 = 50 + max((ALLOCATED_MOVES_CUBE_PICKUP - frame_num),0)*MOVE_BONUS
                          # reward_ph1 = 100 + max((ALLOCATED_MOVES_CUBE_DROP_IN_BOX - frame_num),0)*MOVE_BONUS
                          # The reward phases map to the "WITH_REWARD1" actions in the function_flow_model
@@ -231,7 +234,7 @@ class Config():
                          ["PER_MOVE_PENALTY", -0.25],
                          ["MAX_MOVES", 1500],
                          ["MAX_MOVES_EXCEEDED_PENALTY", -100.0],
-                         ["GAMMA, 0.99],
+                         ["GAMMA", 0.99],
                          ["ESTIMATED_VARIANCE", 300.0],
                          ["REPLAY_BUFFER_CAPACITY", 10000],
                          ["REPLAY_BUFFER_PADDING", 20],
@@ -343,29 +346,29 @@ class Config():
       self.DEFAULT_WEBCAM_IP     = "10.0.0.31"
       self.DEFAULT_WEBCAM_PORT   = 8080
       
-      ###################
-      # TODO: FIDUCIALS
-      ###################
+    ###################
+    # TODO: FIDUCIALS
+    ###################
 
-      ###################
-      # FUNCTIONS
-      ###################
+    ###################
+    # FUNCTIONS
+    ###################
 
-      # func_key_val is a nested key-value structure of [[func, [key, [value]]],[func2, [key2, [value2]]]]
-      def init_func_key_value(self, func_registry):
+    # func_key_val is a nested key-value structure of [[func, [key, [value]]],[func2, [key2, [value2]]]]
+    def init_func_key_value(self, func_registry):
         func_key_val = []
         for func in func_registry:
           func_key_val.append([func,[]])
         return func_key_val
 
-      # take a list in form of:
-      #    self.key_name1k = [[func_name1, values1a],[func_name2, values2a]]
-      # or self.key_name1k = [[func_name1, [values1a]],[func_name2, [values2a]]]
-      # or self.key_name1k = [func_name1, func_name2]
-      # and store it in a 2-level nested kv list
-      #    self.func_key_val = [[func_name1, [[key_name1k, value1a], [key_name2k value1b]]],
-      #                         [func_name2, [[key_name1k, value2a], [key_name3k, value2b]]]]
-      def add_to_func_key_value(self, key, func_list):
+    # take a list in form of:
+    #    self.key_name1k = [[func_name1, values1a],[func_name2, values2a]]
+    # or self.key_name1k = [[func_name1, [values1a]],[func_name2, [values2a]]]
+    # or self.key_name1k = [func_name1, func_name2]
+    # and store it in a 2-level nested kv list
+    #    self.func_key_val = [[func_name1, [[key_name1k, value1a], [key_name2k value1b]]],
+    #                         [func_name2, [[key_name1k, value2a], [key_name3k, value2b]]]]
+    def add_to_func_key_value(self, key, func_list):
         k = 0    # key offset
         v = 1    # value offset
         if type(key) != str:
@@ -383,32 +386,38 @@ class Config():
               value = [new_func[v]]
             elif type(new_func) == list:
               value = new_func[v]
-          func_kv = self.get_value(self.func_key_value, func_name)
+          func_kv = self.get_value(self.func_key_val, func_name)
           self.set_value(func_kv, key, value)
-          print("add_to_func_key_value: ", self.func_key_val
     
-      def get_func_value(self, func, key):
+    def get_func_value(self, func, key):
         k = 0    # key offset
         v = 1    # value offset
-        func_kv = self.get_value(self.func_key_value, func)
+        func_kv = self.get_value(self.func_key_val, func)
         return self.get_value(func_kv, key)
 
-      # for key-value sets like self.TT_DQN_Policy
-      def get_value(self, kv_lst, key):
+      # for key-value sets like self.TT_DQN_policy
+    def get_value(self, kv_lst, key):
         k = 0    # key offset
         v = 1    # value offset
-        for kv in kv_lst:
-          if kv[k] == key:
-            return kv[v]
+        if kv_lst is not None:
+          for kv in kv_lst:
+            if kv[k] == key:
+              return kv[v]
         return None
 
-      # for key-value sets like self.TT_DQN_Policy
-      def set_value(self, kv_lst, key, value):
+      # for key-value sets like self.TT_DQN_policy
+    def set_value(self, kv_lst, key, value):
         k = 0    # key offset
         v = 1    # value offset
-        for kv in kv_lst:
-          if kv[k] == key:
-            kv[v] = value
+        if kv_lst is not None:
+          for kv in kv_lst:
+            if kv[k] == key:
+              print("b4",kv_lst, key, value)
+              kv[v] = value
+              print("af",kv_lst, key, value)
+              return
+        else:
+          kv_lst = []
         kv_lst.append([key, value])
 
 

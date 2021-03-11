@@ -36,20 +36,20 @@ class AutomatedFuncs():
       self.prev_frame = self.curr_frame
       self.curr_frame = frame
       self.rew_pen = reward_penalty
-      if self.automatic_function_name == "HIGH_SLOW_SEARCH";
+      if self.automatic_function_name == "HIGH_SLOW_SEARCH":
         return self.high_slow_search()
-      elif self.automatic_function_name == "QUICK_SEARCH";
+      elif self.automatic_function_name == "QUICK_SEARCH":
         return self.quick_search()
-      elif self.automatic_function_name == "RELOCATE";
+      elif self.automatic_function_name == "RELOCATE":
         return self.relocate()
-      elif self.automatic_function_name == "SEARCH_AND_RELOCATE";
-        if self.automatic_function_name == "QUICK_SEARCH";
+      elif self.automatic_function_name == "SEARCH_AND_RELOCATE":
+        if self.automatic_function_name == "QUICK_SEARCH":
           return self.quick_search()
-        elif self.automatic_function_name == "RELOCATE";
+        elif self.automatic_function_name == "RELOCATE":
           return self.relocate()
-      elif self.automatic_function_name == "PARK_ARM_COMPACT";
+      elif self.automatic_function_name == "PARK_ARM_COMPACT":
         return self.park_arm_compact()
-      elif self.automatic_function_name == "CLOSE_GRIPPER";
+      elif self.automatic_function_name == "CLOSE_GRIPPER":
         return self.close_gripper()
 
   def high_slow_search(self):
@@ -159,7 +159,7 @@ class AutomatedFuncs():
         return False
 
   def check_movement(self):
-      moved = self.optflow(self.prev_frame, self.curr_frame):
+      moved = self.optflow(self.prev_frame, self.curr_frame)
       if not moved:
         self.nonmovement_count += 1
       if self.nonmovement_count > self.cfg.MAX_NON_MOVEMENT:
@@ -168,7 +168,7 @@ class AutomatedFuncs():
   # prototype of "DO ACTION UNTIL REACHED LIMIT"
   def close_gripper(self):
       self.last_arm_action = self.curr_automatic_action
-      moved = self.optflow(self.prev_frame, self.curr_frame):
+      moved = self.optflow(self.prev_frame, self.curr_frame)
       if self.rew_pen == "PENALTY1":
           self.gripper_count = self.cfg.MAX_NON_MOVEMENT + 1
           self.curr_automatic_action = None
@@ -186,7 +186,7 @@ class AutomatedFuncs():
   def park_arm_compact(self):
       # determine state
       self.last_arm_action = self.curr_automatic_action
-      moved = self.optflow(self.prev_frame, self.curr_frame):
+      moved = self.optflow(self.prev_frame, self.curr_frame)
       # this is designed to be 100% automatic, but background movement can cause problems
       # PENALTY1 is an error condition from the user saying "don't do that again"
       if self.rew_pen == "PENALTY1":
@@ -229,15 +229,15 @@ class AutomatedFuncs():
       elif not lower_arm_done and not upper_arm_done:
         # Alternate between raising upper arm and lowering lower arm
         if self.last_arm_action == "LOWER_ARM_DOWN":
-           self.curr_automatic_action = "UPPER_ARM_DOWN":
+           self.curr_automatic_action = "UPPER_ARM_DOWN"
         elif self.last_arm_action == "UPPER_ARM_UP":
-           self.curr_automatic_action = "LOWER_ARM_DOWN":
+           self.curr_automatic_action = "LOWER_ARM_DOWN"
       elif not lower_arm_done:
         self.gripper_count = 0  # gripper eligible to be closed next frame
-        self.curr_automatic_action = "LOWER_ARM_DOWN":
+        self.curr_automatic_action = "LOWER_ARM_DOWN"
       elif not upper_arm_done:
         self.gripper_count = 0  # gripper eligible to be closed next frame
-        self.curr_automatic_action = "UPPER_ARM_UP":
+        self.curr_automatic_action = "UPPER_ARM_UP"
       elif lower_arm_done and upper_arm_done and not gripper_done:
         # Last: open gripper
         self.curr_automatic_action = "GRIPPER_OPEN"

@@ -49,59 +49,37 @@ from .sir_ddqn import *
 from .functional_app import *
 from .automated_funcs import *
 from .nn import *
+from .config import *
 import time
 
 class nn_apps():
     # initialize app registry
-    def __init__(self, sir_robot, sir_app_num=None, sir_app_name=None):
-      if sir_app_num != None:
-          if sir_app_num >= len(self.app_registry) or sir_app_num < 0:
-              print("Error: unknown app number %d" % sir_app_num)
-              exit()
-          [self.app_num, self.app_name, self.num_nn] = self.app_registry[sir_app_num]
-      else:
-          found = False
-          for [self.app_num, self.app_name, self.num_nn] in self.app_registry:
-               if sir_app_name == self.app_name:
-                   found = True
-                   print("app num/name:", self.app_num, self.app_name)
-                   break
-          if not found:
-              print("Error: unknown app name %s" % sir_app_name)
-              exit()
-      self.action_set = ["UPPER_ARM_UP",
-                    "UPPER_ARM_DOWN",
-                    "LOWER_ARM_UP",
-                    "LOWER_ARM_DOWN",
-                    "GRIPPER_OPEN",
-                    "GRIPPER_CLOSE",
-                    "FORWARD",
-                    "REVERSE",
-                    "LEFT",
-                    "RIGHT",
-                    "REWARD",
-                    "PENALTY"]
-
-      self.app_instance = []
-      # 0
-      self.app_instance.append(SIRNN(sir_robot, self.action_set))
-      # 1
-      self.app_instance.append(functional_app(sir_robot))
-      # 2
-      self.app_instance.append(SIR_DDQN(True, False))
+    def __init__(self, sir_robot, sir_app_name=None, sir_app_type=None):
+      self.app_name = sir_app_name
+      self.app_type = sir_app_type
+      self.cfg = Config()
+      [self.action_set, func_flow_model] = self.cfg.get_value(self.cfg.app_registry, sir_app_name)
+      # self.app_instance = []
+      if sir_app_type == "FUNC":
+        self.app_instance = SIRNN(sir_robot, self.action_set, sir_app_name, sir_app_type)
+      elif sir_app_type == "APP":
+        self.app_instance = FunctionalApp(sir_robot, sir_app_name, sir_app_type)
+      elif sir_app_type == "DQN":
+        self.app_instance = SIR_DDQN(True, False, sir_app_name, sir_app_type)
       robot_dirs = []
-      robot_dirs.append("apps")
-      for app_reg in self.app_registry:
-          robot_dirs.append("apps/" + app_reg[1])
-          robot_dirs.append("apps/" + app_reg[1] + "/dataset")
+      robot_dirs.append("apps/")
+      for action in self.action_set:
+          robot_dirs.append("apps/FUNC/" + action)
+          robot_dirs.append("apps/FUNC/" + action + "/dataset")
       self.mkdirs(robot_dirs)
       self.mode = "TELEOP"
       self.ready_for_frame = False
       self.frame = None
       self.robot = sir_robot
-      self.curr_nn_num = 1 # start with 1
+      self.curr_nn_name = None
       self.nn_dir = None
       self.auto_funcs = AutomatedFuncs()
+      self.dsu = DatasetUtils(sir_app_name, sir_app_type)
 
     ####################################################
     # COMMON APP CONTROL FUNCTIONS
@@ -188,24 +166,14 @@ class nn_apps():
       self.robot.gather_data.set_function(None)
       # automatic_mode must be set to false until after the directories
       # are created.
-      self.app_instance[self.app_num].nn_set_automatic_mode(False)
+      self.app_instance.nn_set_automatic_mode(False)
 
       # print(self.app_instance[self.app_num])
-      print(self.app_registry[self.app_num][1])
-      print(self.curr_nn_num, gather_mode)
-      auto_mode, robot_action_dirs = self.app_instance[self.app_num].nn_init(self.app_registry[self.app_num][1], self.curr_nn_num, gather_mode)
-      self.app_instance[self.app_num].nn_set_automatic_mode(auto_mode)
+      print(self.curr_nn_name, gather_mode)
+      auto_mode, robot_action_dirs = self.app_instance.nn_init(gather_mode)
+      self.app_instance.nn_set_automatic_mode(auto_mode)
       # probably should use os.path.join()
-      robot_dirs = []
-      dataset_dir = "apps/" + self.app_registry[self.app_num][1] + "/dataset"
-      # curr_nn_num is updated to reflect actual NN_num via nn_upon_reward
-      self.nn_dir = dataset_dir + "/NN" + str(self.curr_nn_num)
-      robot_dirs.append(self.nn_dir)
-      for dir_name in robot_action_dirs:
-          robot_dirs.append(self.nn_dir + "/" + dir_name)
-      self.mkdirs(robot_dirs)
-      print("nn_init: " , self.curr_nn_num, robot_dirs)
-      return robot_dirs
+      return robot_action_dirs
 
     def nn_process_image(self):
       if self.function_name in ["ROBOT_OFF_TABLE_PENALTY", "CUBE_OFF_TABLE_REWARD", "PENALTY", "REWARD"]:
@@ -214,7 +182,7 @@ class nn_apps():
           rew_pen = None
       if self.frame is None:
           print("nn_apps process_image None")
-      action = self.app_instance[self.app_num].nn_process_image(self.curr_nn_num, self.frame, reward_penalty = rew_pen)
+      action = self.app_instance.nn_process_image(self.curr_nn_name, self.frame, reward_penalty = rew_pen)
       if action == None:
           return None
 # called directly from mcp to better handle automatic mode 
@@ -227,29 +195,29 @@ class nn_apps():
       return action
 
     def nn_automatic_mode(self):
-      return self.app_instance[self.app_num].nn_automatic_mode()
+      return self.app_instance.nn_automatic_mode()
 
     def nn_automatic_action(self, feedback):
       if feedback == "REWARD":
-          self.app_instance[self.app_num].nn_set_automatic_mode(False)
-          self.curr_nn_num = self.nn_upon_reward()
+          self.app_instance.nn_set_automatic_mode(False)
+          self.curr_nn_name = self.nn_upon_reward()
           self.nn_init()
           return "REWARD"
-      return self.app_instance[self.app_num].nn_automatic_action(self.curr_nn_num, self.frame, feedback)
+      return self.app_instance.nn_automatic_action(self.curr_nn_name, self.frame, feedback)
 
     def nn_upon_reward(self):
-      self.curr_nn_num = self.app_instance[self.app_num].nn_upon_reward(self.curr_nn_num)
+      self.curr_nn_name = self.app_instance.nn_upon_reward()
       self.nn_init()
-      return self.curr_nn_num
+      return self.curr_nn_name
 
     def nn_upon_penalty(self):
-      self.curr_nn_num = self.app_instance[self.app_num].nn_upon_penalty(self.curr_nn_num)
+      self.curr_nn_name = self.app_instance.nn_upon_penalty(self.curr_nn_name)
       self.nn_init()
-      return self.curr_nn_num
+      return self.curr_nn_name
 
     def train(self):
       # TODO: clean this up to keep the abstractions
-      self.app_instance[self.app_num].train()
+      self.app_instance.train()
 
 #     return
 #      if self.app_name == "TT_NN":

@@ -528,9 +528,11 @@ from dataset_utils import *
 # class SIR_DDQN(nn.Module):
 class SIR_DDQN():
 
-    def __init__(self, initialize_model=False, do_train_model=False, app_name=None):
+    def __init__(self, initialize_model=False, do_train_model=False, app_name=None, app_type=None):
+        self.app_name = app_name
+        self.app_type = app_type
         self.cfg = Config()
-        self.dsu = DatasetUtils()
+        self.dsu = DatasetUtils(self.app_name, self.app_type)
         self.BEST_MODEL_PATH = self.dsu.best_model(mode="DQN")
         self.DQN_PATH_PREFIX = self.dsu.dataset_path()
         self.REPLAY_BUFFER_PATH = self.dsu.dqn_replay_buffer()
@@ -539,7 +541,6 @@ class SIR_DDQN():
         # Reward computation constants from config file attributes
         dqn_registry           = self.cfg.get_value(self.cfg.DQN_registry, self.app_name)
         DQN_Policy = dqn_registry[0]
-        self.full_action_set = dqn_registry[1]
 
         self.REPLAY_INITIAL    = self.cfg.get_value(DQN_Policy, "REPLAY_BUFFER_CAPACITY")
         self.REPLAY_PADDING    = self.cfg.get_value(DQN_Policy, "REPLAY_BUFFER_PADDING")
@@ -550,8 +551,8 @@ class SIR_DDQN():
         self.PENALTY2_PENALTY  = self.cfg.get_value(DQN_Policy, "PENALTY2")
         self.DQN_MOVE_BONUS    = self.cfg.get_value(DQN_Policy, "DQN_MOVE_BONUS")
         self.PER_MOVE_PENALTY  = self.cfg.get_value(DQN_Policy, "PER_MOVE_PENALTY")
-        self.MAX_MOVES         =  self.cfg.get_value_DQN_Policy, "MAX_MOVES")
-        self.MAX_MOVES_EXCEEDED_PENALTY = self.cfg.get_value(DQN_Policy, "MAX_MOVES_EXCEEDED_PENALTY
+        self.MAX_MOVES         = self.cfg.get_value(DQN_Policy, "MAX_MOVES")
+        self.MAX_MOVES_EXCEEDED_PENALTY = self.cfg.get_value(DQN_Policy, "MAX_MOVES_EXCEEDED_PENALTY")
         self.ESTIMATED_VARIANCE         = self.cfg.get_value(DQN_Policy, "ESTIMATED_VARIANCE")
 
         # reward variables
@@ -579,7 +580,7 @@ class SIR_DDQN():
         # self.epsilon_by_frame = lambda frame_idx: epsilon_final + (epsilon_start - epsilon_final) * math.exp(-1. * frame_idx / epsilon_decay)
         
         # plt.plot([self.epsilon_by_frame(i) for i in range(1000000)])
-        self.num_frames = self.replay_initial
+        self.num_frames = self.REPLAY_INITIAL
 
         self.USE_CUDA = torch.cuda.is_available()
         self.Variable = lambda *args, **kwargs: autograd.Variable(*args, **kwargs).cuda() if self.USE_CUDA else autograd.Variable(*args, **kwargs)
@@ -591,14 +592,14 @@ class SIR_DDQN():
         # FINE TUNE PRETRAINED MODEL USING IMITATION LEARNING
         # add to history
         
-        self.num_actions = len(self.robot_actions)
+        self.num_actions = len(self.cfg.robot_actions)
         self.current_model = None
         self.target_model = None
         self.init_model = initialize_model
         self.train_model = do_train_model
         print("DQN initialization: ",self.init_model, self.train_model)
         
-    def nn_init(self, app_name, NN_num, gather_mode=False):
+    def nn_init(self, gather_mode=False):
         # TODO: allow classification models
         self.current_model = CnnDQN(self.num_actions)
         self.target_model = CnnDQN(self.num_actions)
@@ -823,7 +824,7 @@ class SIR_DDQN():
         action_idx = []
         for a in action:
           # action_idx.append(self.robot_actions.index(a))  # Human readable to integer index
-          action_idx.append(self.full_action_set.index(a))  # Human readable to integer index
+          action_idx.append(self.cfg.full_action_set.index(a))  # Human readable to integer index
         action_idx = tuple(action_idx)
         # print("action:",action)
         # print("action_idx:",action_idx)
@@ -946,14 +947,15 @@ class SIR_DDQN():
     def parse_func_dataset(self, init=False):
         if init:
           # start at the beginning
-          self.dsu.save_dataset_idx_processed(mode = "FUNC", nn_name = None, dataset_idx = None):
+          self.dsu.save_dataset_idx_processed(mode = "FUNC", nn_name = None, dataset_idx = None)
         frame_num = 0
         reward = []
         #######################
         # iterate through NNs
         func_index = self.dsu.dataset_indices(mode="FUNC",nn_name=None,position="NEXT")
         if func_index is None:
-          break
+          print("parse_func_dataset: unknown NEXT index")
+          return
         print("Parsing FUNC idx", func_index)
         func_filehandle = open(func_index, 'r')
         while True:  
@@ -1003,14 +1005,15 @@ class SIR_DDQN():
     def parse_dqn_dataset(self, init=False):
         if init:
           # start at the beginning
-          self.dsu.save_dataset_idx_processed(mode = "DQN", nn_name = None, dataset_idx = None):
+          self.dsu.save_dataset_idx_processed(mode = "DQN", nn_name = None, dataset_idx = None)
         frame_num = 0
         reward = []
         #######################
         # iterate through NNs
         dqn_index = self.dsu.dataset_indices(mode="DQN",nn_name=None,position="NEXT")
         if dqn_index is None:
-          break
+          print("parse_func_dataset: unknown NEXT index")
+          return
         print("Parsing DQN idx", dqn_index)
         dqn_filehandle = open(dqn_index, 'r')
         while True:  
@@ -1035,9 +1038,8 @@ class SIR_DDQN():
               state = None
               self.all_rewards.append(self.total_reward)
               torch.save(model.state_dict(), self.BEST_MODEL_PATH)
-  
-          # close the pointer to that file
-          filehandle.close()
+        # close the pointer to that file
+        filehandle.close()
 
     # for training DQN by processing random NN datasets
     def parse_nn_dataset(self, init=False):
@@ -1047,7 +1049,7 @@ class SIR_DDQN():
         func_app = FunctionalApp(app_name= self.app_name)
         while True:
           # Assume only the primary "successful" func_flow
-          [nn_name, reward, tot_reward] = func_app.reward_penalty_func_flow("REWARD1"):
+          [nn_name, reward, tot_reward] = func_app.eval_func_flow_model("REWARD1")
           if nn_name is None:
             reward, done = self.compute_reward(frame_num, "REWARD1")
             done = True
@@ -1109,7 +1111,7 @@ class SIR_DDQN():
         elif rand_num < epsilon:
             next_action_num = random.randrange(self.num_actions)
             # next_action = list(self.robot_actions)[next_action_num]
-            next_action = list(self.full_action_set)[next_action_num]
+            next_action = list(self.cfg.full_action_set)[next_action_num]
             print("random action: ", next_action, epsilon, rand_num, fr_num, self.frame_num)
         else:
             # print("next_state:",next_state)
@@ -1132,7 +1134,7 @@ class SIR_DDQN():
             # torch.transpose(next_state_tensor, 0, 1)
             next_action_num = self.current_model.act(next_state_tensor)
             # next_action = list(self.robot_actions)[next_action_num]
-            next_action = list(self.full_action_set)[next_action_num]
+            next_action = list(self.cfg.full_action_set)[next_action_num]
             print("NN: ", next_action)
         if self.frame_num == 0 and self.state == None:
           self.frame_num += 1

@@ -271,11 +271,11 @@ class SIR_control:
     # Some type of automatic execution: DQN, NN or Automatic Function
     #  - Capture, process and store image to determine next move
     #  - Joystick provides reward / penalty
-    if ((self._driver.NN_apps.app_name == "TT_DQN" and self._driver.gather_data.is_on()) or
+    if ((self._driver.NN_apps.app_type == "DQN" and self._driver.gather_data.is_on()) or
        # Reinforcement Learning or
        (self._driver.get_NN_mode() == "NN") or         # if running neural net
        # if gather data mode and automatic Function 
-       (self._driver.gather_data.is_on() and self._driver.NN_apps.nn_automatic_mode()):
+       (self._driver.gather_data.is_on() and self._driver.NN_apps.nn_automatic_mode())):
         if self._driver.gather_data.function_name in ["REWARD", "PENALTY", "REWARD2", "PENALTY2"]:
            print("func:",self._driver.gather_data.function_name)
            self.stop_all(execute_immediate=True)

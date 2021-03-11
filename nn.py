@@ -19,35 +19,40 @@ import torchvision.transforms as transforms
 
 
 class SIRNN():
-    def __init__(self,sir_robot,outputs):
+    def __init__(self,sir_robot,outputs, app_name, app_type):
         self.robot = sir_robot
+        self.app_name = app_name
+        self.app_type = app_type
         self.device = None
         self.model = None
         self.outputs = outputs   # outputs may be much smaller than full_action_set for a function
         self.num_outputs = len(outputs)
         self.joystick_actions = ["REWARD","PENALTY"]
-        self.ds = DatasetUtils()
+        self.ds = DatasetUtils(app_name, app_type)
         self.cfg = Config()
 
-    def nn_init(self, app_name, NN_num, gather_mode=False):
+    def nn_init(self, gather_mode=False):
         # if gather_mode:
         self.model = None
-        if True:
-            self.model = torchvision.models.alexnet(pretrained=True)
-            self.model.classifier[6] = torch.nn.Linear(self.model.classifier[6].in_features, self.num_outputs)
-            print(NN_num, str(NN_num))
+        self.model = torchvision.models.alexnet(pretrained=True)
+        self.model.classifier[6] = torch.nn.Linear(self.model.classifier[6].in_features, self.num_outputs)
             
-            model_path = "apps/" + app_name + "/best_model" + str(NN_num) + ".pth"
-            try:
-              self.model.load_state_dict(torch.load(model_path))
-            except:
-              torch.save(self.model.state_dict(), model_path)
-            self.device = torch.device('cuda')
-            self.model = self.model.to(self.device)
-
-
+        model_path = self.ds.best_model_path(mode=app_type, nn_name=app_name)
+        try:
+          self.model.load_state_dict(torch.load(model_path))
+        except:
+          torch.save(self.model.state_dict(), model_path)
+        self.device = torch.device('cuda')
+        self.model = self.model.to(self.device)
+        robot_dirs = []
+        self.nn_dir = self.dsu.dataset_path(mode=self.app_type, nn_name=self.curr_nn_name)
+        robot_dirs.append(self.nn_dir)
+        for dir_name in self.cfg.full_action_set:
+          robot_dirs.append(self.nn_dir + "/" + dir_name)
+        self.mkdirs(robot_dirs)
+        print("nn_init: " , robot_dirs)
         # Class can be used as a single-NN app that can do any action
-        return False, self.full_action_set
+        return False, self.cfg.full_action_set
 
     def preprocess(self, camera_value):
          global device, normalize
@@ -167,10 +172,10 @@ class SIRNN():
         # nn.py is a primitive NN that can be used by higher layers like tabletop_func_app.
         # Set default parameters if unset by caller
         if dataset_root_list is None:
-          num_NN = self.cfg.(self.app_name)
+          num_NN = self.cfg.func_registery.index(self.app_name)
           dataset_root_list = []
-          for nn_num in range(1, TTFUNC_NUM_NN+1):
-            dsp = self.ds.dataset_model_path(app_name, nn_name, nn_num):
+          for nn_num in range(1, len(self.NN)+1):
+            dsp = self.ds.dataset_model_path(app_name, nn_name, nn_num)
             dataset_root_list.append(dsp)
         best_model_path = self.ds.best_model_path(self.app_name, self.nn_name, nn_num)
         if full_action_set is None:
@@ -211,6 +216,8 @@ class SIRNN():
             # dataset = datasets.ImageFolder2(
             dataset = ImageFolder2(
                 root,
+                self.app_name,
+                self.app_type,
                 transforms.Compose([
                     transforms.ColorJitter(0.1, 0.1, 0.1, 0.1),
                     transforms.Resize((224, 224)),
@@ -218,7 +225,7 @@ class SIRNN():
                     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
                 ]),
                 full_action_set = full_action_set,
-                remap_to_noop = noop_remap
+                remap_to_noop = noop_remap,
                 only_new_images = only_new_images
             )
             # Attributes:

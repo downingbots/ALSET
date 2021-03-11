@@ -14,6 +14,8 @@ class ImageFolder2(datasets.ImageFolder):
     def __init__(
             self,
             root: str,
+            app_name,
+            app_type,
             transform = None,
             target_transform = None,
             # loader: Callable[[str], Any] = torchvision.default_loader,
@@ -30,6 +32,8 @@ class ImageFolder2(datasets.ImageFolder):
                                           target_transform=target_transform,
                                           is_valid_file=is_valid_file)
         self.imgs = self.samples
+        self.app_name = app_name
+        self.app_type = app_type
 
         # From original code:
         # self.classes = [d.name for d in os.scandir(dir) if d.is_dir()]
@@ -56,7 +60,7 @@ class ImageFolder2(datasets.ImageFolder):
               old_class_idx.append( old_classes.index(old_class))
 
         if only_new_images is not None:
-          ds_util = DatasetUtils("TT_NN")
+          ds_util = DatasetUtils(self.app_name, self.app_type)
           new_images = ds_util.new_images(root)
           img_lst = []
           for i, [image_path, old_class_index] in enumerate(self.imgs): 

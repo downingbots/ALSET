@@ -18,7 +18,7 @@ SIRjetbot1 can be trained to do simple Jetbot-like functionality like "stay on a
 The Jetbot is an educational robot with just 2 motored wheels from NVIDIA. The
 NVIDIA Jetbot has a set of nice tutorials of running neural nets (NNs) on the Jetson Nano 
 AI computer including facial recognition, obstacle avoidance, object tracking, and line following.
-SIRjetbot1 can run all the jebot tutorials with minor mods. In addition,
+SIRjetbot1 can run all the jetbot tutorials with minor mods. In addition,
 the software for SIRjetbot1 can be trained to do a sequence of individual tasks like 
 "search for cube", "drive to cube",and "pick up cube". SIRjetbot1 has a robot arm
 for mobile manipulation. Finally, SIRjetbot1 can do end-to-end optimizations
@@ -41,7 +41,7 @@ The Sharper Image robot was hacked as followed:
  - raspberry pi camera v2 with 2 ft cable mounted on a cookie wheel case near the end of the arm.
  - A hacked RC:
    - the circuit board from inside of the low-end RC control that came with the robot. 
-   - You can see/use the buttons from the RC ciruit board to control the robot. 
+   - You can see/use the buttons from the RC circuit board to control the robot. 
    - the other side of the board was soldered to wire it up with the IO expansion board.
  - The IO expansion board was required :
    - the RC control uses Tri-state logic on 6 pins.
@@ -61,7 +61,7 @@ significantly. The Notebook tutorials barely ran on my Jetson with the wifi conn
     
 This data is then gathered and used to train the robot. Note: a tenth of a second of start/stop proved too much for one of the boards and the robot will stop moving after a few minutes of continuous use. Eventually changed the pwm rate to two-moves-per-second.
 
-The robot runs in 4 modes: RC telepresence, data-capture, and using trained neural net(s) including a single CNN, a multi-part sequence of CNNs, and DDQN reinforcement learning. The CNNs are pre-trained using over 14 million classified images using the Alexnet model. The data capture and neural net can be for a single alexnet NN, or a sequence of alexnet NNs with function-specific knowledge. For example, the 8-parts are for an HBRC phase-3 tabletop bot is:
+The robot runs in 4 modes: RC teleoperation, data-capture, and using trained neural net(s) including a single CNN, a multi-part sequence of CNNs, and DDQN reinforcement learning. The CNNs are pre-trained using over 14 million classified images using the Alexnet model. The data capture and neural net can be for a single alexnet NN, or a sequence of alexnet NNs with function-specific knowledge. For example, the 8-parts are for an HBRC phase-3 tabletop bot is:
  - get the arm to a known position
  - scans for object on the floor (or table)
  - goes to object, keeping object in center of vision
@@ -103,12 +103,12 @@ DQN has difficulty handling some situations. For example,
 picking up a cube is a sparse-reward (taking hundreds
 of unrewarding moves), as is dropping the cube in a box.
 Also, there's no continuous scoreboard accumulating tons of
-rewards/penaties as you might have on a video game. 
+rewards/penalties as you might have on a video game. 
 
 DQN can be trained after the final reward for each run. For a game like
 chess, there's only one reward based upon who won the game.
 Then, the DQN algorithm retroactively goes over the history of
-preceeding moves to give a "quality" score or Q-value.
+preceding moves to give a "quality" score or Q-value.
 The Q-value for the move before the checkmate is 99% of the final reward.
 The Q-value for the 3rd to last move is .99 * .99 * final_reward, etc.  
 A neural net is then trained over many moves (i.e. the chess
@@ -183,7 +183,7 @@ The robot has separate batteries for the joystick and the base. The Nano has its
 
 ## HOW TO RUN
 
-First, follow the NVIDIA instructions to install the jebot onto the
+First, follow the NVIDIA instructions to install the jetbot onto the
 Jetson Nano. Use a huge SD card as images for the datasets will be
 stored there and training will (by default) be done on the Nano.
 It is possible to follow the Jetson instructions so that training 
@@ -284,7 +284,7 @@ CUBE_OFF_TABLE_PENALTY.
 The steps for training the robot for the option --app=="TT":
  - For the safety of the robot, have a tabletop-like surface elevated
 inches from the ground. 
- - Put a box at the end of the table or justoff the table, typically 
+ - Put a box at the end of the table or just off the table, typically 
  in the middle of the long-end of the table.
  - Put a cube on the table.  
  - Put the robot on the table. Initially the cube and robot placement/orientation
@@ -351,7 +351,7 @@ ROS is a good place to start with real robots, but you'll eventually hit the lim
 
 SIR_jetbot_the_first addresses several lessons learned the hard way.
   - Over time, I've become convinced that inexpensive Robot Arms should have camera attached directly to the arm and use RL for digital servoing. SIR_jetbot1 does this with its only sensor - the RPi camera on its gripper (just below the "wrist").
-  - SIR_jetbot1 does discrete moves to avoid realtime processing and also to handle low-end hardware limations (mcp23017 communication rate).
+  - SIR_jetbot1 does discrete moves to avoid realtime processing and also to handle low-end hardware limitions (mcp23017 communication rate).
   - The on-board Jetson is the most expensive component. Total price of the whole robot is a few hundred dollars.
   - Use imitation-learning to reduce amount of RL episodes that you have to run.
   
@@ -365,7 +365,7 @@ To solve the problem of getting the state of the environment that simulations ca
   - Separate cameras
   - add fiducials to objects (e.g., block) in environment
   - add sensors to objects in environment
-  - Tons of human-interactons to reset the environment
+  - Tons of human-interactions to reset the environment
 
 Some of my previous robots: PR2Lite (with Maxwell, which ROSwell cloned), REPLab, RLDonkeycar
 <p align="center">
@@ -381,10 +381,10 @@ Lessons from PR2-Lite:
   
 Lessons from ROSwell:
   - ROS is good. SLAM and complex arm planning (through MoveIt) are now doable by hobbyists. However, doing complex things are really hard to do.  Human perception algorithms just aren't good enough.  This has led to my interest in RL.
-  - Human-sized robots are good. But so is transportability. ROSwell / Maxwell is just the right size and pricepoint for a serious robot hobbiest. The current robot's most complex application (chess by Mike Ferguson) is literally out-of-reach for ROSwell's arm. The robot would need to physically move locations to reach the other side of a standard-sized board.
+  - Human-sized robots are good. But so is transportability. ROSwell / Maxwell is just the right size and pricepoint for a serious robot hobbyist. The current robot's most complex application (chess by Mike Ferguson) is literally out-of-reach for ROSwell's arm. The robot would need to physically move locations to reach the other side of a standard-sized board.
   - Honestly, the picking up of a chess piece or similarly light object just isn't inspiring.  I'd suggest going to a SCARA arm with real lift capabilities.
   - I'd love a robot that can go up stairs. Houses often have too many stairs. I'd love a quadruped like Boston Dynamic's Spot.  Lower-end clones of Spot are on their way, but it's doubtful that they can go up stairs and have a weight-bearing arm.
-  - In an attempt to use ROSwell for RL, I tried to get ROSwell working within a physics-simulator so that I didn't risk wearing out or damaging the robot in humongous numbers of random trials. Unfortuantely, the simulations don't match reality at all!  Spent a ton of time trying to get Gazebo physics engine to realistically model a light, top-heavy robot with low-end servos (e.g., dynamixel MX-64).
+  - In an attempt to use ROSwell for RL, I tried to get ROSwell working within a physics-simulator so that I didn't risk wearing out or damaging the robot in humongous numbers of random trials. Unfortunately, the simulations don't match reality at all!  Spent a ton of time trying to get Gazebo physics engine to realistically model a light, top-heavy robot with low-end servos (e.g., dynamixel MX-64).
     - Problems encountered include incompatible upgrades of components
     - Difficulty tuning of weights, inertia, friction, pids, transmissions
     - Physics of torsional friction in gazebo is missing or unrealistic (depending on physics engine release)
@@ -409,7 +409,7 @@ Lessons from REPLab:
 
 Lesson from using the Jetson nano / Jetbot:
   - The Jetson "notebook" is a cool idea for tutorials, but in practice needs very fast wifi - better than my house has and very fast SSD - faster than I bought.  But putting the gamepad/logitech on the robot and using lower overhead video webstreaming worked fine.
-  - I immediately outgrew the functionality provided by the Jebot. I was able to start with the jetbot code and tutorials to incremental build an armed jetbot (sir_jetbot1).
+  - I immediately outgrew the functionality provided by the Jetbot. I was able to start with the jetbot code and tutorials to incremental build an armed jetbot (sir_jetbot1).
   
 Reinforcement learning in general:
   - Let's look at some more recent major impressive results in deep learning:

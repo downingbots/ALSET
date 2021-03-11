@@ -6,7 +6,7 @@ from .dataset_utils import *
 
 # print 'Number of arguments:', len(sys.argv), 'arguments.'
 # print 'Argument List:', str(sys.argv)
-ds_util = DatasetUtils("TT")
+ds_util = DatasetUtils("TT","DQN")
 if str(sys.argv) == "--mode":
   position = "OLD"
 position = "NEW"
@@ -20,8 +20,8 @@ elif str(sys.argv[0]) == "--next_":
 else:
   print("bad option:", str(sys.argv[0]))
 nn_name = None
-if str(sys.argv[0]).endswith("nn"):
-  mode = "NN"
+if str(sys.argv[0]).endswith("app"):
+  mode = "app"
   if len(sys.argv) != 2:
     print("missing nn_name: ", sys.argv)
   nn_name = str(sys.argv[1])

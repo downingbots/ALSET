@@ -96,7 +96,7 @@ class GatherData():
         self.process_image_value = False
         self.process_image_action = None
         # Video capture is done in __main__()
-        self.ds_util =  DatasetUtils(self.nn_app.app_num)
-        self.current_ds_idx = self.ds_util.new_dataset_idx_name(self.nn_app.app_name)
+        self.ds_util =  DatasetUtils(self.nn_app.app_name, self.nn_app.app_type)
+        self.current_ds_idx = self.ds_util.dataset_indices(mode="DQN", nn_name=None, position="NEW")
         print("current_ds_idx:", self.current_ds_idx)
 
