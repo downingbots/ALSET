@@ -1,10 +1,8 @@
 =========================
 
 
-
 # Q: "What does your robot do?"  
 # A: "Whatever you train the robot to do."
-
 
 
 https://github.com/downingbots/SIR_jetbot
