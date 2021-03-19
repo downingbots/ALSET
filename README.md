@@ -194,7 +194,7 @@ contents of this github repository there. Add an apps subdirectory,
 and further subdirectories for:
   - apps/TT_DQN/dataset
   - apps/TT_FUNC/dataset
-  - apps/TT_NN/dataset
+  - apps/FUNC/dataset
 
 Other subdirectories will be automatically created during execution.
 
@@ -420,5 +420,5 @@ Reinforcement learning in general:
     - Deep Mind's latest breakthrough:
       - https://deepmind.com/blog/article/muzero-mastering-go-chess-shogi-and-atari-without-rules
   - These all confirm the trend in deep learning (that has been known for a while) scales to incredible degrees. Basically, if you have a problem that you need to solve, recursively add more data and then add more levels to the NN (now attention-based), until you achieve good results (near-human or better). 
-  - To get anything that seems to be impressive, you need huge datasets and tons of training to such a scale that only big companies with hundreds of thousands of dollars to spend can afford.  Individual developers / researchers can do minor incremental contributions to the area, but to get to the point of gaining common-sense intelligence is out of the reach of all but the biggest, richest companies with the biggest datasets (think Google and Facebook.)
+  - To get anything that seems to be impressive, you need huge datasets and tons of training to such a scale that only big companies with hundreds of thousands of dollars to spend can afford.  Individual developers / researchers can make contributions to the area (podcast: Can We Scale Up to AGI with Current Tech? https://www.youtube.com/watch?v=oj5kozyUYeM ), but to get to the point of gaining common-sense intelligence is out of the reach of all but the biggest, richest companies with the biggest datasets (think Google and Facebook.)
 
