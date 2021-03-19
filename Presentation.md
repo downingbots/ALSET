@@ -1,4 +1,4 @@
-========================================
+=========================
 
 
 
@@ -11,7 +11,7 @@ https://github.com/downingbots/SIR_jetbot
 
 downingbots @ gmail.com
 
-========================================
+=========================
 
 # Sharper Image Robot 
 
@@ -23,7 +23,7 @@ downingbots @ gmail.com
   <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/sharper_image_robot2.jpg" width="200" alt="accessibility text">
 </p>
                                                                                                                                              
-========================================
+=========================
 
 # SIR_JETBOT
 
@@ -47,7 +47,7 @@ Converted to Autonomous robot:
   <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/Sir_jetbot2.jpg" width="200" alt="accessibility text">
 </p>
 
-========================================
+=========================
 
 # SIR_JETBOT Operating Modes
 
@@ -63,7 +63,7 @@ Converted to Autonomous robot:
     - incremental outputs from end-to-end run of App
     - Reinforcement Learning via DQN
 
-========================================
+=========================
 
 # DQN Reinforcement Learning
 
@@ -78,7 +78,7 @@ Converted to Autonomous robot:
   - 2nd to last move is .99 * .99 of final reward
 - Variations: Replay history, Target Network
  
-========================================
+=========================
 
 # SIR_JETBOT: HBRC TABLETOP CHALLENGE
 
@@ -86,7 +86,7 @@ Converted to Autonomous robot:
 
 https://youtu.be/QVFHAMyEyaI
 
-========================================
+=========================
 
 # SIR_JETBOT: HBRC TABLETOP CHALLENGE
 
@@ -102,7 +102,7 @@ https://youtu.be/QVFHAMyEyaI
 
 https://youtu.be/....
 
-========================================
+=========================
 
 # Simple Functions Combined to Define App Behavior
 
@@ -118,7 +118,7 @@ https://youtu.be/....
  - Scripts (e.g., dance)
  - Train your own function
 
-========================================
+=========================
 
 # Convert Other RC Toys to Autonomous Vehicles
 
