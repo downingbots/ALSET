@@ -190,13 +190,12 @@ It is possible to follow the Jetson instructions so that training
 could be done on a laptop instead.
 
 cd to the jetson source directory (or a new directory) and put the
-contents of this github repository there. Add an apps subdirectory, 
-and further subdirectories for:
+contents of this github repository there. Add an apps subdirectory.  
+Further subdirectories should be automatically created during execution 
+such as:
   - apps/TT_DQN/dataset
   - apps/TT_FUNC/dataset
   - apps/FUNC/dataset
-
-Other subdirectories will be automatically created during execution.
 
 If you are doing active development, I have a script hack that copies the 
 python files to their system directories:
@@ -295,38 +294,34 @@ inches from the ground.
  - Point your browser at the webcam. There will be some lag.
  - You can reposition by teleop while not in gather_data mode.  
  - Put in gather_data mode.  
- - The robot will be in NN1, which  means to park the arm.  To
-automatically park the run, the camera should not see lots of 
-movement happening beyond the table (e.g., spectators)
- - when done parking the arm, press reward. Then you can train
-NN2, which is searching for the cube. 
- - For NN2, the arm will scan up automatically. When the webcam
- shows beyond the edges of the table, press penalty.
- - Still training NN2,the robot will rotate left for a bit and
- then the arm will scan down. When the robot arm has reached the
- park position, press penalty. The robot will then rotate left
- and scan upwards.
- - Continue training NN2 until the cube can be completely seen
- within the webcam. At this time, press reward to train NN3.
- - For NN3, drive to the cube. When within reach of the cube,
- press reward to train NN4.
- - For NN4, reach out to the cube via the joystick. When ready to
+ 
+ Once in gather-data mode, we are gathering images and their associated actions so that
+ we can later train the robot.  We can train one simple function at a time or we can
+ train an end-to-end a series of functions that form an Application.  In the TableTop (TT)
+ app, we train each function of the following functions in sequence:
+ 1. The robot will first try to park the arm. To automatically park the run, the camera should not see lots of movement happening beyond the table (e.g., spectators) When done parking the arm, press reward.  This automatic function will gather image/action data for the training a NN. Then you can train the second
+NN, which is searching for the cube.
+ 2. Next, the robot will automatically rotate around. When the cube can be completely seen
+ within the webcam, press reward to start training the next NN.
+ 3. Keeping the cube in sight, drive to the cube. When within reach of the cube,
+ press reward to finish this NN's training. This phase is gathering data purely the teleoperation.
+ 4. For cube pickup, reach out to the cube via the joystick. When ready to
  grab, press reward to train NN5.
- - For NN5, grab the cube and lift it up. When the cube
- is successfully off the ground, press reward for NN6.
- - For NN6, the robot scans for the box in automatic mode like
- for NN2. Press penalty at the top/bottom of arm scans until
+ 5. Next, grab the cube and lift it up. When the cube
+ is successfully off the ground, press reward.
+ 6. Like the second NN, the robot scans for the box in automatic mode. Press penalty at the top/bottom of arm scans until
  you can clearly see the box in webcam, at which time press
  reward.
- - For NN7, drive towards the box until within dropping distance.
- Then press reward to move to NN7.
- - For NN8, drop the cube in the box and press reward.
- - End training run
+ 7. Drive towards the box until within dropping distance.
+ Then press reward..
+ 8. Drop the cube in the box and press reward to end training run.
  
- When done enough runs, train FUNC training for the TT_NN and TT_FUNC apps.
- TT_DQN will train from the FUNC or APP datasets. Gather more data 
- if necessary via the TT_FUNC app in gather_data mode. TT_DQN, FUNC and TT_APP
- will all train incrementally.
+When we've completed enough runs, we train each FUNC NN. The TT_APP will
+use combine the appropriate FUNCtion in order to accomplish the task
+of finding, picking up a cube, and dropping the cube into the box.
+Gather more data if necessary via the TT_APP app in gather_data mode. 
+TT_DQN, FUNC and TT_APP will all train incrementally so that you
+don't have to train from scratch each time, which is very time consuming.
  
 ## WHAT'S NEXT
 
@@ -419,6 +414,6 @@ Reinforcement learning in general:
       - https://openai.com/blog/dall-e/
     - Deep Mind's latest breakthrough:
       - https://deepmind.com/blog/article/muzero-mastering-go-chess-shogi-and-atari-without-rules
-  - These all confirm the trend in deep learning (that has been known for a while) scales to incredible degrees. Basically, if you have a problem that you need to solve, recursively add more data and then add more levels to the NN (now attention-based), until you achieve good results (near-human or better). 
+  - These all confirm the ongoing trend in deep learning that shows deep learning scales to incredible degrees. Basically, if you have a problem that you need to solve, recursively add more data and then add more levels to the NN (now attention-based), until you achieve good results (near-human or better). 
   - To get anything that seems to be impressive, you need huge datasets and tons of training to such a scale that only big companies with hundreds of thousands of dollars to spend can afford.  Individual developers / researchers can make contributions to the area (podcast: Can We Scale Up to AGI with Current Tech? https://www.youtube.com/watch?v=oj5kozyUYeM ), but to get to the point of gaining common-sense intelligence is out of the reach of all but the biggest, richest companies with the biggest datasets (think Google and Facebook.)
 
