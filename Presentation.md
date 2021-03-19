@@ -1,9 +1,9 @@
-====
+|
 
 
 # Q: "What does your robot do?"  
 
-====
+|
 
 # A: "Whatever you train the robot to do."
 
