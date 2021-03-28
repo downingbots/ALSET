@@ -46,11 +46,11 @@ class GatherData():
         return self.process_image_value
 
     def process_image(self):
-        if self._driver.gather_data.is_on() and self._driver.NN_apps.nn_automatic_mode():
-          self.process_image_action = self.nn_apps.nn_automatic_action(self.function_name)
+        if self.is_on() and self.nn_app.nn_automatic_mode():
+          self.process_image_action = self.nn_app.nn_automatic_action(self.function_name)
         else:
           self.process_image_action = self.nn_app.nn_process_image()
-        print( self.nn_app.get_snapshot_dir(), self.process_image_action)
+        print("process_image:", self.nn_app.get_snapshot_dir(), self.process_image_action)
         directory = os.path.join(self.nn_app.get_snapshot_dir(), self.process_image_action)
         if self.do_process_image() and not self.is_on():
             frame_location = None
@@ -97,6 +97,10 @@ class GatherData():
         self.process_image_action = None
         # Video capture is done in __main__()
         self.ds_util =  DatasetUtils(self.nn_app.app_name, self.nn_app.app_type)
-        self.current_ds_idx = self.ds_util.dataset_indices(mode="DQN", nn_name=None, position="NEW")
+        if self.nn_app.app_type == "FUNC":
+            nn_name = self.nn_app.app_name
+        else:
+            nn_name = None
+        self.current_ds_idx = self.ds_util.dataset_indices(mode=self.nn_app.app_type, nn_name=nn_name, position="NEW")
         print("current_ds_idx:", self.current_ds_idx)
 

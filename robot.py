@@ -1,15 +1,15 @@
 import time
 import traitlets
 from traitlets.config.configurable import SingletonConfigurable
-from .mcp23017 import *
-from .motor import *
-from .sir_joystick import *
-from .gather_data import *
-from .nn import *
+from mcp23017 import *
+from motor import *
+from sir_joystick import *
+from gather_data import *
+from nn import *
 from docopt import docopt
-from .nn_apps import *
-from .sir_ddqn import *
-from .config import *
+from nn_apps import *
+from sir_ddqn import *
+from config import *
 
 class Robot(SingletonConfigurable):
     def __init__(self, *args, **kwargs):
@@ -31,12 +31,12 @@ class Robot(SingletonConfigurable):
         self.cfg = Config()
         if args['--func']:
           self.app_name  = args['--func'] 
-          if self.app_name not in self.cfg.NN_registry:
+          if self.app_name not in self.cfg.func_registry:
             self.app_name  = args['--func'] 
-            val = self.cfg.get_value(self.cfg.NN_registry, self.app_name)
+            val = self.cfg.get_value(self.cfg.func_registry, self.app_name)
             if val is None:
               print("Function name not found: ", self.app_name)
-              print("Known function names: ", self.cfg.NN_registry)
+              print("Known function names: ", self.cfg.func_registry)
               exit()
           self.app_type  = "FUNC"
         elif args['--app']:
@@ -49,7 +49,7 @@ class Robot(SingletonConfigurable):
           self.app_type  = "APP"
         elif args['--dqn']:
           self.app_name  = args['--dqn']
-          val = self.cfg.get_value(self.cfg.NN_registry, self.app_name)
+          val = self.cfg.get_value(self.cfg.DQN_registry, self.app_name)
           if val is None:
             print("Function name not found: ", self.app_name)
             print("Known function names: ", self.cfg.DQN_registry)
@@ -194,11 +194,11 @@ class Robot(SingletonConfigurable):
           self.sir_robot.gripper(direction)
 
     def reward(self):
-        self.gather_data.set_function("REWARD")
+        self.gather_data.set_function("REWARD1")
         self.sir_robot.stop_all()
 
     def penalty(self):
-        self.gather_data.set_function("PENALTY")
+        self.gather_data.set_function("PENALTY1")
         self.sir_robot.stop_all()
 
     # gather data / teleop mode
@@ -214,12 +214,15 @@ class Robot(SingletonConfigurable):
         if mode == "DQN" and self.DQN == None:
           self.DQN = SIR_DDQN(self.initialize, self.train_new_data)
 
+    # ARD: need to clean up now that generalized beyond TableTop
     def robot_off_table_penalty(self):
-        self.gather_data.set_function("ROBOT_OFF_TABLE_PENALTY")
+        # self.gather_data.set_function("ROBOT_OFF_TABLE_PENALTY")
+        self.gather_data.set_function("PENALTY2")
         self.sir_robot.stop_all()
 
     def cube_off_table_reward(self):
-        self.gather_data.set_function("CUBE_OFF_TABLE_REWARD")
+        # self.gather_data.set_function("CUBE_OFF_TABLE_REWARD")
+        self.gather_data.set_function("PENALTY2")
         self.sir_robot.stop_all()
 
     def get_NN_mode(self):

@@ -202,13 +202,13 @@ class SIR_joystick:
                 self._robot_driver.set_motors(self.left_speed, self.right_speed)
             if axis == "z":
                 if fvalue == 1:
-                    command.append("REWARD")
-                    arg.append("REWARD")
+                    command.append("REWARD1")
+                    arg.append("REWARD1")
                     self._robot_driver.reward()
             elif axis == "rz":
                 if fvalue == 1:
-                    command.append("PENALTY")
-                    arg.append("PENALTY")
+                    command.append("PENALTY1")
+                    arg.append("PENALTY1")
                     self._robot_driver.penalty()
             if self.pressed_button == "tl":
                 mode = self._robot_driver.get_gather_data_mode()

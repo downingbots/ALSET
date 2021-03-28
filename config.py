@@ -16,6 +16,7 @@ class Config():
       self.full_action_set = self.robot_actions + self.joystick_actions
       self.full_action_set.sort()
       self.full_action_set = tuple(self.full_action_set)
+      self.debug = False
 
       # NOOP: obsolete?
       self.NOOP = "NOOP"
@@ -29,8 +30,11 @@ class Config():
                             "PARK_ARM_HIGH_WITH_CUBE",
                             "PARK_ARM_RETRACTED",
                             "PARK_ARM_RETRACTED_WITH_CUBE",
+                            "QUICK_SEARCH",
+                            "QUICK_SEARCH_AND_RELOCATE",
                             "QUICK_SEARCH_FOR_CUBE",
                             "QUICK_SEARCH_FOR_BOX_WITH_CUBE",
+                            "RELOCATE",
                             "GOTO_CUBE",
                             "PICK_UP_CUBE",
                             "HIGH_SLOW_SEARCH_FOR_CUBE",
@@ -95,10 +99,11 @@ class Config():
                              ["HIGH_SLOW_SEARCH_FOR_BOX_WITH_CUBE", "HIGH_SLOW_SEARCH"],
                              ["QUICK_SEARCH_FOR_CUBE","QUICK_SEARCH_AND_RELOCATE"],
                              ["QUICK_SEARCH_FOR_BOX_WITH_CUBE", "QUICK_SEARCH_AND_RELOCATE"],
-                             ["QUICK_SEARCH_AND_RELOCATE", None],
-                             ["PARK_ARM_RETRACTED", None],
-                             ["CLOSE_GRIPPER", None], 
-                             ["MOVEMENT_CHECK", None]
+                             ["QUICK_SEARCH_AND_RELOCATE", "QUICK_SEARCH_AND_RELOCATE"],
+                             ["PARK_ARM_RETRACTED", "PARK_ARM_RETRACTED"],
+                             ["PARK_ARM_RETRACTED_WITH_CUBE", "PARK_ARM_RETRACTED"],
+                             ["CLOSE_GRIPPER", "CLOSE_GRIPPER"], 
+                             ["MOVEMENT_CHECK", "MOVEMENT_CHECK"]
                             ]
 
       self.func_movement_restrictions = [
@@ -136,7 +141,9 @@ class Config():
 		  ]
 
       # optical flow thresholds for detected movement; a nested k-v pair
-      self.func_attributes = [["MOVEMENT_CHECK",[["OPTFLOWTHRESH", 0.8], ["MAX_NON_MOVEMENT",2]]]]
+      # self.func_attributes = [["MOVEMENT_CHECK",[["OPTFLOWTHRESH", 0.8], ["MAX_NON_MOVEMENT",2]]]]
+      self.OPTFLOWTHRESH = 0.8
+      self.MAX_NON_MOVEMENT = 2
 
       # TODO: use for verification before gathering data
       # ["NON_BASE_ONLY", "BASE_ONLY", ["ONLY", ...], ["START_POSITION", ...]
@@ -153,7 +160,6 @@ class Config():
       self.add_to_func_key_value("COMMENT", self.func_comments)
       self.add_to_func_key_value("SUBSUMPTION", self.func_subsumption)
       self.add_to_func_key_value("AUTOMATED", self.func_automated)
-      self.add_to_func_key_value("ATTRIBUTES", self.func_attributes)
       self.add_to_func_key_value("MOVEMENT_RESTRICTIONS", self.func_movement_restrictions)
 
 
@@ -238,13 +244,34 @@ class Config():
                          ["ESTIMATED_VARIANCE", 300.0],
                          ["REPLAY_BUFFER_CAPACITY", 10000],
                          ["REPLAY_BUFFER_PADDING", 20],
-                         ["BATCH_SIZE", 32]
+                         ["BATCH_SIZE", 32]   # ["BATCH_SIZE", 8] ["BATCH_SIZE", 1]
                        ]
 
       # a key-value pair, Same key should be in app_registry
       self.DQN_registry = [["TT",[self.TT_DQN_policy]]]
 
-      
+      ###########################
+      # DEFINE TEST TABLE_TOP_APP
+      ###########################
+      self.TTT_name        = ["TTT"]
+      self.TTT_func        = ["PARK_ARM_RETRACTED",           #  0
+                              "QUICK_SEARCH_FOR_CUBE"         #  1
+                             ]
+
+      self.TTT_func_flow_model = [
+            [[],["START", 0]],
+            [[0], ["IF", "REWARD1", "NEXT"] ],
+            [[1], ["IF", "REWARD1", "STOP_WITH_REWARD1" ]],
+            [[1], ["IF", "PENALTY1", [0]]],
+            ]
+
+      self.TTT_DQN_policy = self.TT_DQN_policy
+      self.TTT_DQN_policy[0] = ["DQN_REWARD_PHASES", [[100,   400]]]  # replace
+
+      # for composite apps, key-value pirs
+      self.app_registry = [["TTT",[self.TTT_func, self.TTT_func_flow_model]]]
+      self.DQN_registry = [["TTT",[self.TTT_DQN_policy]]]
+
       ########################
       # DEFINE PERSONALITY APP
       ########################
@@ -335,7 +362,7 @@ class Config():
       self.DATASET_IDX_POSTFIX   = "_idx.pth"
       self.DATE_FMT              = "_%y_%m_%d"        # + letter[a-zA-Z] + ".txt"
       self.MODEL_POST_FIX        = "_MODEL.pth"
-      self.REPLAY_BUFFER         = "replay_buffer.data" 
+      self.REPLAY_BUFFER         = "_replay_buffer.data" 
       self.DQN_NN_COMBOS         = "_DQN_NN_TRAINING_COMBOS.txt"
 
       ###################################
@@ -380,12 +407,18 @@ class Config():
           if type(new_func) == str:
             func_name = new_func
             value = [True]
+            if self.debug:
+              print("Func_val0", func_name, value)
           elif type(new_func) == list:
             func_name = new_func[k]
             if type(new_func[v]) == str:
               value = [new_func[v]]
+              if self.debug:
+                print("Func_val1", func_name, value)
             elif type(new_func) == list:
               value = new_func[v]
+              if self.debug:
+                print("Func_val2", func_name, value)
           func_kv = self.get_value(self.func_key_val, func_name)
           self.set_value(func_kv, key, value)
     
@@ -393,7 +426,10 @@ class Config():
         k = 0    # key offset
         v = 1    # value offset
         func_kv = self.get_value(self.func_key_val, func)
-        return self.get_value(func_kv, key)
+        func_val = self.get_value(func_kv, key)
+        if self.debug:
+          print("get_func_val", func, key, func_kv, func_val, self.func_key_val)
+        return func_val
 
       # for key-value sets like self.TT_DQN_policy
     def get_value(self, kv_lst, key):
@@ -402,6 +438,8 @@ class Config():
         if kv_lst is not None:
           for kv in kv_lst:
             if kv[k] == key:
+              if self.debug:
+                print("get_value:", kv[k], kv[v]) 
               return kv[v]
         return None
 
@@ -412,13 +450,16 @@ class Config():
         if kv_lst is not None:
           for kv in kv_lst:
             if kv[k] == key:
-              print("b4",kv_lst, key, value)
+              if self.debug:
+                print("b4",kv_lst, key, value)
               kv[v] = value
-              print("af",kv_lst, key, value)
+              if self.debug:
+                print("af",kv_lst, key, value)
               return
         else:
           kv_lst = []
         kv_lst.append([key, value])
 
 
-
+    def set_debug(self, TF):
+        self.debug = TF

@@ -1,5 +1,5 @@
 
-class Subsumption()
+class Subsumption:
   def __init__(function_name):
     # verify function existance
     # verify 

@@ -240,8 +240,11 @@ class SIR_control:
              self.curr_pin_val = save_pin_val
              self.curr_pin_io_val = save_pin_io_val
              if process_image:
+               print("command: ", action)
                self.execute_command(action)
              self.switch_exec(exec_next_pulse=True)
+           elif self._driver.gather_data.function_name == None:
+             print("None function_name")
 
   def handle_pulse(self, pulse_num, process_image):
         all_on = self.ALL_FUNC
@@ -250,7 +253,7 @@ class SIR_control:
               bin(functions_not_stopped)[2:].zfill(8), pulse_num)
         if (pulse_num+1) % 5 == 2:
             # next pulse: essentially everything is half speed during data collection
-            print("take snapshot, process image, store image")
+            print("take snapshot, process image, store image:", process_image)
             self.pwm_stop(take_picture = True, process_image = process_image)
             # action(state) -> next state
             return
@@ -276,42 +279,45 @@ class SIR_control:
        (self._driver.get_NN_mode() == "NN") or         # if running neural net
        # if gather data mode and automatic Function 
        (self._driver.gather_data.is_on() and self._driver.NN_apps.nn_automatic_mode())):
-        if self._driver.gather_data.function_name in ["REWARD", "PENALTY", "REWARD2", "PENALTY2"]:
+        print("auto or nn mode")
+        if self._driver.gather_data.function_name in ["REWARD1", "PENALTY1", "REWARD2", "PENALTY2"]:
            print("func:",self._driver.gather_data.function_name)
            self.stop_all(execute_immediate=True)
            self._driver.gather_data.save_snapshot(process_image = True)
            self._driver.gather_data.save_snapshot(take_picture = True, process_image = True)
            return
-        self.handle_pulse(self, pulse_num, process_image=True)
+        self.handle_pulse(pulse_num, process_image=True)
         return
 
     #########################################
     # if gather data mode, do simplified non-pwm processing
     #########################################
     elif self._driver.gather_data.is_on() and self._driver.gather_data.function_name != None:
+        print("teleop gather mode")
         # gather data, not automatic mode, function name provided by joystick
-        if self._driver.gather_data.function_name in ["REWARD", "REWARD2"]:
+        if self._driver.gather_data.function_name in ["REWARD1", "REWARD2"]:
            print("nn_upon_reward")
            self.stop_all(execute_immediate=True)
            # self._driver.gather_data.set_function("REWARD")
            self._driver.gather_data.save_snapshot()
-           self._driver.NN_apps.nn_upon_reward()
+           self._driver.NN_apps.nn_upon_reward(self._driver.gather_data.function_name)
            return
-        elif self._driver.gather_data.function_name in ["PENALTY", "PENALTY2"]:
+        elif self._driver.gather_data.function_name in ["PENALTY1", "PENALTY2"]:
            print("nn_upon_penalty")
            self.stop_all(execute_immediate=True)
            # self._driver.gather_data.set_function("PENALTY")
            self._driver.gather_data.save_snapshot()
-           self._driver.NN_apps.nn_upon_penalty()
+           self._driver.NN_apps.nn_upon_penalty(self._driver.gather_data.function_name)
            return
-        self.handle_pulse(self, pulse_num, process_image=False)
+        self.handle_pulse(pulse_num, process_image=False)
         return
 
     #########################################
     # gather data, not automatic mode, no function name from joystick
     #########################################
     elif self._driver.gather_data.is_on():
-        self.handle_pulse(self, pulse_num, process_image=False)
+        # print("idle gather mode")
+        self.handle_pulse(pulse_num, process_image=False)
         return
 
     #########################################
@@ -320,6 +326,7 @@ class SIR_control:
     #########################################
     # print("left track : ", self.curr_timeout[self.LEFT_TRACK], self.curr_mode[self.LEFT_TRACK], self.curr_speed[self.LEFT_TRACK])
     # print("right track: ", self.curr_timeout[self.RIGHT_TRACK], self.curr_mode[self.RIGHT_TRACK], self.curr_speed[self.RIGHT_TRACK])
+    # print("teleop-only mode")
     if self.curr_timeout[self.LEFT_TRACK] == -1:
       if self.curr_mode[self.LEFT_TRACK] == "STOP":
         timeout = True
@@ -452,9 +459,13 @@ class SIR_control:
           self.stop_all()
       elif command == "CUBE_OFF_TABLE_REWARD":
           self.stop_all()
-      elif command == "REWARD":
+      elif command == "REWARD1":
           self.stop_all()
-      elif command == "PENALTY":
+      elif command == "PENALTY1":
+          self.stop_all()
+      elif command == "REWARD2":
+          self.stop_all()
+      elif command == "PENALTY2":
           self.stop_all()
       else:
           print("execute_command: command unknown(%s)" % command)

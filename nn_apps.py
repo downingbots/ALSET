@@ -44,12 +44,12 @@ import os
 import time
 import cv2
 import numpy as np
-from .robot import *
-from .sir_ddqn import *
-from .functional_app import *
-from .automated_funcs import *
-from .nn import *
-from .config import *
+from robot import *
+from sir_ddqn import *
+from functional_app import *
+from automated_funcs import *
+import nn as sir_nn
+from config import *
 import time
 
 class nn_apps():
@@ -57,29 +57,37 @@ class nn_apps():
     def __init__(self, sir_robot, sir_app_name=None, sir_app_type=None):
       self.app_name = sir_app_name
       self.app_type = sir_app_type
-      self.cfg = Config()
-      [self.action_set, func_flow_model] = self.cfg.get_value(self.cfg.app_registry, sir_app_name)
-      # self.app_instance = []
       if sir_app_type == "FUNC":
-        self.app_instance = SIRNN(sir_robot, self.action_set, sir_app_name, sir_app_type)
-      elif sir_app_type == "APP":
-        self.app_instance = FunctionalApp(sir_robot, sir_app_name, sir_app_type)
-      elif sir_app_type == "DQN":
-        self.app_instance = SIR_DDQN(True, False, sir_app_name, sir_app_type)
+        self.nn_name = sir_app_name
+      self.cfg = Config()
+      # self.app_instance = []
       robot_dirs = []
       robot_dirs.append("apps/")
-      for action in self.action_set:
-          robot_dirs.append("apps/FUNC/" + action)
-          robot_dirs.append("apps/FUNC/" + action + "/dataset")
-      self.mkdirs(robot_dirs)
+      robot_dirs.append("apps/FUNC")
+      self.dsu = DatasetUtils(sir_app_name, sir_app_type)
+      self.dsu.mkdirs(robot_dirs)
+      self.app_functions = None
+      self.func_flow_model = None
+      self.dqn_policy = None
+      self.action_set = self.cfg.full_action_set
+      if sir_app_type == "FUNC":
+        self.app_instance = sir_nn.SIRNN(sir_robot, self.action_set, self.nn_name, sir_app_type)
+      elif sir_app_type == "APP":
+        [self.app_functions, self.func_flow_model] = self.cfg.get_value(self.cfg.app_registry, sir_app_name)
+        self.app_instance = FunctionalApp(sir_robot, sir_app_name, sir_app_type)
+      elif sir_app_type == "DQN":
+        [self.app_functions, self.func_flow_model] = self.cfg.get_value(self.cfg.app_registry, sir_app_name)
+        [self.dqn_policy] = self.cfg.get_value(self.cfg.dqn_registry, sir_app_name)
+        self.app_instance = SIR_DDQN(True, False, sir_app_name, sir_app_type)
+      # for action in self.action_set:
+      #     robot_dirs.append("apps/FUNC/" + action)
       self.mode = "TELEOP"
       self.ready_for_frame = False
       self.frame = None
       self.robot = sir_robot
       self.curr_nn_name = None
+      self.auto_funcs = AutomatedFuncs(self.robot)
       self.nn_dir = None
-      self.auto_funcs = AutomatedFuncs()
-      self.dsu = DatasetUtils(sir_app_name, sir_app_type)
 
     ####################################################
     # COMMON APP CONTROL FUNCTIONS
@@ -135,24 +143,27 @@ class nn_apps():
         self.frame = img
         self.ready_for_frame = False
 
+    # ARD: TODO: rename to set_action() to match current terminology
     def set_function(self, func):
-        if func == None or func in self.action_set or func in ["ROBOT_OFF_TABLE_PENALTY", "CUBE_OFF_TABLE_REWARD", "PENALTY", "REWARD"]:
+        if func == None or func in self.action_set or func in ["ROBOT_OFF_TABLE_PENALTY", "CUBE_OFF_TABLE_REWARD", "PENALTY1", "REWARD1", "PENALTY2", "REWARD2"]:
             self.function_name = func
         else:
             print("bad function name: %s" % func)
             return False
         return True
 
-    def mkdirs(self, robot_dirs):
-        for dir_name in robot_dirs:
-          try:
-              os.makedirs(dir_name)
-              print("mkdir %s" % dir_name)
-          except FileExistsError:
-            # print('Directory already exists')
-            pass
-
     def get_snapshot_dir(self):
+      # where to store the images
+      if self.app_type in ["APP", "FUNC"]:
+        app_dir_type = "FUNC"
+        if self.app_type == "FUNC":
+          func_nm = self.nn_name
+        elif self.app_type == "APP":
+          func_nm = self.app_instance.curr_func_name
+      else:
+        app_dir_type = "DQN"
+        func_nm = None
+      self.nn_dir = self.dsu.dataset_path(app_dir_type, func_nm)
       return self.nn_dir 
 
     ####################################################
@@ -171,12 +182,13 @@ class nn_apps():
       # print(self.app_instance[self.app_num])
       print(self.curr_nn_name, gather_mode)
       auto_mode, robot_action_dirs = self.app_instance.nn_init(gather_mode)
+      print("auto_mode:", auto_mode)
       self.app_instance.nn_set_automatic_mode(auto_mode)
       # probably should use os.path.join()
       return robot_action_dirs
 
     def nn_process_image(self):
-      if self.function_name in ["ROBOT_OFF_TABLE_PENALTY", "CUBE_OFF_TABLE_REWARD", "PENALTY", "REWARD"]:
+      if self.function_name in ["ROBOT_OFF_TABLE_PENALTY", "CUBE_OFF_TABLE_REWARD", "PENALTY1", "REWARD1", "PENALTY2", "REWARD2"]:
           rew_pen = self.function_name
       else:
           rew_pen = None
@@ -198,20 +210,20 @@ class nn_apps():
       return self.app_instance.nn_automatic_mode()
 
     def nn_automatic_action(self, feedback):
-      if feedback == "REWARD":
+      if feedback == "REWARD1":
           self.app_instance.nn_set_automatic_mode(False)
-          self.curr_nn_name = self.nn_upon_reward()
+          self.curr_nn_name = self.nn_upon_reward(feedback)
           self.nn_init()
-          return "REWARD"
+          return "REWARD1"
       return self.app_instance.nn_automatic_action(self.curr_nn_name, self.frame, feedback)
 
-    def nn_upon_reward(self):
-      self.curr_nn_name = self.app_instance.nn_upon_reward()
+    def nn_upon_reward(self, reward):
+      self.curr_nn_name = self.app_instance.nn_upon_reward(reward)
       self.nn_init()
       return self.curr_nn_name
 
-    def nn_upon_penalty(self):
-      self.curr_nn_name = self.app_instance.nn_upon_penalty(self.curr_nn_name)
+    def nn_upon_penalty(self, penalty):
+      self.curr_nn_name = self.app_instance.nn_upon_penalty(self.curr_nn_name, penalty)
       self.nn_init()
       return self.curr_nn_name
 

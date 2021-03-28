@@ -1,12 +1,10 @@
-import torch
-import os
 import time
 import torchvision
 import cv2
 import numpy as np
-from .robot import *
-from .image_folder2 import *
-from .config import *
+from robot import *
+from image_folder2 import *
+from config import *
 import torch.nn.functional as F
 import time
 import torch
@@ -19,16 +17,18 @@ import torchvision.transforms as transforms
 
 
 class SIRNN():
-    def __init__(self,sir_robot,outputs, app_name, app_type):
+    def __init__(self,sir_robot,outputs, nn_name, app_type):
         self.robot = sir_robot
-        self.app_name = app_name
+        self.app_name = None
+        self.nn_name = nn_name
         self.app_type = app_type
         self.device = None
         self.model = None
+        self.optimizer = None
         self.outputs = outputs   # outputs may be much smaller than full_action_set for a function
         self.num_outputs = len(outputs)
         self.joystick_actions = ["REWARD","PENALTY"]
-        self.ds = DatasetUtils(app_name, app_type)
+        self.dsu = DatasetUtils(self.app_name, self.app_type, self.nn_name)
         self.cfg = Config()
 
     def nn_init(self, gather_mode=False):
@@ -36,8 +36,7 @@ class SIRNN():
         self.model = None
         self.model = torchvision.models.alexnet(pretrained=True)
         self.model.classifier[6] = torch.nn.Linear(self.model.classifier[6].in_features, self.num_outputs)
-            
-        model_path = self.ds.best_model_path(mode=app_type, nn_name=app_name)
+        model_path = self.dsu.best_model(mode=self.app_type, nn_name=self.nn_name)
         try:
           self.model.load_state_dict(torch.load(model_path))
         except:
@@ -45,11 +44,11 @@ class SIRNN():
         self.device = torch.device('cuda')
         self.model = self.model.to(self.device)
         robot_dirs = []
-        self.nn_dir = self.dsu.dataset_path(mode=self.app_type, nn_name=self.curr_nn_name)
+        self.nn_dir = self.dsu.dataset_path(mode=self.app_type, nn_name=self.nn_name)
         robot_dirs.append(self.nn_dir)
         for dir_name in self.cfg.full_action_set:
-          robot_dirs.append(self.nn_dir + "/" + dir_name)
-        self.mkdirs(robot_dirs)
+          robot_dirs.append(self.nn_dir + dir_name)
+        self.dsu.mkdirs(robot_dirs)
         print("nn_init: " , robot_dirs)
         # Class can be used as a single-NN app that can do any action
         return False, self.cfg.full_action_set
@@ -87,20 +86,20 @@ class SIRNN():
         max_prob = 0
         best_action = -1
         # for i in range(self.num_outputs):
-        for i in range(len(self.full_action_set)):
+        for i in range(len(self.cfg.full_action_set)):
             prob = float(y.flatten()[i])
-            print("PROB", i, self.full_action_set[i], prob)
+            print("PROB", i, self.cfg.full_action_set[i], prob)
             if max_prob < prob:
-                for j, name in enumerate(self.full_action_set):
+                for j, name in enumerate(self.cfg.full_action_set):
                     # if name == self.outputs[i]:
-                    if name == self.full_action_set[i]:
+                    if name == self.cfg.full_action_set[i]:
                         if (reward_penalty is not None or 
                             name not in ["REWARD1", "PENALTY1", "REWARD2", "PENALTY2"]):
                           max_prob = prob
                           best_action = j
                           break
                 if best_action == -1:
-                    print("invalid action " + self.full_action_set[i] + "not in " + self.full_action_set)
+                    print("invalid action " + self.cfg.full_action_set[i] + "not in " + self.cfg.full_action_set)
                     exit()
         action_name = self.full_action_set[best_action]
         return action_name
@@ -152,10 +151,10 @@ class SIRNN():
     def nn_before_action_callback(self, NN_num, feedback):
         return None
 
-    def nn_upon_penalty(self, NN_num):
+    def nn_upon_penalty(self, penalty):
         exit()
 
-    def nn_upon_reward(self, NN_num):
+    def nn_upon_reward(self, reward):
         exit()
 
     # train the NN to do imitation learning starting from pre-trained imagenet
@@ -168,22 +167,27 @@ class SIRNN():
     #
     # Always trains from the full dataset from scratch. Only DQN starts from where
     # it left off.
-    def train(self, dataset_root_list=None, best_model_path=None, full_action_set=None, noop_remap=None, only_new_images=None):
+    def train(self, dataset_root_list=None, best_model_path=None, full_action_set=None, noop_remap=None, only_new_images=True):
         # nn.py is a primitive NN that can be used by higher layers like tabletop_func_app.
         # Set default parameters if unset by caller
         if dataset_root_list is None:
-          num_NN = self.cfg.func_registery.index(self.app_name)
+          # num_NN = self.cfg.func_registry.index(self.app_name)
           dataset_root_list = []
-          for nn_num in range(1, len(self.NN)+1):
-            dsp = self.ds.dataset_model_path(app_name, nn_name, nn_num)
-            dataset_root_list.append(dsp)
-        best_model_path = self.ds.best_model_path(self.app_name, self.nn_name, nn_num)
+          # for nn_num in range(1, len(self.cfg.func_registry)+1):
+          # dsp = self.dsu.dataset_path("FUNC", app_name, nn_name, nn_num)
+          dsp = self.dsu.dataset_path("FUNC", self.nn_name)
+          dataset_root_list.append(dsp)
+        best_model = self.dsu.best_model("FUNC", self.nn_name)
         if full_action_set is None:
-           full_action_set = self.full_action_set
+           full_action_set = self.cfg.full_action_set
         if noop_remap is None:
            pass
 
-        # Always train from scratch.
+        #######################
+        # idx = self.dsu.dataset_indices(mode="FUNC", nn_name=self.nn_name, position="NEXT")
+        # idx_processed = self.dsu.dataset_idx_processed(mode="FUNC", nn_name=self.nn_name)
+        #######################
+
         # if self.robot.initialize:
         # elif self.robot.train_new_data:
 
@@ -208,78 +212,117 @@ class SIRNN():
         model.classifier[6] = torch.nn.Linear(model.classifier[6].in_features, len(full_action_set))
         device = torch.device('cuda')
         model = model.to(device)
-        NUM_EPOCHS = 30
+        # ARD: change back!
+        # NUM_EPOCHS = 30
+        NUM_EPOCHS = 3
         best_accuracy = 0.0
         optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
         for root in dataset_root_list:
-            print("nn train: ", root, best_model_path) 
-            # dataset = datasets.ImageFolder2(
-            dataset = ImageFolder2(
-                root,
-                self.app_name,
-                self.app_type,
-                transforms.Compose([
-                    transforms.ColorJitter(0.1, 0.1, 0.1, 0.1),
-                    transforms.Resize((224, 224)),
-                    transforms.ToTensor(),
-                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-                ]),
-                full_action_set = full_action_set,
-                remap_to_noop = noop_remap,
-                only_new_images = only_new_images
-            )
-            # Attributes:
-            # classes (list): List of the class names sorted alphabetically.
-            # class_to_idx (dict): Dict with items (class_name, class_index).
-            # imgs (list): List of (image path, class_index) tuples
+            while True:
+              print("nn train: ", root, best_model_path) 
+              # dataset = datasets.ImageFolder2(
+              dataset = ImageFolder2(
+                  root,
+                  self.nn_name,
+                  self.app_type,
+                  transforms.Compose([
+                      transforms.ColorJitter(0.1, 0.1, 0.1, 0.1),
+                      transforms.Resize((224, 224)),
+                      transforms.ToTensor(),
+                      transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+                  ]),
+                  full_action_set = full_action_set,
+                  remap_to_noop = noop_remap,
+                  only_new_images = only_new_images
+              )
+              if len(dataset.imgs) == 0:
+                if dataset.all_images_processed("FUNC", self.nn_name):
+                  print("no more images")
+                  break
+                print("next index")
+                dataset.save_images_processed("FUNC", self.nn_name)
+                continue
+              print("num dataset imgs:", len(dataset.imgs))
+              # Attributes:
+              # classes (list): List of the class names sorted alphabetically.
+              # class_to_idx (dict): Dict with items (class_name, class_index).
+              # imgs (list): List of (image path, class_index) tuples
+  
+              # apply transforms
+              # full_action_set => revises classes, class_to_idx
+              # noop_remap      => revises imgs' class_index
+              # 
+              # classes = [d.name for d in os.scandir(dir) if d.is_dir()]
+              # classes.sort()
+              # class_to_idx = {cls_name: i for i, cls_name in enumerate(classes)}
+              # imgs= [image_path, class_index:
+  
+  
+              train_dataset, test_dataset = torch.utils.data.random_split(dataset, [len(dataset) - 50, 50])
+              train_loader = torch.utils.data.DataLoader(
+                  train_dataset,
+                  batch_size=8,
+                  shuffle=True,
+                  num_workers=0
+              )
+              
+              test_loader = torch.utils.data.DataLoader(
+                  test_dataset,
+                  batch_size=8,
+                  shuffle=True,
+                  num_workers=0
+              )
+              print("len train_loader:", len(train_loader))
+              print("len test_loader :", len(test_loader))
+              
+              for epoch in range(NUM_EPOCHS):
+                  
+                  for images, labels in iter(train_loader):
+                      images = images.to(device)
+                      labels = labels.to(device)
+                      optimizer.zero_grad()
+                      outputs = model(images)
+                      loss = F.cross_entropy(outputs, labels)
+                      loss.backward()
+                      optimizer.step()
+                  
+                  # we may not want to do test counts. Take all the data and
+                  # apply it here.
+                  test_error_count = 0.0
+                  for images, labels in iter(test_loader):
+                      images = images.to(device)
+                      labels = labels.to(device)
+                      outputs = model(images)
+                      test_error_count += float(torch.sum(torch.abs(labels - outputs.argmax(1))))
+                  
+                  test_accuracy = 1.0 - float(test_error_count) / float(len(test_dataset))
+                  print('%d: %f' % (epoch, test_accuracy))
+                  if test_accuracy > best_accuracy:
+                      print("bm, bmp", best_model, best_model_path)
+                      best_accuracy = test_accuracy
+              torch.save(model.state_dict(), best_model)
+              print("CHANGE BACK NUM_EPOCHS")
+              dataset.save_images_processed("FUNC", self.nn_name)
 
-            # apply transforms
-            # full_action_set => revises classes, class_to_idx
-            # noop_remap      => revises imgs' class_index
-            # 
-            # classes = [d.name for d in os.scandir(dir) if d.is_dir()]
-            # classes.sort()
-            # class_to_idx = {cls_name: i for i, cls_name in enumerate(classes)}
-            # imgs= [image_path, class_index:
+    # wipe_memory(self)
+    def cleanup(self):
+        del self.model
+        self._optimizer_to(torch.device('cpu'))
+        del self.optimizer
+        gc.collect()
+        torch.cuda.empty_cache()
+        # you can check that memory was released using nvidia-smi
 
-
-            train_dataset, test_dataset = torch.utils.data.random_split(dataset, [len(dataset) - 50, 50])
-            train_loader = torch.utils.data.DataLoader(
-                train_dataset,
-                batch_size=8,
-                shuffle=True,
-                num_workers=0
-            )
-            
-            test_loader = torch.utils.data.DataLoader(
-                test_dataset,
-                batch_size=8,
-                shuffle=True,
-                num_workers=0
-            )
-            
-            for epoch in range(NUM_EPOCHS):
-                
-                for images, labels in iter(train_loader):
-                    images = images.to(device)
-                    labels = labels.to(device)
-                    optimizer.zero_grad()
-                    outputs = model(images)
-                    loss = F.cross_entropy(outputs, labels)
-                    loss.backward()
-                    optimizer.step()
-                
-                # we may not want to do test counts. Take all the data and
-                # apply it here.
-                test_error_count = 0.0
-                for images, labels in iter(test_loader):
-                    images = images.to(device)
-                    labels = labels.to(device)
-                    outputs = model(images)
-                    test_error_count += float(torch.sum(torch.abs(labels - outputs.argmax(1))))
-                
-                test_accuracy = 1.0 - float(test_error_count) / float(len(test_dataset))
-                print('%d: %f' % (epoch, test_accuracy))
-                if test_accuracy > best_accuracy:
-                    torch.save(model.state_dict(), best_model_path)
-                    best_accuracy = test_accuracy
+    def _optimizer_to(self, device):
+      for param in self.optimizer.state.values():
+        # Not sure there are any global tensors in the state dict
+        if isinstance(param, torch.Tensor):
+            param.data = param.data.to(device)
+            if param._grad is not None:
+                param._grad.data = param._grad.data.to(device)
+        elif isinstance(param, dict):
+            for subparam in param.values():
+                if isinstance(subparam, torch.Tensor):
+                    subparam.data = subparam.data.to(device)
+                    if subparam._grad is not None:
+                        subparam._grad.data = subparam._grad.data.to(device)

@@ -1,7 +1,7 @@
 import atexit
 import traitlets
 from traitlets.config.configurable import Configurable
-from .pseudopwm import *
+from pseudopwm import *
 
 class Motor(Configurable):
 

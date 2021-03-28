@@ -21,6 +21,7 @@ import torch.nn.functional as F
 
 import pickle
 from dataset_utils import *
+from functional_app import *
 
 # import sir_image 
 
@@ -32,6 +33,9 @@ from dataset_utils import *
 from collections import deque
 
 # workaround due to ReplayBuffer pickling/unpickling and class evolution
+# if sample_start is being used: first call reset() to get buf_id before using
+#     buf_id = self.reset_sample(name,start)
+#     static_vars.sample_start[buf_id]
 def static_vars():
     static_vars.name = []
     static_vars.sample_start = []
@@ -93,10 +97,13 @@ class ReplayBuffer():
         self.buffer.clear()
 
     def concat(self, replay_buffer):
-        state, action, reward, next_state, done, dummy_q_val = zip(*replay_buffer.buffer[-1])
-        assert done, "last entry must be completion of run"
+        # get the last entry and confirm it contains a full fun (done == True)
+        done_end = replay_buffer.find_done()
+        len_buf = len(replay_buffer)
+        # state, action, reward, next_state, done, q_val = zip(replay_buffer.buffer[-1])
+        assert done_end == len_buf, "last entry must be completion of run"
         self.buffer += replay_buffer.buffer
-        replay.buffer.clear()
+        replay_buffer.clear()
 
     def compute_real_q_values(self, gamma=.99, name="replay", sample_start=0, done_end=None):
         buf_id = self.reset_sample(name,sample_start)
@@ -109,7 +116,9 @@ class ReplayBuffer():
           state, action, reward, next_state, done = zip(*itertools.islice(self.buffer,sample_start,done_end))
           print("No qval in replay buffer. Adding qval.")
           add_q_val = True
-        print("len done:", len(done), done_end-sample_start, done_end, sample_start)
+        if not done[done_end-sample_start-1]:
+            print("[state, action, reward, next_state, done]:")
+            print([state, action, reward, next_state, done])
         assert done[done_end-sample_start-1], "Only compute real q values upon completion of run"
         next_q_val = 0
         q_val = 0
@@ -429,7 +438,7 @@ class CnnDQN():
     
         conv_results = []
         x = input
-        for idx, operation in enumerate(model.features):
+        for idx, operation in enumerate(self.current_model.features):
             x = operation(x)
             if idx in {1, 4, 7, 9, 11}:
                 conv_results.append(x)
@@ -510,8 +519,6 @@ class CnnDQN():
 # PH2 - nothing in gripper, cube in vision
 #  NN3. Approach cube
 #  NN4. Pick up cube
-# PH3 - cube in gripper, no box in vision
-#  NN5. Park Arm (with cube in grippers)
 #  NN6. Automatic scan for box (with cube in grippers)
 #       add in side avoidance? Need to do with cube in gripper?
 # PH4 - cube in gripper, and box in vision
@@ -567,6 +574,7 @@ class SIR_DDQN():
         self.prev_action  = None
         self.state        = None
         self.prev_state   = None
+        self.all_rewards  = []
 
         ############
         # DDQN variables
@@ -586,7 +594,6 @@ class SIR_DDQN():
         self.Variable = lambda *args, **kwargs: autograd.Variable(*args, **kwargs).cuda() if self.USE_CUDA else autograd.Variable(*args, **kwargs)
         
         # self.losses = []
-        # self.all_rewards = []
 
         ############
         # FINE TUNE PRETRAINED MODEL USING IMITATION LEARNING
@@ -606,14 +613,14 @@ class SIR_DDQN():
 
         if (self.init_model):  # probably done on laptop
             # starts from the first dataset
-            self.parse_func_dataset(init=True)
+            self.parse_app_dataset(init=True)
             self.save_replay_buffer()
             if (self.train_model):
               self.train_DQN_qvalue()
         else:
             self.load_replay_buffer()
             # get new datasets
-            self.parse_func_dataset(init=False)
+            self.parse_app_dataset(init=False)
             self.save_replay_buffer()
             if (self.train_model):
               self.train_DQN_qvalue()
@@ -626,7 +633,7 @@ class SIR_DDQN():
         self.update_target(self.current_model, self.target_model)
         # robot DQN can return self.robot_actions
         # joystick + robot can return self.actions
-        return False, self.actions
+        return False, self.cfg.full_action_set
 
 
     def nn_set_automatic_mode(self, TF):
@@ -671,78 +678,16 @@ class SIR_DDQN():
         return transformed_img
 
     def transform_image_from_path(self, image_filepath):
-        # state_image = []
         for batch_item_num, path in enumerate(image_filepath):
-            try:
-                #filepath = self.TTFUNC_PATH_PREFIX + bytestring.decode(path)
-                #filepath = self.TTFUNC_PATH_PREFIX + path.decode("utf-8").strip('\n')
-                # filepath = self.TTFUNC_PATH_PREFIX + path.astype("U13").str.strip('\n')
-                try:
-                  filepath = self.DQN_DS_PATH + path.decode("utf-8").strip('\n')
-                except:
-                  print("path:", path)
-                  filepath = str(self.DQN_DS_PATH) + str(path.astype("U13")).strip('\n')
-                # print("1 ", filepath)
-                img = Image.open(filepath)
-                img = self.transform_image(img)
-                # TypeError: float() argument must be a string or a number, not 'set'
-                img = self.Variable(torch.FloatTensor(np.float32(img)))
-                state_image = torch.unsqueeze(img, 0)
-                # unsqueeze to add artificial first dimension
-                # img = ToTensor()(img).unsqueeze(batch_item_num) 
-                # img = torch.unsqueeze(img, 0)
-                # if batch_item_num == 0:
-                #    state_image = img
-                #else:
-                #    state_image = torch.cat((state_image,img),0)
-
-	        # read input image
-	        # input_img = cv2.imread(img_path)
-	        # do transformations
-	        # img = self.transform_image(input_img)
-	        # img = transform_image(input_img)["image"]
-	        # batch_data = torch.unsqueeze(input_data, 0)
-
-                ## JIT loader doesn't seem to work on Jetson for image file...
-                ## lib_dir = osp.abspath(osp.join(osp.dirname(__file__), ".."))
-                ## loader_details = (
-                ##     importlib.machinery.ExtensionFileLoader,
-                ##     importlib.machinery.EXTENSION_SUFFIXES
-                ## )
-                ## extfinder = importlib.machinery.FileFinder(lib_dir, loader_details)  
-                ## ext_specs = extfinder.find_spec("image")
-                ## if ext_specs is not None:
-                ##   torch.ops.load_library(ext_specs.origin)
-                ## img = torch.ops.image.read_file(path)
-                ## img = torch.ops.image.decode_image(img)
-                # img = read_file(path)
-                # img = decode_image(img)
-                # img = torch.ops.read_file(path)
-                # img = torch.ops.decode_image(img)
-                # img = read_image(filepath)
-                # img = decode_image(img)
-                # img = torchvision.io.image.read_image(filepath)
-                # img = torchvision.io.image.decode_image(img)
-                # img = Image.open(filepath)
-                # filehandle = open(filepath, 'r')
-                # img  = cv2.imread(filepath)
-                # load the raw data from the file as a string
-                # img = tf.io.read_file(file_path)
-                # img = tf.image.decode_jpeg(img, channels=3)
-
-            except:
-                filepath = self.DQN_PATH_PREFIX + path.decode("utf-8").strip('\n')
-                # print("2 ", filepath)
-                img = Image.open(filepath)
-                img = self.transform_image(img)
-                img = torch.unsqueeze(img, 0)
-                if batch_item_num == 0:
-                    state_image = img
-                else:
-                    state_image = torch.cat((state_image,img),0)
-            # close the pointer to that file
-            # img.close()
-        # state_image = tuple(state_image)
+            img = Image.open(path)
+            img = self.transform_image(img)
+            # TypeError: float() argument must be a string or a number, not 'set'
+            img = self.Variable(torch.FloatTensor(np.float32(img)))
+            img = torch.unsqueeze(img, 0)
+            if batch_item_num == 0:
+                state_image = img
+            else:
+                state_image = torch.cat((state_image,img),0)
         return state_image
 
     # import json
@@ -768,7 +713,7 @@ class SIR_DDQN():
     def train_DQN_qvalue(self):
         loss = 0
         while loss is not None:
-          loss = self.compute_td_loss(batch_size = self.batch_size, mode = "IMITATION_TRAINING")
+          loss = self.compute_td_loss(batch_size = self.BATCH_SIZE, mode = "IMITATION_TRAINING")
         self.current_model.save_state(self.BEST_MODEL_PATH)
         print("Initial model trained by imitation learning")
 
@@ -788,8 +733,8 @@ class SIR_DDQN():
           state_path, action, rewards, next_state_path, done_val, q_val = self.active_buffer.get_next_sample(batch_size=batch_size, name="active")
         elif mode == "RANDOM_FUNCTIONAL_TRAINING":
           # Train based on random runs of func/NN datasets
-          self.parse_nn_dataset(self, init=False)   # creates a replay buffer
-          state_path, action, rewards, next_state_path, done_val, q_val = self.replay_buffer.get_next_sample(batch_size=batch_size, name="active")
+          self.parse_func_dataset(self, init=False)   # creates a replay buffer
+          state_path, action, rewards, next_state_path, done_val, q_val = self.active_buffer.get_next_sample(batch_size=batch_size, name="active")
         elif mode == "EXPERIENCE_REPLAY":
           # Part of DQN algorithm.
           # 
@@ -802,7 +747,7 @@ class SIR_DDQN():
           # with the same data is beneficial, especially when there is low variance in immediate 
           # outcomes (reward, next state) given the same state, action pair.
           #
-          # Disadvangage: It is harder to use multi-step learning algorithms
+          # Disadvantage: It is harder to use multi-step learning algorithms
           state_path, action, rewards, next_state_path, done_val, q_val = self.replay_buffer.random_sample(batch_size)
         else:
           print("Unknown mode for computed td_loss:", mode)
@@ -814,76 +759,71 @@ class SIR_DDQN():
         except:
           pass
 
-        # transform state paths to images
-        # print(state_path, next_state_path)
-        # print(rewards, action, done_val)
-        state        = self.transform_image_from_path(state_path)
-        next_state   = self.transform_image_from_path(next_state_path)
+
+        # 4-D tensors are for batches of images, 3-D tensors for individual images.
+        # image_batch is a tensor of the shape (32, 180, 180, 3).  
+        # transform state paths to images.  already a Tensor.
+        state = self.transform_image_from_path(state_path)
+        # next_state   = self.transform_image_from_path(next_state_path)
         # transform action string to number
-        # print("self.actions:",self.robot_actions)
         action_idx = []
         for a in action:
           # action_idx.append(self.robot_actions.index(a))  # Human readable to integer index
           action_idx.append(self.cfg.full_action_set.index(a))  # Human readable to integer index
         action_idx = tuple(action_idx)
-        # print("action:",action)
         # print("action_idx:",action_idx)
 
-        # 4-D tensors are for batches of images, 3-D tensors for individual images.
-        # image_batch is a tensor of the shape (32, 180, 180, 3)
-        # already a Tensor
-        # state      = self.Variable(torch.FloatTensor(np.float32(state)))
-        # next_state = self.Variable(torch.FloatTensor(np.float32(next_state)))
 
         action_idx = self.Variable(torch.LongTensor(action_idx))
-        reward     = self.Variable(torch.FloatTensor(rewards))
-        done       = self.Variable(torch.FloatTensor(done_val))
+        # reward     = self.Variable(torch.FloatTensor(rewards))
+        # done       = self.Variable(torch.FloatTensor(done_val))
+
+        # the real q value is precomputed in q_val
         q_val      = self.Variable(torch.FloatTensor(q_val))  # real q value computed from done end-pt
 
         # Computed q-values from Alexnet
-        current_q_values      = self.current_model.alexnet_model(state)
-        current_next_q_values = self.current_model.alexnet_model(next_state)
-        target_next_q_values  = self.target_model.alexnet_model(next_state)
-        # print(current_q_values)
-        # print(current_next_q_values)
-        # print(target_next_q_values)
+        current_q_values = self.current_model.alexnet_model(state)
+        q_value = current_q_values.gather(1, action_idx.unsqueeze(1)).squeeze(1)
 
-        q_value      =     current_q_values.gather(1, action_idx.unsqueeze(0)).squeeze(1)
-        # print("q_value", q_value)
-        next_q_value = target_next_q_values.gather(1, torch.max(current_next_q_values, 1)[1].unsqueeze(1)).squeeze(1)
+        # For DDQN, using target_model to predict q_val (from rladvddqn.py).
+        # //github.com/higgsfield/RL-Adventure/blob/master/2.double%20dqn.ipynb
+        #
+        # current_next_q_values = self.current_model.alexnet_model(next_state)
+        # target_next_q_values  = self.target_model.alexnet_model(next_state)
+        # target_next_q_state_values = target_model(next_state)
+        ## orig:
+        ## target_next_q_value = target_next_q_state_values.gather(1, torch.max(target_next_q_values, 1)[1].unsqueeze(1)).squeeze(1)
+        # target_next_q_value = next_q_state_values.gather(1, next_q_values.max(1)[1].unsqueeze(1)).squeeze(1)
 
-        # the real q value is precomputed in q_val
-        # the real q value is likely dependent on a reward beyond the batch size.
-        expected_q_value = reward + self.GAMMA * next_q_value * (1-done)
-        # print("expected_q_value: ", expected_q_value)
-        # print("q_value         : ", q_value)
-        # print("next_q_value    : ", next_q_value)
-        print("reward: ", reward)
-        print("q_val : ", q_val)
+        # target_next_q_value = target_next_q_state_values.gather(1, torch.max(target_next_q_values, 1)[1].unsqueeze(1)).squeeze(1)
+        # expected_q_value = reward + gamma * target_next_q_value * (1 - done)
+        # loss = (q_value - Variable(expected_q_value.data)).pow(2).mean()
+
+        # TODO: use the target_model for ddqn per above
         if mode == "IMITATION_TRAINING":
           loss = (q_value - q_val).pow(2).mean()
-          print("q_value:", q_value)
-          print("IMITATION_TRAINING:", loss)
+          print("IMITATION_TRAINING:")
         elif mode == "REAL_Q_VALUES":
+          # nondeterministic err: device-side assert triggered: nonzero_finite_vals
+          print("len q_value, q_val:", len(q_value), len(q_val))
           loss = (q_value - q_val).pow(2).mean()
-          print("q_value:", q_value)
-          print("REAL_Q_VALUES:", loss)
+          print("REAL_Q_VALUES:")
         elif mode == "RANDOM_FUNCTIONAL_TRAINING":
           loss = (q_value - q_val).pow(2).mean()
-          print("q_value:", q_value)
-          print("RANDOM_FUNC_TRAINING:", loss)
+          print("RANDOM_FUNC_TRAINING:")
         elif mode == "EXPERIENCE_REPLAY":
-          loss = (q_value - expected_q_value).pow(2).mean()
-          print("exp_q_value:", expected_q_value)
-          print("EXPERIENCE_REPLAY FROM TARGET:", loss)
-          # loss = (q_value - expected_q_value.data).pow(2).mean()
-          # loss = (q_value - q_val).pow(2).mean()
-          # print("EXPERIENCE_REPLAY WITH REAL Q_VAL:", loss)
+          loss = (q_value - q_val).pow(2).mean()
+          print("EXPERIENCE_REPLAY FROM TARGET:")
 
-        self.current_model.train()  # Set model to training mode
-        self.current_model.alexnet_optimizer.zero_grad()
-        loss.backward()
-        self.current_model.alexnet_optimizer.step()
+        if loss is not None:
+          print("loss training")
+          self.current_model.train()  # Set model to training mode
+          self.current_model.alexnet_optimizer.zero_grad()
+          loss.backward()
+          self.current_model.alexnet_optimizer.step()
+          # self.current_model.eval()  # Set model to eval mode
+        else:
+          print("None loss")
         return loss
     
 #    def plot(self, frame_num, rewards, losses):
@@ -901,17 +841,24 @@ class SIR_DDQN():
                          # phase 0: to first DQN reward; 50 award & 300 allocated moves
                          # phase 1: to second DQN reward; 100 award & 400 allocated moves
                          # more phases allowed
-        PHASE_ALLOCATED_MOVES = self.DQN_REWARD_PHASES[self.curr_phase, 1]
-        PHASE_REWARD = self.DQN_REWARD_PHASES[self.curr_phase, 0]
-
+        # ["DQN_REWARD_PHASES", [[50,    300],   [100,   400]]],
+        if self.curr_phase < len(self.DQN_REWARD_PHASES):
+          PHASE_ALLOCATED_MOVES = self.DQN_REWARD_PHASES[self.curr_phase][1]
+          PHASE_REWARD = self.DQN_REWARD_PHASES[self.curr_phase][0]
+        else:
+          PHASE_ALLOCATED_MOVES = self.DQN_REWARD_PHASES[-1][1]
+          PHASE_REWARD = self.DQN_REWARD_PHASES[-1][0]
+          print("WARN: curr phase exceeds DQN_REWARD_PHASES.", self.curr_phase, frame_num, action)
+        # print("COMPUTE_REWARD: action, phase, self.DQN_REWARD_PHASES:",  action, frame_num, self.curr_phase, self.DQN_REWARD_PHASES, len(self.DQN_REWARD_PHASES))
         reward = 0
         if frame_num > self.MAX_MOVES:
           return (self.MAX_MOVES_EXCEEDED_PENALTY / self.ESTIMATED_VARIANCE), True
-        elif action == "REWARD":
+        elif action == "REWARD1":
           done = False
-          reward = PHASE_REWARD + max((PHASE_ALLOCATED_MOVES - frame_num),0)*self.MOVE_BONUS
+          reward = PHASE_REWARD + max((PHASE_ALLOCATED_MOVES - frame_num),0)*self.DQN_MOVE_BONUS
           self.curr_phase += 1
-          if self.curr_phase >= len(DQN_REWARD_PHASES):
+          print("reward, phase, self.DQN_REWARD_PHASES:",  reward, self.curr_phase, self.DQN_REWARD_PHASES, len(self.DQN_REWARD_PHASES))
+          if self.curr_phase >= len(self.DQN_REWARD_PHASES):
             done = True
           return (reward / self.ESTIMATED_VARIANCE), done
         elif action == "REWARD2":
@@ -943,66 +890,127 @@ class SIR_DDQN():
         # set by joystick: REWARD1, PENALTY1, REWARD2, PENALTY2
         return self.dqn_action
     
-    # for training DQN by processing FUNC dataset
-    def parse_func_dataset(self, init=False):
+    # for training DQN by processing app dataset (series of functions/NNs)
+    def parse_app_dataset(self, init=False):
+        print(">>>>> parse_app_dataset")
+        app_dsu = DatasetUtils(self.app_name, "APP")
         if init:
           # start at the beginning
-          self.dsu.save_dataset_idx_processed(mode = "FUNC", nn_name = None, dataset_idx = None)
+          # e.g., clear TTT_APP_IDX_PROCESSED_BY_DQN.txt
+          app_dsu.save_dataset_idx_processed(mode = "APP", clear = True )
+
         frame_num = 0
         reward = []
-        #######################
-        # iterate through NNs
-        func_index = self.dsu.dataset_indices(mode="FUNC",nn_name=None,position="NEXT")
-        if func_index is None:
-          print("parse_func_dataset: unknown NEXT index")
-          return
-        print("Parsing FUNC idx", func_index)
-        func_filehandle = open(func_index, 'r')
+        val = self.cfg.get_value(self.cfg.app_registry, self.app_name)
+        func_nn_list = val[1]
+        func_app = FunctionalApp(sir_robot=None, app_name=self.app_name, app_type=self.app_type)
+
+        ###################################################
+        # iterate through NNs and fill in the active buffer
+        app_index = app_dsu.dataset_indices(mode="APP",nn_name=None,position="NEXT")
+        if app_index is None:
+          print("parse_app_dataset: unknown NEXT index")
+          return None
+        print("Parsing APP idx", app_index)
+        app_filehandle = open(app_index, 'r')
+        run_complete = False
+        line = None
+        next_action = None
+        next_line = None
+        self.active_buffer.clear()
         while True:  
-          nn_idx = func_filehandle.readline()
+          # find out what the func flow model expects
+          [func_flow_nn_name, func_flow_reward] = func_app.eval_func_flow_model(reward_penalty="REWARD1")
+          print("Func flow nn:", func_flow_nn_name, func_flow_reward)
+          # get the next function index 
+          nn_idx = app_filehandle.readline()
           if not nn_idx:
+            if func_flow_nn_name is None:
+              if func_flow_reward is not None:
+                if next_action != "REWARD1":
+                  print("Soft Error: last action of run is expected to be a reward:", action, next_action)
+              run_complete = True
+              print("Function flow complete")
+              break
+            else:
+              print("Function Flow expected:", nn_name, "but app index ended: ", app_index)
+              exit()
             break
-          print("Parsing NN idx", nn_idx)
-          nn_filehandle = open(nn_idx, 'r')
+          file_name = nn_idx[0:-1]   # remove carriage return
+          NN_name = app_dsu.dataset_idx_to_func(file_name)
+          if NN_name != func_flow_nn_name:
+            print("Func flow / index inconsistency:", NN_name, func_flow_nn_name)
+          file_name = app_dsu.dataset_index_path(mode="FUNC", nn_name=NN_name) + file_name
+          print("Parsing NN idx", nn_idx, file_name)
+          nn_filehandle = open(file_name, 'r')
+          line = None
           while True: # iterate through Img frames in nn
             # read a single line
             next_line = nn_filehandle.readline()
             if not next_line:
+                print("Function Index completed:", frame_num, NN_name)
                 break
             # get action & next_action
-            [tm, app, mode, nn_name, action, img_name, state] = self.dsu.get_dataset_info(line)
-            [tm, app, mode, next_nn_name, next_action, img_name, next_state] = self.dsu.get_dataset_info(next_line)
-            if action == "REWARD":
-              real_reward=False
-              for nn_num in self.cfg.TT_func_reward:
-                if nn_name in self.cfg.TT_func[nn_num]:
-                  real_reward=True
-                  break
-              if not real_reward:
-                print("action to NOOP, NN#", action, nn_name)
-                # line_action = "NOOP"
+            [tm, app, mode, next_nn_name, next_action, img_name, next_state] = self.dsu.get_dataset_info(next_line, mode="FUNC")
+            if line is not None:
+              [tm, app, mode, nn_name, action, img_name, state] = self.dsu.get_dataset_info(line, mode="FUNC")
+              if func_flow_reward is not None:
+                print("Real reward:", frame_num, func_flow_reward)
+                real_reward=True
+                break
+              elif action == "NOOP":
+                # Too common in initial test dataset. Print warning later?
+                # print("NOOP action, NN:", action, nn_name)
                 line = next_line
                 continue
-            reward, done = self.compute_reward(frame_num, action)
-            frame_num += 1
-            self.replay_buffer.push(state, action, reward, next_state, done)
-  
-            if next_action != "REWARD":
+              elif action == "REWARD1":
+                print("Goto next NN; NOOP Reward, curr_NN", action, nn_name)
+                line = next_line
+                continue
+              if next_action == "REWARD1":
+                reward, done = self.compute_reward(frame_num, next_action)
+              else:
+                reward, done = self.compute_reward(frame_num, action)
+              frame_num += 1
+              # add dummy 0 q_val for now. Compute q_val at end of run.
+              q_val = 0
+              self.active_buffer.push(state, action, reward, next_state, done, q_val)
+            if next_action != "REWARD1":
               line = next_line
-            if len(self.replay_buffer) > self.replay_initial:
-              loss = self.compute_td_loss(batch_size, app_path_prefix)
-            if frame_num % 1000 == 0 or done:
-              self.update_target(self.current_model, self.target_model)
-            if done:
-              state = None
-              self.all_rewards.append(self.total_reward)
-              torch.save(model.state_dict(), self.BEST_MODEL_PATH)
-  
           # close the pointer to that file
-          filehandle.close()
+          nn_filehandle.close()
+        app_filehandle.close()
+        #################################################
+        ## NOT DONE FOR IMMITATION LEARNING
+        # if len(self.replay_buffer) > self.REPLAY_INITIAL:
+        #   loss = self.compute_td_loss(batch_size, app_path_prefix)
+        # if frame_num % 1000 == 0 or done:
+        #   self.update_target(self.current_model, self.target_model)
+        #################################################
+        if run_complete:
+            print("SAVING STATE; DO NOT STOP!!!")
+            self.active_buffer.compute_real_q_values(gamma=self.GAMMA,  name="active")
+            self.active_buffer.reset_sample(name="active", start=0)
+            loss = 0
+            while loss is not None:
+              loss = self.compute_td_loss(batch_size=self.BATCH_SIZE, mode="REAL_Q_VALUES")
+              # print("real q values loss: ",loss)
+            # print("loss: ",loss)
+            # print("ACTIVE BUFFER:", self.active_buffer)
+            self.replay_buffer.concat(self.active_buffer)
+            self.save_replay_buffer()
+            print(self.BEST_MODEL_PATH)
+            self.current_model.save_state(self.BEST_MODEL_PATH)
+            # torch.save(model.state_dict(), self.BEST_MODEL_PATH)
+            self.update_target(self.current_model, self.target_model)
+            app_dsu.save_dataset_idx_processed(mode = "APP")
+            print("STATE SAVED")
+        return "DONE"
+
 
     # for training DQN by processing native DQN dataset
     def parse_dqn_dataset(self, init=False):
+        print(">>>>> parse_dqn_dataset")
         if init:
           # start at the beginning
           self.dsu.save_dataset_idx_processed(mode = "DQN", nn_name = None, dataset_idx = None)
@@ -1016,86 +1024,95 @@ class SIR_DDQN():
           return
         print("Parsing DQN idx", dqn_index)
         dqn_filehandle = open(dqn_index, 'r')
+        line = None
         while True:  
             # read a single line
             next_line = dqn_filehandle.readline()
             if not next_line:
+                done = False
                 break
             # get action & next_action
-            [tm, app, mode, nn_name, action, img_name, state] = self.dsu.get_dataset_info(line)
             [tm, app, mode, next_nn_name, next_action, img_name, next_state] = self.dsu.get_dataset_info(next_line)
-            reward, done = self.compute_reward(frame_num, action)
+            if line is not None:
+              [tm, app, mode, nn_name, action, img_name, state] = self.dsu.get_dataset_info(line)
+              self.replay_buffer.push(state, action, reward, next_state, done)
+              reward, done = self.compute_reward(frame_num, action)
             frame_num += 1
-            self.replay_buffer.push(state, action, reward, next_state, done)
   
-            if next_action != "REWARD":
+            if next_action != "REWARD1":
               line = next_line
-            if len(self.replay_buffer) > self.replay_initial:
+            if len(self.replay_buffer) > self.REPLAY_INITIAL:
               loss = self.compute_td_loss(batch_size, app_path_prefix)
             if frame_num % 1000 == 0 or done:
               self.update_target(self.current_model, self.target_model)
             if done:
               state = None
               self.all_rewards.append(self.total_reward)
-              torch.save(model.state_dict(), self.BEST_MODEL_PATH)
+              torch.save(self.current_model.state_dict(), self.BEST_MODEL_PATH)
         # close the pointer to that file
         filehandle.close()
 
     # for training DQN by processing random NN datasets
-    def parse_nn_dataset(self, init=False):
+    def parse_func_dataset(self, init=False):
+        print(">>>>> parse_func_dataset")
         frame_num = 0
+        done = False
         reward = []
-        func_nn_list = self.cfg.app_registry[1]
-        func_app = FunctionalApp(app_name= self.app_name)
+        val = self.cfg.get_value(self.cfg.app_registry, self.app_name)
+        func_nn_list = val[1]
+        func_app = FunctionalApp(sir_robot=None, app_name=self.app_name, app_type=self.app_type)
         while True:
           # Assume only the primary "successful" func_flow
-          [nn_name, reward, tot_reward] = func_app.eval_func_flow_model("REWARD1")
+          [nn_name, reward] = func_app.eval_func_flow_model(reward_penalty="REWARD1")
           if nn_name is None:
             reward, done = self.compute_reward(frame_num, "REWARD1")
             done = True
             break   # done func flow
 
           # randomly select NN dataset
-          nn_idx = self.dsu.dataset_indices(mode="NN",nn_name=nn_name,position="RANDOM")
+          nn_idx = self.dsu.dataset_indices(mode="FUNC",nn_name=nn_name,position="RANDOM")
           if nn_idx is None:
             break
           print("Parsing NN idx", nn_idx)
           nn_filehandle = open(nn_idx, 'r')
+          line = None
           while True: # iterate through Img frames in nn
             # read a single line
             next_line = nn_filehandle.readline()
             if not next_line:
                 break
             # get action & next_action
-            [tm, app, mode, nn_name, action, img_name, state] = self.dsu.get_dataset_info(line)
             [tm, app, mode, next_nn_name, next_action, img_name, next_state] = self.dsu.get_dataset_info(next_line)
-            if action == "REWARD1":
-              break
-            reward, done = self.compute_reward(frame_num, action)
+            if line is not None:
+              [tm, app, mode, nn_name, action, img_name, state] = self.dsu.get_dataset_info(line)
+              qval = 0  # dummy qval for now until final reward assigned
+              self.replay_buffer.push(state, action, reward, next_state, done, qval)
+              if action == "REWARD1":
+                break
+              reward, done = self.compute_reward(frame_num, action)
             frame_num += 1
-            self.replay_buffer.push(state, action, reward, next_state, done)
   
-            if next_action != "REWARD":
+            if next_action != "REWARD1":
               line = next_line
-            if len(self.replay_buffer) > self.replay_initial:
+            if len(self.replay_buffer) > self.REPLAY_INITIAL:
               loss = self.compute_td_loss(batch_size, app_path_prefix)
             if frame_num % 1000 == 0 or done:
               self.update_target(self.current_model, self.target_model)
           # close the pointer to that file
-          filehandle.close()
+          nn_filehandle.close()
           # continue to While loop
         if done:
           state = None
           self.all_rewards.append(self.total_reward)
-          torch.save(model.state_dict(), self.BEST_MODEL_PATH)
+          torch.save(self.current_model.state_dict(), self.BEST_MODEL_PATH)
   
 
     def nn_process_image(self, NN_num, next_state, reward_penalty = None):
         # NN_num is unused by ddqn, but keeping nn_apps API
 
-        if len(self.replay_buffer) > self.replay_initial:
+        if len(self.replay_buffer) > self.REPLAY_INITIAL:
             # assume immitation learning initialization reduces need for pure random ations
-            epsilon_start = .3 * self.replay_initial / len(self.replay_buffer)
+            epsilon_start = .3 * self.REPLAY_INITIAL / len(self.replay_buffer)
         else:
             epsilon_start = 1.0
         epsilon_final = 0.01
@@ -1151,26 +1168,28 @@ class SIR_DDQN():
         print("reward: ", self.frame_num, self.action, action_reward, action_done)
         self.total_reward += action_reward
 
-        if self.action != "REWARD":
+        if self.action != "REWARD1":
+          # self.replay_buffer or active_buffer????  
           # add dummy 0 q_val for now. Compute q_val at end of run.
           self.active_buffer.push(self.state, self.action, action_reward, next_state, action_done, 0)
         else:
+          # self.replay_buffer or active_buffer????  
           # add dummy 0 q_val for now. Compute q_val at end of run.
           self.active_buffer.push(self.prev_state, self.prev_action, action_reward, self.state, action_done, 0)
 
-        if len(self.replay_buffer) > self.replay_initial:
-          loss = self.compute_td_loss(batch_size=self.batch_size, mode="EXPERIENCE_REPLAY")
+        if len(self.replay_buffer) > self.REPLAY_INITIAL:
+          loss = self.compute_td_loss(batch_size=self.BATCH_SIZE, mode="EXPERIENCE_REPLAY")
           print("experience replay loss: ",loss)
 
         # if frame_num % 10000 == 0:
         #    plot(frame_num, self.all_rewards, self.losses)
     
         if action_done:
-            self.active_buffer.compute_real_q_values(gamma=self.GAMMA)
+            self.active_buffer.compute_real_q_values(gamma=self.GAMMA,  name="active")
             self.active_buffer.reset_sample(name="active", start=0)
             loss = 0
             while loss is not None:
-              loss = self.compute_td_loss(batch_size=self.batch_size, mode="REAL_Q_VALUES")
+              loss = self.compute_td_loss(batch_size=self.BATCH_SIZE, mode="REAL_Q_VALUES")
               print("real q values loss: ",loss)
             print("loss: ",loss)
             self.replay_buffer.concat(self.active_buffer)
@@ -1194,8 +1213,15 @@ class SIR_DDQN():
             
         return next_action
 
-    # training is done automatically at start of DQN.  Just running DQN will pick up
+    # APP training is done automatically at start of DQN.  Just running DQN will pick up
     # any new datasets since it left off.  
+    #
+    # FUNC training based on a single end-to-end run of a random selection of FUNC/NN runs.
+    # FUNC is done by calling:
+    #   ./copy_to_python ; python3 ./sir_jetbot_train.py --dqn TTT
     def train(self):
-        self.dsu.parse_func_dataset(self, init=self.init_model)
-
+        # Check if any app training left undone:
+        print("Checking if any Functional APP training to do...")
+        self.parse_app_dataset(init=self.init_model)
+        print("Train DQN based upon random selection of Functional Runs...")
+        self.parse_func_dataset(init=self.init_model)

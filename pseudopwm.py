@@ -4,7 +4,7 @@ from traitlets.config.configurable import Configurable
 import ipywidgets.widgets as widgets
 import time
 import threading
-from .heartbeat import Heartbeat
+from heartbeat import Heartbeat
 
 # class PseudoPWM(Configurable):
 class PseudoPWM(Heartbeat):

@@ -99,13 +99,13 @@
 
 # Import the datetime module
 from datetime import datetime
-from dataset_utils import *
 from config import *
+import math, random
 import os
 
 class DatasetUtils():
 
-    def __init__(self, app_name, app_type):
+    def __init__(self, app_name, app_type, nn_name=None):
         self.app_name = app_name
         self.app_type = app_type
         self.cfg = Config()
@@ -114,6 +114,7 @@ class DatasetUtils():
         # might need to stop if the object stops.
         self.processed_datasets = []
         self.processed_dataset_idx = None
+        self.last_ds_idx = None
 
     ################################
     # Dataset Index
@@ -127,7 +128,9 @@ class DatasetUtils():
         if mode in ["DQN", "APP"]:
           ds_idx_path = self.cfg.APP_DIR + self.app_name + "_" + mode + self.cfg.DATASET_IDX_DIR 
         elif mode == "FUNC":
-          ds_idx_path = self.cfg.APP_DIR + mode + self.cfg.DATASET_IDX_DIR 
+          ds_idx_path = self.cfg.APP_DIR + mode + "/" + nn_name + self.cfg.DATASET_IDX_DIR 
+        else:
+          print("dataset_index_path: unknown mode", mode)
         return ds_idx_path
 
     # ./apps/NN/dataset_indexes/NN_SEARCH_FOR_CUBE_IDX_YY_MM_DDa.txt
@@ -139,19 +142,24 @@ class DatasetUtils():
     ## contains multiple images, in order obtained, across actions
     # position in ["NEW","NEXT","OLDEST", "NEWEST", "RANDOM"]
     def dataset_indices(self, mode="DQN", nn_name=None, position="RANDOM"):
-        ds_idx_pth = self.dataset_index_path() 
+        ds_idx_pth = self.dataset_index_path(mode, nn_name) 
         if mode == "FUNC":
-          ds_idx_nm = "FUNC_" + nn_name + "_IDX_" 
+          # ds_idx_nm = "FUNC_" + nn_name + "_IDX_" 
+          ds_idx_nm = "FUNC_" + nn_name  + "_"
         elif mode in ["APP","DQN"]:
-          ds_idx_nm = self.app_name + "_" + mode + "_IDX_" 
+          # ds_idx_nm = self.app_name + "_" + mode + "_IDX_" 
+          ds_idx_nm = self.app_name + "_" + mode + "_IDX_"
         if position == "NEXT":
-          full_ds_idx = self.next_processed_dataset_idx(ds_idx_pth, ds_idx_nm, mode, nn_name)
+          full_ds_idx = self.next_dataset_idx(ds_idx_pth, ds_idx_nm, mode, nn_name)
         elif position == "NEW":
           full_ds_idx = self.new_dataset_idx_name(ds_idx_pth, ds_idx_nm, mode, nn_name)
+        elif position == "LAST_PROCESSED":
+          return self.last_ds_idx
         elif position in ["NEWEST","OLDEST","RANDOM"]:
-          full_ds_idx = self.oldest_newest_random_processed_dataset_idx(ds_idx_pth, ds_idx_nm, mode, nn_name, position)
+          full_ds_idx = self.oldest_newest_random_dataset_idx_name(ds_idx_pth, ds_idx_nm, mode, nn_name, position)
         else:
           print("Incorrect position option:", position, ds_idx_pth, ds_idx_nm)
+        self.last_ds_idx = full_ds_idx
         return full_ds_idx
 
     def next_dataset_idx(self, ds_idx_pth, ds_idx_nm, mode="DQN", nn_name=None):
@@ -159,29 +167,49 @@ class DatasetUtils():
         idx_list = os.listdir(ds_idx_pth)
         idx_list.sort()
         lastdataset = self.last_dataset_idx_processed(mode, nn_name)
-        if lastdataset is not None:
-          i = idx_list.index(lastdataset) # else value index error
+        print("lastdataset:", lastdataset)
+        if lastdataset is not None and len(lastdataset) > 0:
+          print("idx_list:", idx_list)
+          lastdatasetname = self.get_filename_from_full_path(lastdataset)
+          print("lastdatasetname:", lastdatasetname)
+          i = idx_list.index(lastdatasetname) # else value index error
+          # print("i = ", i)
           if i+1 >= len(idx_list):
-            print("all datasets processed", lastdataset)
+            print("all datasets processed", lastdatasetname)
             return None
           else:
-            next_dataset = idx_list[i+1,:]
+            while True:
+              i = i+1
+              if i < len(idx_list):
+                next_dataset = idx_list[i]
+                # confirm proper format for dataset index name
+                if next_dataset[0:len(ds_idx_nm)] == ds_idx_nm and len(next_dataset) == len(ds_idx_nm) + len("YY_MM_DDa.txt"):
+                  print("next_dataset:", next_dataset)
+                  break
+              else:
+                return None
         else:
           # should be there unless explicitly skipped by command line option
-          if not init:
-            print("last data set processed not found")
-            return None
+          # if not init:
+          #   print("last data set processed not found")
+          #   return None
           found = False
+          print("idx_list:", idx_list, ds_idx_nm)
           for idx in idx_list:
-            if idx[0:len(ds_idx)] == ds_idx and len(idx) == len(ds_idx) + len("YY_MM_DDa.txt"):
+            if idx[0:len(ds_idx_nm)] == ds_idx_nm and len(idx) == len(ds_idx_nm) + len("YY_MM_DDa.txt"):
               next_dataset = idx
+              print(len(idx), len(ds_idx_nm), len("YY_MM_DDa.txt"))
+              print("ds_idx_nm:", ds_idx_nm)
+              print("idx:", idx)
+              print("next_dataset2:", next_dataset)
               found = True
               break
           if not found:
             print("No datasets")
             return None
         full_path = ds_idx_pth + next_dataset
-        return next_dataset
+        print("full_path:", full_path)
+        return full_path
 
     def new_dataset_idx_name(self, ds_idx_pth, ds_idx_nm, mode, nn_name):
         try:
@@ -217,8 +245,8 @@ class DatasetUtils():
         oldest = None
         newest = None
         for i, idx in enumerate(idx_list):
-          if idx.startswith(ds_idx_nm) and idx_list.endswith(".txt"):
-            if start is None:
+          if idx.startswith(ds_idx_nm) and idx.endswith(".txt") and len(idx) == len(ds_idx_nm) + len("YY_MM_DDa.txt"):
+            if oldest is None:
               oldest = i
             newest = i
         if oldest is None:
@@ -233,7 +261,7 @@ class DatasetUtils():
           print("incorrect position specified: ", position)
           exit()
         full_path = ds_idx_pth + idx_list[idx_num]
-        print("random selection of nn idx:", nn_name, full_path)
+        print("selection of nn idx:", position, nn_name, full_path)
         return full_path
 
     ################################
@@ -246,27 +274,34 @@ class DatasetUtils():
     ##  ./apps/TT_DQN/dataset_indexes/TT_DQN_IDX_YY_MM_DDa.txt
     def dataset_idx_processed(self, mode="DQN", nn_name=None):
         if mode == "FUNC":
-          ds_idx_p = self.dataset_index_path() + mode + "_" + nn_name + "_IDX_PROCESSED.txt"
+          ds_idx_p = self.dataset_index_path(mode=mode, nn_name=nn_name) + mode + "_" + nn_name + "_IDX_PROCESSED.txt"
         elif mode == "APP":
-          ds_idx_p = self.dataset_index_path() + self.app_name + "_" + mode + "_IDX_PROCESSED_BY_DQN.txt"
+          ds_idx_p = self.dataset_index_path(mode=mode, nn_name=nn_name) + self.app_name + "_" + mode + "_IDX_PROCESSED_BY_DQN.txt"
         elif mode == "DQN":
-          ds_idx_p = self.dataset_index_path() + self.app_name + "_" + mode + "_IDX_PROCESSED.txt"
+          ds_idx_p = self.dataset_index_path(mode=mode, nn_name=nn_name) + self.app_name + "_" + mode + "_IDX_PROCESSED.txt"
         return ds_idx_p
 
     def last_dataset_idx_processed(self, mode="DQN", nn_name=None):
         filename = self.dataset_idx_processed(mode,nn_name)
-        filehandle = open(full_path, 'r')
-        frame_num = 0
-        line = filehandle.readline()
+        with open(filename, 'r') as file:
+          line = file.readline()
         # verify line
-        [time, app, mode, nn_name, action, img_name, img_path] = self.ds_util.get_dataset_info(line)
+        if line:
+          [time, app, mode, nn_name, action, img_name, img_path] = self.get_dataset_info(line, mode=mode)
         return line
 
     # save last dataset_index that has been processed for an App 
-    def save_dataset_idx_processed(self, mode = "DQN", nn_name = None, dataset_idx = None):
-        filename = self.dataset_indices(mode=mode, nn_name=nn_name, position="LAST")
+    def save_dataset_idx_processed(self, mode="DQN", nn_name=None, clear=False):
+        filename = self.dataset_idx_processed(mode,nn_name)
+        last_processed = self.dataset_indices(mode=mode, nn_name=nn_name, position="LAST_PROCESSED")
+        if last_processed is None:
+          print("save_dataset_idx_processed: nothing to save")
+          return
         with open(filename, 'w') as file:
-          file.write( dataset_idx )
+          if clear:
+            file.truncate()
+          else:
+            file.write( last_processed )
 
 
     ################################
@@ -278,40 +313,65 @@ class DatasetUtils():
         line = tm + " " + img_nm
         return line
 
+    def get_filename_from_full_path(self, full_path):
+        dataset_info = full_path.split("/")
+        return dataset_info[-1]
+
     def get_dataset_info(self, ds_line, mode="DQN"):
         #  "18:31:28 ./apps/TT_DQN/dataset/LOWER_ARM_DOWN/a1099b28-4334-11eb-8cce-3413e860d1ff.jpg"
         dataset_info = ds_line.split()
+        if len(dataset_info) != 2:
+          print("get_dataset_info:",len(dataset_info), dataset_info)
+          return [None, None, None, None, None, None, None]
         ds_line_time = dataset_info[0]
         full_img_path = dataset_info[1] 
         dataset_info = full_img_path.split("/")
-        app_mode = dataset_info[1]
+        if ((len(dataset_info) != 7 and mode == "APP") or
+            (len(dataset_info) != 6 and mode == "DQN") or
+            (len(dataset_info) != 8 and mode == "FUNC")):
+          print("get_dataset_info error:",mode, len(dataset_info), dataset_info)
+          return undefined_var
+          return [None, None, None, None, None, None, None]
+        app_mode = dataset_info[2]
         if app_mode.endswith("APP"):
-          # ./apps/NN/dataset/PICK_UP_CUBE/LOWER_ARM_DOWN/a1099b28-4334-11eb-8cce-3413e860d1ff.jpg"
+          # ./apps/TT_APP/dataset/PICK_UP_CUBE/LOWER_ARM_DOWN/a1099b28-4334-11eb-8cce-3413e860d1ff.jpg"
+          ds_line_app = app_mode[:-4]
+          # print("ds_line_app", ds_line_app)
           ds_line_mode = "APP"
-          ds_line_nn = dataset_info[3]
-          ds_line_action = dataset_info[4]
-          ds_line_img = dataset_info[5]
+          ds_line_nn = dataset_info[4]
+          ds_line_action = dataset_info[5]
+          ds_line_img = dataset_info[6]
         elif app_mode.endswith("DQN"):
           # ./apps/TT_DQN/dataset/LOWER_ARM_DOWN/a1099b28-4334-11eb-8cce-3413e860d1ff.jpg"
           ds_line_app = app_mode[:-4]
+          # print("ds_line_app", ds_line_app)
           ds_line_mode = "DQN"
           ds_line_nn = None
           ds_line_action = dataset_info[4]
           ds_line_img = dataset_info[5]
         elif app_mode.endswith("FUNC"):
-          ds_line_app = app_mode[:-5]
+          # ./apps/FUNC/PICK_UP_CUBE/dataset/PICK_UP_CUBE/LOWER_ARM_DOWN/a1099b28-4334-11eb-8cce-3413e860d1ff.jpg"
+          # print("dataset_info:", dataset_info)
+          ds_line_app = None
+          # print("ds_line_app", ds_line_app)
           ds_line_mode = "FUNC"
-          ds_line_nn = None
-          ds_line_action = dataset_info[4]
-          ds_line_img = dataset_info[5]
+          ds_line_nn = dataset_info[5]
+          ds_line_action = dataset_info[6]
+          ds_line_img = dataset_info[7]
+        else:
+          print("app_mode", app_mode)
         return [ds_line_time, ds_line_app, ds_line_mode, ds_line_nn, ds_line_action, ds_line_img, full_img_path]
 
     # return a tuple of new images since last dataset training
     def get_dataset_images(self, mode="DQN", nn_name=None, position="NEXT"):
         # open the file for reading
         idx_list = []
-        full_path = self.ds_util.dataset_indices(mode,nn_name,position)
+        full_path = self.dataset_indices(mode,nn_name,position)
+        if full_path is None:
+          return [], []
+        # full_path = self.dataset_idx_processed(mode,nn_name)
         idx_list.append(full_path)
+        print("idx_proc: ", full_path)
         filehandle = open(full_path, 'r')
         new_image = []
         if mode in ["DQN", "APP"]:
@@ -319,33 +379,65 @@ class DatasetUtils():
             nn_line = filehandle.readline()
             if not nn_line:
                 break
-            [time, app, mode, nn_name, action, img_name, img_path] = self.ds_util.get_dataset_info(nn_line)
+            [time, app, mode, nn_name, action, img_name, img_path] = self.get_dataset_info(nn_line,mode=mode)
             new_image.append(image_path)
         elif mode == "FUNC":
           while True:
             nn_idx = filehandle.readline()
             if not nn_idx:
+              print("nn_idx done")
               break
-            nn_filehandle = open(nn_idx, 'r')
-            idx_lst.append(nn_idx)
-            while True:
-              nn_line = nn_filehandle.readline()
-              if not nn_line:
-                  break
-              [time, app, mode, nn_name, action, img_name, img_path] = self.ds_util.get_dataset_info(nn_line)
-              new_image.append(image_path)
+            # remove time plus carriage return
+            # nn_full_path = nn_idx[len("18:32:23 "):-1]
+            # nn_filehandle = open(nn_full_path, 'r')
+            # idx_list.append(nn_full_path)
+            # print("nn_full_path:",nn_full_path)
+            [time, app, mode, nn_name, action, img_name, img_path] = self.get_dataset_info(nn_idx, mode="FUNC")
+            # print("imginfo:",time, app, mode, nn_name, action, img_name, img_path)
+            new_image.append(img_path)
+
+#            while True:
+#              # jpg
+#              nn_line = nn_filehandle.readline()
+#              if not nn_line:
+#                  print("nn_line done")
+#                  break
+#              [time, app, mode, nn_name, action, img_name, img_path] = self.get_dataset_info(nn_line)
+#              print("img:",img_name)
+#              new_image.append(image_path)
+          print("idx_list:", idx_list)
+          print("len new_image:", len(new_image))
 
         # close the pointer to that file
         filehandle.close()
         new_image = tuple(new_image)
-        return new_image, indx_lst
+        return new_image, idx_list
+
+    def all_indices_processed(self, mode="DQN", nn_name=None):
+        filename = self.dataset_idx_processed(mode,nn_name)
+        last_processed = self.dataset_indices(mode=mode, nn_name=nn_name, position="LAST_PROCESSED")
+        if last_processed is None:
+          print("save_dataset_idx_processed: all processed")
+          return True
+        with open(filename, 'r') as file:
+          prev_processed = file.readline()
+          print("idx:", filename)
+        if last_processed == prev_processed:
+          print("all_indx_processed:", last_processed)
+          return True
+        else:
+          print("all_indx_processed:", last_processed, prev_processed)
+          return False
+
+    def dataset_images_processed(self, mode="DQN", nn_name=None):
+        self.save_dataset_idx_processed(mode, nn_name)
 
     def remove_dataset_images(self, mode="DQN", nn_name=None, position="NEWEST"):
         if position not in ["OLDEST", "NEWEST"]:
           print("incorrect position specified: ", position)
           exit()
         # open the file for reading
-        new_imgs,idx_lst = self.ds_util.get_dataset_indices(mode,nn_name,position=position)
+        new_imgs,idx_lst = self.get_dataset_indices(mode,nn_name,position=position)
 
         for img in len(new_imgs):
             # os.remove(img) 
@@ -362,35 +454,54 @@ class DatasetUtils():
           print("Mode must be one of DQN, NN, FUNC. Received: ", mode)
           exit()
         if mode == "FUNC":
-          bmp = self.cfg.APP_DIR + mode + "/" 
+          bmp = self.cfg.APP_DIR + mode + "/" + nn_name + "/"
         else:
           bmp = self.cfg.APP_DIR + self.app_name + "_" + mode + "/" 
         return bmp
 
     def best_model(self, mode="DQN", nn_name=None):
         if mode in ["DQN", "APP"]:
-          bm = self.best_model_path(mode, nn_name) + self.app_name + "_" + mode + "_" + self.cfg.MODEL_POST_FIX 
+          bm = self.best_model_path(mode, nn_name) + self.app_name + "_" + mode + self.cfg.MODEL_POST_FIX 
         else:
           # nn_name assumed to already been validated
           bm = self.best_model_path(mode, nn_name) + "FUNC_" + nn_name + self.cfg.MODEL_POST_FIX 
         return bm
 
+    # FUNC_PARK_ARM_HIGH_20_12_20a.txt -> PARK_ARM_HIGH
+    def dataset_idx_to_func(self, ds_idx):
+        nn_name = ds_idx[len("FUNC_"): -len("_YY_MM_DDa.txt")]
+        print("dataset_idx_to_func:", ds_idx, nn_name)
+        return nn_name
+
     # ./apps/NN/dataset/FUNC_DRIVE_TO_CUBE
     # ./apps/TT_DQN/dataset
     def dataset_path(self, mode="DQN", nn_name=None):
         if mode == "FUNC":
-          ds_idx_path = self.cfg.APP_DIR + mode + self.cfg.DATASET_PATH + nn_name + "/"
+          dir_pth = self.best_model_path(mode=mode, nn_name=nn_name)
+          ds_idx_path = dir_pth + self.cfg.DATASET_PATH + nn_name + "/"
         elif mode in ["APP", "DQN"]:
-          ds_idx_path = self.cfg.APP_DIR + self.app_name + "_" + mode + self.cfg.DATASET_PATH 
+          dir_pth = self.best_model_path(mode=mode)
+          # extra / after dir_pth ?  ... still works
+          ds_idx_path = dir_pth + self.cfg.DATASET_PATH 
         return ds_idx_path
 
     # ./apps/TT_DQN/dataset_indexes/TT_DQN_replay_buffer.data
     def dqn_replay_buffer(self):
-        dqn_replay_buff = self.cfg.APP_DIR + self.app_name + "_DQN" + self.cfg.REPLAY_BUFFER
+        dir_pth = self.best_model_path(mode="DQN")
+        dqn_replay_buff = dir_pth + self.app_name + "_DQN" + self.cfg.REPLAY_BUFFER
         return dqn_replay_buff
 
     # ./apps/TT_DQN/dataset_indexes/TT_DQN_NN_TRAINING_COMBOS.txt
     def dqn_nn_training_combos(self):
-        dqn_nn_train_combo = self.dqn_dataset_path() + self.app_name + self.cfg.DQN_NN_COMBOS 
+        dqn_nn_train_combo = self.dataset_path("DQN") + self.app_name + self.cfg.DQN_NN_COMBOS 
         return dqn_nn_train_combo
+
+    def mkdirs(self, robot_dirs):
+        for dir_name in robot_dirs:
+          try:
+              os.makedirs(dir_name)
+              print("mkdir %s" % dir_name)
+          except FileExistsError:
+            # print('Directory already exists')
+            pass
 
