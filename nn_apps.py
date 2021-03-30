@@ -77,7 +77,7 @@ class nn_apps():
         self.app_instance = FunctionalApp(sir_robot, sir_app_name, sir_app_type)
       elif sir_app_type == "DQN":
         [self.app_functions, self.func_flow_model] = self.cfg.get_value(self.cfg.app_registry, sir_app_name)
-        [self.dqn_policy] = self.cfg.get_value(self.cfg.dqn_registry, sir_app_name)
+        [self.dqn_policy] = self.cfg.get_value(self.cfg.DQN_registry, sir_app_name)
         self.app_instance = SIR_DDQN(True, False, sir_app_name, sir_app_type)
       # for action in self.action_set:
       #     robot_dirs.append("apps/FUNC/" + action)
@@ -215,7 +215,10 @@ class nn_apps():
           self.curr_nn_name = self.nn_upon_reward(feedback)
           self.nn_init()
           return "REWARD1"
-      return self.app_instance.nn_automatic_action(self.curr_nn_name, self.frame, feedback)
+      val,done = self.app_instance.nn_automatic_action(self.curr_nn_name, self.frame, feedback)
+      if done:
+          self.nn_upon_reward("REWARD1")
+      return val
 
     def nn_upon_reward(self, reward):
       self.curr_nn_name = self.app_instance.nn_upon_reward(reward)

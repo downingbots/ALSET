@@ -32,14 +32,14 @@ class SIRNN():
         self.cfg = Config()
 
     def nn_init(self, gather_mode=False):
-        # if gather_mode:
-        self.model = None
         self.model = torchvision.models.alexnet(pretrained=True)
         self.model.classifier[6] = torch.nn.Linear(self.model.classifier[6].in_features, self.num_outputs)
         model_path = self.dsu.best_model(mode=self.app_type, nn_name=self.nn_name)
         try:
           self.model.load_state_dict(torch.load(model_path))
+          print("Loaded model state.")
         except:
+          print("Starting from new Alexnet model.")
           torch.save(self.model.state_dict(), model_path)
         self.device = torch.device('cuda')
         self.model = self.model.to(self.device)
@@ -191,7 +191,6 @@ class SIRNN():
         # if self.robot.initialize:
         # elif self.robot.train_new_data:
 
-        model = models.alexnet(pretrained=True)
         # Dataset transforms
         #    
         # Problems to deal with:
@@ -209,14 +208,16 @@ class SIRNN():
         #   self.automatic_actions = ( "NOOP", "REWARD", "PENALTY")
         #   self.automatic_mode_noop_mapping = ("LEFT", "LOWER_ARM_UP", "LOWER_ARM_DOWN")
         #
-        model.classifier[6] = torch.nn.Linear(model.classifier[6].in_features, len(full_action_set))
-        device = torch.device('cuda')
-        model = model.to(device)
-        # ARD: change back!
-        # NUM_EPOCHS = 30
-        NUM_EPOCHS = 3
+        # model = models.alexnet(pretrained=True)
+        # model.classifier[6] = torch.nn.Linear(model.classifier[6].in_features, len(full_action_set))
+        # self.model is already loaded from nn_init() = which is a prerequisite
+        if self.model is None:
+            print("nn_init() not called before training.")
+            exit
+        NUM_EPOCHS = 30
+        # NUM_EPOCHS = 3   # for debugging
         best_accuracy = 0.0
-        optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+        optimizer = optim.SGD(self.model.parameters(), lr=0.001, momentum=0.9)
         for root in dataset_root_list:
             while True:
               print("nn train: ", root, best_model_path) 
@@ -243,6 +244,12 @@ class SIRNN():
                 dataset.save_images_processed("FUNC", self.nn_name)
                 continue
               print("num dataset imgs:", len(dataset.imgs))
+              print("len dataset     :", len(dataset))
+              if len(dataset) > len(dataset.imgs):
+                print("dataset[0]:")
+                print(dataset[0])
+                print("datasetimg:")
+                print(dataset.imgs[0])
               # Attributes:
               # classes (list): List of the class names sorted alphabetically.
               # class_to_idx (dict): Dict with items (class_name, class_index).
@@ -257,31 +264,44 @@ class SIRNN():
               # class_to_idx = {cls_name: i for i, cls_name in enumerate(classes)}
               # imgs= [image_path, class_index:
   
-  
-              train_dataset, test_dataset = torch.utils.data.random_split(dataset, [len(dataset) - 50, 50])
+              # problem: we're currently training incrementally. So, dataset may not be big
+              # enough to split into train/test.
+              # However, we're starting on a pretrained alexnet model and trying to
+              # specialize the model from there.  The original code that this was based
+              # upon was training from scratch.
+              if len(dataset) > 500:
+                train_dataset, test_dataset = torch.utils.data.random_split(dataset, [len(dataset) - 50, 50])
+              elif (len(dataset) > 50):
+                  # test on a subset of the dataset
+                  train_dataset, test_dataset = torch.utils.data.random_split(dataset, [len(dataset) - 50, 50])
+                  train_dataset = dataset    # train on full incremental dataset
+              else:
+                  train_dataset = dataset    # train on full incremental dataset
+                  test_dataset = dataset     # test on full incremental dataset
+
+              print("len train_dataset:", len(train_dataset))
+              print("len test_dataset :", len(test_dataset))
+
               train_loader = torch.utils.data.DataLoader(
-                  train_dataset,
-                  batch_size=8,
-                  shuffle=True,
-                  num_workers=0
+                train_dataset,
+                batch_size=8,
+                shuffle=True,
+                num_workers=0
               )
-              
               test_loader = torch.utils.data.DataLoader(
-                  test_dataset,
-                  batch_size=8,
-                  shuffle=True,
-                  num_workers=0
+                test_dataset,
+                batch_size=8,
+                shuffle=True,
+                num_workers=0
               )
-              print("len train_loader:", len(train_loader))
-              print("len test_loader :", len(test_loader))
               
               for epoch in range(NUM_EPOCHS):
                   
                   for images, labels in iter(train_loader):
-                      images = images.to(device)
-                      labels = labels.to(device)
+                      images = images.to(self.device)
+                      labels = labels.to(self.device)
                       optimizer.zero_grad()
-                      outputs = model(images)
+                      outputs = self.model(images)
                       loss = F.cross_entropy(outputs, labels)
                       loss.backward()
                       optimizer.step()
@@ -290,9 +310,9 @@ class SIRNN():
                   # apply it here.
                   test_error_count = 0.0
                   for images, labels in iter(test_loader):
-                      images = images.to(device)
-                      labels = labels.to(device)
-                      outputs = model(images)
+                      images = images.to(self.device)
+                      labels = labels.to(self.device)
+                      outputs = self.model(images)
                       test_error_count += float(torch.sum(torch.abs(labels - outputs.argmax(1))))
                   
                   test_accuracy = 1.0 - float(test_error_count) / float(len(test_dataset))
@@ -300,8 +320,7 @@ class SIRNN():
                   if test_accuracy > best_accuracy:
                       print("bm, bmp", best_model, best_model_path)
                       best_accuracy = test_accuracy
-              torch.save(model.state_dict(), best_model)
-              print("CHANGE BACK NUM_EPOCHS")
+              torch.save(self.model.state_dict(), best_model)
               dataset.save_images_processed("FUNC", self.nn_name)
 
     # wipe_memory(self)
@@ -317,12 +336,12 @@ class SIRNN():
       for param in self.optimizer.state.values():
         # Not sure there are any global tensors in the state dict
         if isinstance(param, torch.Tensor):
-            param.data = param.data.to(device)
+            param.data = param.data.to(self.device)
             if param._grad is not None:
-                param._grad.data = param._grad.data.to(device)
+                param._grad.data = param._grad.data.to(self.device)
         elif isinstance(param, dict):
             for subparam in param.values():
                 if isinstance(subparam, torch.Tensor):
-                    subparam.data = subparam.data.to(device)
+                    subparam.data = subparam.data.to(self.device)
                     if subparam._grad is not None:
                         subparam._grad.data = subparam._grad.data.to(device)

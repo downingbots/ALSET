@@ -1,6 +1,34 @@
 import torchvision.datasets as datasets
 from dataset_utils import *
 
+class IsNewFile:
+    def __init__(self):
+        self.new_images = []
+        self.nn_name = None
+        self.ds_util = None
+
+    def __call__(self, path):
+        if self.nn_name is None:
+          print("path:", path)
+          dataset_info = path.split("/")
+          last_iteration = len(dataset_info)
+          for i, ds_dir in enumerate(dataset_info):
+            if ds_dir == "FUNC":
+              last_iteration = i + 1
+            if last_iteration == i:
+              self.nn_name = ds_dir
+              print("nn_name:", self.nn_name)
+              self.ds_util = DatasetUtils(self.nn_name, "FUNC")
+              break
+          self.new_images,idx_list = self.ds_util.get_dataset_images(mode="FUNC", nn_name=self.nn_name, position="NEXT")
+          print("num new_images:", len(self.new_images))
+          self.new_images = tuple(self.new_images)
+        if path in self.new_images:
+          return True
+        else:
+          return False
+
+
 # based on:
 # https://pytorch.org/docs/stable/_modules/torchvision/datasets/folder.html#ImageFolder
 #
@@ -50,17 +78,26 @@ class ImageFolder2(datasets.ImageFolder):
           old_class_to_idx = self.class_to_idx
           print("old:", old_class_to_idx)
 
+        print("calling super(ImageFolder2)")
         try:
-          super(ImageFolder2, self).__init__(root, 
+          if only_new_images is not None and only_new_images:
+            print("only new images")
+            super(ImageFolder2, self).__init__(root, 
                                           # loader
                                           # IMG_EXTENSIONS if is_valid_file is None else None,
                                           transform=transform,
                                           target_transform=target_transform,
+                                          is_valid_file=IsNewFile())
+          else:
+            super(ImageFolder2, self).__init__(root, transform=transform,
+                                          target_transform=target_transform,
                                           is_valid_file=is_valid_file)
         except:
           self.imgs = []
+          print("exception calling super(ImageFolder2)")
           return 
         self.imgs = self.samples
+        print("Number of images:", len(self.imgs))
 
         if remap_to_noop is not None:
           # NOOP must be in class list
@@ -76,14 +113,22 @@ class ImageFolder2(datasets.ImageFolder):
 
           img_lst = []
           for i, [image_path, old_class_index] in enumerate(self.imgs): 
-               if image_path in new_images:
+            # for j, [image_path2, class_index2] in enumerate(new_images): 
+            #   if image_path == image_path2:
+                if image_path in new_images:
                   img_lst.append(self.imgs[i])
           print("original number of images in dataset:", len(self.imgs))
           print("number of new images in dataset     :", len(img_lst))
           print("number of new images in dataset idx :", len(new_images))
           print("idx_list:", idx_list)
+          # if len(img_lst) == 0:
+          #   print("self.imgs:", self.imgs)
+          #   print("new_imgs: ", new_images)
           self.imgs = img_lst
 
+        # currently we're using full_action_set everywhere.
+        # In the past, we allowed individual NNs to train on only a subset of actions.
+        # We will probably need to do so again in the future. 
         if full_action_set is not None or remap_to_noop is not None or only_new_images is not None:
           for i, [image_path, old_class_index] in enumerate(self.imgs): 
               if (remap_to_noop is not None and old_class_index in old_class_idx):

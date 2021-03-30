@@ -326,9 +326,9 @@ class DatasetUtils():
         ds_line_time = dataset_info[0]
         full_img_path = dataset_info[1] 
         dataset_info = full_img_path.split("/")
-        if ((len(dataset_info) != 7 and mode == "APP") or
-            (len(dataset_info) != 6 and mode == "DQN") or
-            (len(dataset_info) != 8 and mode == "FUNC")):
+        if not ((len(dataset_info) == 7 and mode == "APP") or
+                (len(dataset_info) == 6 and mode == "DQN") or
+                (len(dataset_info) == 8 and mode == "FUNC")):
           print("get_dataset_info error:",mode, len(dataset_info), dataset_info)
           return undefined_var
           return [None, None, None, None, None, None, None]
@@ -478,11 +478,11 @@ class DatasetUtils():
     def dataset_path(self, mode="DQN", nn_name=None):
         if mode == "FUNC":
           dir_pth = self.best_model_path(mode=mode, nn_name=nn_name)
-          ds_idx_path = dir_pth + self.cfg.DATASET_PATH + nn_name + "/"
+          ds_idx_path = dir_pth[:-1] + self.cfg.DATASET_PATH + nn_name + "/"
         elif mode in ["APP", "DQN"]:
           dir_pth = self.best_model_path(mode=mode)
           # extra / after dir_pth ?  ... still works
-          ds_idx_path = dir_pth + self.cfg.DATASET_PATH 
+          ds_idx_path = dir_pth[:-1] + self.cfg.DATASET_PATH 
         return ds_idx_path
 
     # ./apps/TT_DQN/dataset_indexes/TT_DQN_replay_buffer.data

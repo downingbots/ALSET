@@ -101,7 +101,7 @@ class Config():
                              ["QUICK_SEARCH_FOR_BOX_WITH_CUBE", "QUICK_SEARCH_AND_RELOCATE"],
                              ["QUICK_SEARCH_AND_RELOCATE", "QUICK_SEARCH_AND_RELOCATE"],
                              ["PARK_ARM_RETRACTED", "PARK_ARM_RETRACTED"],
-                             ["PARK_ARM_RETRACTED_WITH_CUBE", "PARK_ARM_RETRACTED"],
+                             ["PARK_ARM_RETRACTED_WITH_CUBE", "PARK_ARM_RETRACTED_WITH_CUBE"],
                              ["CLOSE_GRIPPER", "CLOSE_GRIPPER"], 
                              ["MOVEMENT_CHECK", "MOVEMENT_CHECK"]
                             ]
@@ -169,14 +169,14 @@ class Config():
       self.TT_name        = ["TT"]
       self.TT_func        = ["PARK_ARM_RETRACTED",                    #  0
                              "SEARCH_AND_RELOCATE_FOR_CUBE",          #  1
-                             "GOTO_OBJECT",                           #  2
+                             "GOTO_CUBE",                             #  2
                              "PICK_UP_CUBE",                          #  3
-                             "PARK_ARM_RETRACTED",                    #  4: Func can be listed twice
+                             "PARK_ARM_RETRACTED_WITH_CUBE",          #  4
                              "SEARCH_AND_RELOCATE_FOR_BOX_WITH_CUBE", #  5
                              "GOTO_BOX_WITH_CUBE",                    #  6
                              "DROP_CUBE_IN_BOX",                      #  7
-                             "STAY_ON_TABLE",                         #  8
-                             "MOVEMENT_CHECK"                         #  9
+                             # "STAY_ON_TABLE",                         #  8
+                             # "MOVEMENT_CHECK"                         #  9
                             ]
 
       # TODO: A new App reset the TT challenge. Eventually use a cooperating robot with obstacle avoidance.
@@ -254,7 +254,9 @@ class Config():
       # DEFINE TEST TABLE_TOP_APP
       ###########################
       self.TTT_name        = ["TTT"]
-      self.TTT_func        = ["PARK_ARM_RETRACTED",           #  0
+      self.TTT_func        = [
+                              # "PARK_ARM_RETRACTED",           #  0
+                              "PARK_ARM_HIGH",           #  0
                               "QUICK_SEARCH_FOR_CUBE"         #  1
                              ]
 

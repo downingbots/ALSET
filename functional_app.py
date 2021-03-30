@@ -100,8 +100,11 @@ class FunctionalApp():
           # reset func flow
           [self.curr_func_name, rew_pen] = self.eval_func_flow_model(reward_penalty="REWARD1", init=True)
           print("curr_func_name:", self.curr_func_name)
+          idx = self.func_names.index(self.curr_func_name)
+          print("Current Phase: ", self.func_comment[idx])
+      else:
+          idx = self.func_names.index(self.curr_func_name)
       self.nn_init_done = True
-      idx = self.func_names.index(self.curr_func_name)
       if self.func_automated[idx]:
         auto_mode=True
       else:
@@ -190,6 +193,7 @@ class FunctionalApp():
       [NN_name, penalty] = self.eval_func_flow_model(penalty)
       self.curr_func_name = NN_name
       idx = self.func_names.index(self.curr_func_name)
+      print("Current Phase: ", self.func_comment[idx])
       if self.func_automated[idx]:
         auto_mode=True
       else:
@@ -201,6 +205,7 @@ class FunctionalApp():
       [NN_name, reward] = self.eval_func_flow_model(reward)
       self.curr_func_name = NN_name
       idx = self.func_names.index(self.curr_func_name)
+      print("Current Phase: ", self.func_comment[idx])
       if self.func_automated[idx]:
         auto_mode=True
       else:
@@ -227,9 +232,9 @@ class FunctionalApp():
         [parent_action_func] = self.func_automated[idx]
         print("auto_action: ", NN_name, reward_penalty, self.curr_func_name, parent_action_func)
         self.auto_func.set_automatic_function(parent_action_func)
-        val = self.auto_func.automatic_function(image, reward_penalty)
+        val,done = self.auto_func.automatic_function(image, reward_penalty)
         print("auto_action val: ", val)
-        return val
+        return val,done
       else:
         print("nn_automatic_action called but not in automated mode")
         exit()

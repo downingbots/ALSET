@@ -599,7 +599,7 @@ class SIR_DDQN():
         # FINE TUNE PRETRAINED MODEL USING IMITATION LEARNING
         # add to history
         
-        self.num_actions = len(self.cfg.robot_actions)
+        self.num_actions = len(self.cfg.full_action_set)
         self.current_model = None
         self.target_model = None
         self.init_model = initialize_model
@@ -771,7 +771,8 @@ class SIR_DDQN():
           # action_idx.append(self.robot_actions.index(a))  # Human readable to integer index
           action_idx.append(self.cfg.full_action_set.index(a))  # Human readable to integer index
         action_idx = tuple(action_idx)
-        # print("action_idx:",action_idx)
+        print("action_idx:",action_idx)
+        print("max action_idx:",len(self.cfg.full_action_set))
 
 
         action_idx = self.Variable(torch.LongTensor(action_idx))
