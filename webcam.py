@@ -2,7 +2,9 @@ import cv2
 import time
 import threading
 from flask import Response, Flask
-import dataset_utils
+# import dataset_utils
+from dataset_utils import *
+
 
 # Image frame sent to the Flask object
 global webcam_video_frame
@@ -35,8 +37,11 @@ webcam_app = Flask(__name__)
 def webcam_captureFrames():
     global webcam_video_frame, webcam_thread_lock
 
+    first_pass = True
+    ds_line = None
     # Video capturing from OpenCV
     video_capture = cv2.VideoCapture(WEBCAM_GSTREAMER_PIPELINE, cv2.CAP_GSTREAMER)
+    ds_util = DatasetUtils(webcam_robot.app_name,webcam_robot.app_type)
 
     while True and video_capture.isOpened():
         return_key, frame = video_capture.read()
@@ -66,11 +71,21 @@ def webcam_captureFrames():
             # ARD: Bug: TTFUNC in NN mode shouldn't be here.
             return_key, encoded_image = cv2.imencode(".jpg", webcam_video_frame)
             if return_key:
+                curr_ds_idx = webcam_robot.get_ds_idx()
                 try:
+                  # write image to file
                   with open(image_loc, 'wb') as f:
                     f.write(encoded_image)
-                except:
-                    print("Invalid directory: %s" % image_loc)
+                  # write image filename to index
+                  try:
+                      ds_line = ds_util.dataset_line(image_loc) + '\n'
+                      with open(curr_ds_idx, 'a+') as f:
+                        f.write(ds_line)
+                        print("save to idx:", curr_ds_idx, ds_line)
+                  except Exception as e:
+                      print("append to idx failed:", curr_ds_idx, ds_line, e)
+                except Exception as e:
+                    print("error writing image: ", image_loc, e)
             # free the robot to move;
             # if bottleneck, optimistically move up before encode/write
             webcam_robot.capture_frame_completed()

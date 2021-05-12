@@ -97,11 +97,11 @@ class Config():
       # Get name of automated function to run and different datasets associated with the function.
       self.func_automated = [["HIGH_SLOW_SEARCH_FOR_CUBE", "HIGH_SLOW_SEARCH"],  
                              ["HIGH_SLOW_SEARCH_FOR_BOX_WITH_CUBE", "HIGH_SLOW_SEARCH"],
-                             ["QUICK_SEARCH_FOR_CUBE","QUICK_SEARCH_AND_RELOCATE"],
+                             ["QUICK_SEARCH_FOR_CUBE","QUICK_SEARCH"],
                              ["QUICK_SEARCH_FOR_BOX_WITH_CUBE", "QUICK_SEARCH_AND_RELOCATE"],
                              ["QUICK_SEARCH_AND_RELOCATE", "QUICK_SEARCH_AND_RELOCATE"],
                              ["PARK_ARM_RETRACTED", "PARK_ARM_RETRACTED"],
-                             ["PARK_ARM_RETRACTED_WITH_CUBE", "PARK_ARM_RETRACTED_WITH_CUBE"],
+                             ["PARK_ARM_RETRACTED_WITH_CUBE", "PARK_ARM_RETRACTED"],
                              ["CLOSE_GRIPPER", "CLOSE_GRIPPER"], 
                              ["MOVEMENT_CHECK", "MOVEMENT_CHECK"]
                             ]
@@ -142,7 +142,8 @@ class Config():
 
       # optical flow thresholds for detected movement; a nested k-v pair
       # self.func_attributes = [["MOVEMENT_CHECK",[["OPTFLOWTHRESH", 0.8], ["MAX_NON_MOVEMENT",2]]]]
-      self.OPTFLOWTHRESH = 0.8
+      # self.OPTFLOWTHRESH = 0.8
+      self.OPTFLOWTHRESH = 0.5
       self.MAX_NON_MOVEMENT = 2
 
       # TODO: use for verification before gathering data
@@ -168,11 +169,11 @@ class Config():
       #######################
       self.TT_name        = ["TT"]
       self.TT_func        = ["PARK_ARM_RETRACTED",                    #  0
-                             "SEARCH_AND_RELOCATE_FOR_CUBE",          #  1
+                             "QUICK_SEARCH_FOR_CUBE",                 #  1
                              "GOTO_CUBE",                             #  2
                              "PICK_UP_CUBE",                          #  3
                              "PARK_ARM_RETRACTED_WITH_CUBE",          #  4
-                             "SEARCH_AND_RELOCATE_FOR_BOX_WITH_CUBE", #  5
+                             "QUICK_SEARCH_FOR_BOX_WITH_CUBE",        #  5
                              "GOTO_BOX_WITH_CUBE",                    #  6
                              "DROP_CUBE_IN_BOX",                      #  7
                              # "STAY_ON_TABLE",                         #  8
@@ -271,8 +272,8 @@ class Config():
       self.TTT_DQN_policy[0] = ["DQN_REWARD_PHASES", [[100,   400]]]  # replace
 
       # for composite apps, key-value pirs
-      self.app_registry = [["TTT",[self.TTT_func, self.TTT_func_flow_model]]]
-      self.DQN_registry = [["TTT",[self.TTT_DQN_policy]]]
+      self.app_registry.append(["TTT",[self.TTT_func, self.TTT_func_flow_model]])
+      self.DQN_registry.append(["TTT",[self.TTT_DQN_policy]])
 
       ########################
       # DEFINE PERSONALITY APP

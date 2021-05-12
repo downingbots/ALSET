@@ -114,7 +114,10 @@ class DatasetUtils():
         # might need to stop if the object stops.
         self.processed_datasets = []
         self.processed_dataset_idx = None
-        self.last_ds_idx = None
+        if nn_name is not None:
+          self.last_ds_idx = self.last_dataset_idx_processed(app_type, nn_name)
+        else:
+          self.last_ds_idx = self.last_dataset_idx_processed(app_type, app_name)
 
     ################################
     # Dataset Index
@@ -126,8 +129,12 @@ class DatasetUtils():
     # ./apps/TT_DQN/dataset_index/
     def dataset_index_path(self, mode="DQN", nn_name=None):
         if mode in ["DQN", "APP"]:
+          if mode is None or self.app_name is None:
+              print("dataset_index_path mode,app_name:", mode, self.app_name)
           ds_idx_path = self.cfg.APP_DIR + self.app_name + "_" + mode + self.cfg.DATASET_IDX_DIR 
         elif mode == "FUNC":
+          if mode is None or self.app_name is None:
+              print("dataset_index_path mode,nn_name:", mode, nn_name)
           ds_idx_path = self.cfg.APP_DIR + mode + "/" + nn_name + self.cfg.DATASET_IDX_DIR 
         else:
           print("dataset_index_path: unknown mode", mode)
@@ -167,8 +174,20 @@ class DatasetUtils():
         idx_list = os.listdir(ds_idx_pth)
         idx_list.sort()
         lastdataset = self.last_dataset_idx_processed(mode, nn_name)
+        today = datetime.now().strftime("%d_%m_%y")
+        # initialize 
+        next_dataset = ds_idx_nm + today + "a.txt"
         print("lastdataset:", lastdataset)
-        if lastdataset is not None and len(lastdataset) > 0:
+        if lastdataset == "DUMMY_IDX":
+          i = 0
+          while True and i < len(idx_list):
+            next_dataset = idx_list[i]
+            # confirm proper format for dataset index name
+            if next_dataset[0:len(ds_idx_nm)] == ds_idx_nm and len(next_dataset) == len(ds_idx_nm) + len("YY_MM_DDa.txt"):
+              print("next_dataset:", next_dataset)
+              break
+            i = i+1
+        elif lastdataset is not None and len(lastdataset) > 0:
           print("idx_list:", idx_list)
           lastdatasetname = self.get_filename_from_full_path(lastdataset)
           print("lastdatasetname:", lastdatasetname)
@@ -228,13 +247,20 @@ class DatasetUtils():
           last_ds_idx = None
         print("last ds idx", last_ds_idx)
         now = datetime.now()
-        today = now.strftime("%d_%m_%y")
+        today = now.strftime("%y_%m_%d")
         letter = "a"
         name = ds_idx_nm + today + letter + ".txt"
+        lower_done = False
         while name in idx_list:
-          letter = chr(ord(letter.upper())+1)
-          name = ds_idx_nm + today + letter + ".txt"
           print("duplicate name: ", name)
+          if letter == "z":
+            letter = "A"
+          elif letter == "Z":
+            letter = "1"
+          else:
+            # letter = chr(ord(letter.upper())+1)  # lower to upper
+            letter = chr(ord(letter)+1)
+          name = ds_idx_nm + today + letter + ".txt"
         print("New name: ", name)
         full_path = ds_idx_pth + name
         return full_path
@@ -283,8 +309,14 @@ class DatasetUtils():
 
     def last_dataset_idx_processed(self, mode="DQN", nn_name=None):
         filename = self.dataset_idx_processed(mode,nn_name)
-        with open(filename, 'r') as file:
-          line = file.readline()
+        try:
+          with open(filename, 'r') as file:
+            line = file.readline()
+        except:
+          # first_processed = self.dataset_indices(mode, nn_name, position="OLDEST")
+          first_processed = "DUMMY_IDX"
+          return first_processed
+
         # verify line
         if line:
           [time, app, mode, nn_name, action, img_name, img_path] = self.get_dataset_info(line, mode=mode)
@@ -294,10 +326,10 @@ class DatasetUtils():
     def save_dataset_idx_processed(self, mode="DQN", nn_name=None, clear=False):
         filename = self.dataset_idx_processed(mode,nn_name)
         last_processed = self.dataset_indices(mode=mode, nn_name=nn_name, position="LAST_PROCESSED")
-        if last_processed is None:
+        if last_processed is None or last_processed == "DUMMY_IDX":
           print("save_dataset_idx_processed: nothing to save")
           return
-        with open(filename, 'w') as file:
+        with open(filename, 'w+') as file:
           if clear:
             file.truncate()
           else:
@@ -365,14 +397,14 @@ class DatasetUtils():
     # return a tuple of new images since last dataset training
     def get_dataset_images(self, mode="DQN", nn_name=None, position="NEXT"):
         # open the file for reading
-        idx_list = []
         full_path = self.dataset_indices(mode,nn_name,position)
         if full_path is None:
-          return [], []
+          return [], None
         # full_path = self.dataset_idx_processed(mode,nn_name)
-        idx_list.append(full_path)
+        dataset_idx_file = full_path
         print("idx_proc: ", full_path)
         filehandle = open(full_path, 'r')
+        # new_image = ["DUMMY.jpg"]
         new_image = []
         if mode in ["DQN", "APP"]:
           while True:
@@ -405,13 +437,13 @@ class DatasetUtils():
 #              [time, app, mode, nn_name, action, img_name, img_path] = self.get_dataset_info(nn_line)
 #              print("img:",img_name)
 #              new_image.append(image_path)
-          print("idx_list:", idx_list)
+          print("dataset_idx_file:", dataset_idx_file)
           print("len new_image:", len(new_image))
 
         # close the pointer to that file
         filehandle.close()
         new_image = tuple(new_image)
-        return new_image, idx_list
+        return new_image, dataset_idx_file
 
     def all_indices_processed(self, mode="DQN", nn_name=None):
         filename = self.dataset_idx_processed(mode,nn_name)
@@ -419,32 +451,51 @@ class DatasetUtils():
         if last_processed is None:
           print("save_dataset_idx_processed: all processed")
           return True
-        with open(filename, 'r') as file:
-          prev_processed = file.readline()
-          print("idx:", filename)
-        if last_processed == prev_processed:
-          print("all_indx_processed:", last_processed)
-          return True
+        try:
+          with open(filename, 'r') as file:
+            prev_processed = file.readline()
+            print("idx:", filename)
+        except:
+          prev_processed = None
+        if last_processed == "DUMMY_IDX":
+          last_processed = self.dataset_indices(mode=mode, nn_name=nn_name, position="NEXT")
+          print("all_indx_processed1:", last_processed)
+          if last_processed is not None:
+            return False
+          else:
+            return True
+        elif last_processed == prev_processed:
+          next_processed = self.dataset_indices(mode=mode, nn_name=nn_name, position="NEXT")
+          print("all_indx_processed2:", last_processed, next_processed)
+          if next_processed is not None:
+            return False
+          else:
+            return True
         else:
-          print("all_indx_processed:", last_processed, prev_processed)
+          print("all_indx_processed3:", last_processed, prev_processed)
           return False
 
     def dataset_images_processed(self, mode="DQN", nn_name=None):
         self.save_dataset_idx_processed(mode, nn_name)
 
-    def remove_dataset_images(self, mode="DQN", nn_name=None, position="NEWEST"):
+    def remove_dataset_images(self, mode="DQN", nn_name=None, position="NEWEST", do_remove=False):
         if position not in ["OLDEST", "NEWEST"]:
           print("incorrect position specified: ", position)
           exit()
         # open the file for reading
-        new_imgs,idx_lst = self.get_dataset_indices(mode,nn_name,position=position)
+        new_imgs,idx_lst = self.get_dataset_images(mode,nn_name,position=position)
 
-        for img in len(new_imgs):
-            # os.remove(img) 
-            print("virtual remove image: ",img) 
-        for idx in idx_lst:
-          # os.remove(idx)
-          print("virtual remove index: ",idx)
+        for img in new_imgs:
+          if do_remove:
+            os.remove(img) 
+            print("removed image: ",img) 
+          else:
+            print("virtually removed image: ",img) 
+        if do_remove:
+            os.remove(idx_lst)
+            print("removed index: ",idx_lst)
+        else:
+            print("virtually removed image: ",img) 
 
     ##################################################
     ##  a single NN trained across all SEARCH_FOR_CUBE runs.

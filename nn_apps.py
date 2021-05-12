@@ -20,12 +20,12 @@
 #      changes curr_nn_num based upon app's
 #         nn_upon_failure, nn_upon_success, automatic_mode
 # 
-# tabletop (tabletop_functional_nn.py)
+#  functional_app.py -> generalization of tabletop version
 #   self.NN[0-7] -> defines a SIRNN for each function performed
 #   knows number of NN to define
 #   knows actions for each NN
 #   knows/calls actual torch NN (SIRNN)
-#   defines flow between NN
+#   defines flow between NN in config file
 #    1. Park Arm
 #    2. Automatic scan for cube
 #    3. Approach cube
@@ -70,8 +70,10 @@ class nn_apps():
       self.func_flow_model = None
       self.dqn_policy = None
       self.action_set = self.cfg.full_action_set
+      self.curr_nn_name = None
       if sir_app_type == "FUNC":
         self.app_instance = sir_nn.SIRNN(sir_robot, self.action_set, self.nn_name, sir_app_type)
+        self.curr_nn_name = self.nn_name
       elif sir_app_type == "APP":
         [self.app_functions, self.func_flow_model] = self.cfg.get_value(self.cfg.app_registry, sir_app_name)
         self.app_instance = FunctionalApp(sir_robot, sir_app_name, sir_app_type)
@@ -85,7 +87,6 @@ class nn_apps():
       self.ready_for_frame = False
       self.frame = None
       self.robot = sir_robot
-      self.curr_nn_name = None
       self.auto_funcs = AutomatedFuncs(self.robot)
       self.nn_dir = None
 
@@ -144,11 +145,11 @@ class nn_apps():
         self.ready_for_frame = False
 
     # ARD: TODO: rename to set_action() to match current terminology
-    def set_function(self, func):
-        if func == None or func in self.action_set or func in ["ROBOT_OFF_TABLE_PENALTY", "CUBE_OFF_TABLE_REWARD", "PENALTY1", "REWARD1", "PENALTY2", "REWARD2"]:
-            self.function_name = func
+    def set_action(self, action):
+        if action == None or action in self.action_set or action in ["ROBOT_OFF_TABLE_PENALTY", "CUBE_OFF_TABLE_REWARD", "PENALTY1", "REWARD1", "PENALTY2", "REWARD2"]:
+            self.action_name = action
         else:
-            print("bad function name: %s" % func)
+            print("bad action name: %s" % action)
             return False
         return True
 
@@ -174,7 +175,7 @@ class nn_apps():
     # idempotent
     def nn_init(self):
       gather_mode = self.robot.get_gather_data_mode()
-      self.robot.gather_data.set_function(None)
+      self.robot.gather_data.set_action(None)
       # automatic_mode must be set to false until after the directories
       # are created.
       self.app_instance.nn_set_automatic_mode(False)
@@ -188,8 +189,8 @@ class nn_apps():
       return robot_action_dirs
 
     def nn_process_image(self):
-      if self.function_name in ["ROBOT_OFF_TABLE_PENALTY", "CUBE_OFF_TABLE_REWARD", "PENALTY1", "REWARD1", "PENALTY2", "REWARD2"]:
-          rew_pen = self.function_name
+      if self.action_name in ["ROBOT_OFF_TABLE_PENALTY", "CUBE_OFF_TABLE_REWARD", "PENALTY1", "REWARD1", "PENALTY2", "REWARD2"]:
+          rew_pen = self.action_name
       else:
           rew_pen = None
       if self.frame is None:
@@ -215,6 +216,7 @@ class nn_apps():
           self.curr_nn_name = self.nn_upon_reward(feedback)
           self.nn_init()
           return "REWARD1"
+      print("auto act", self.curr_nn_name, feedback)
       val,done = self.app_instance.nn_automatic_action(self.curr_nn_name, self.frame, feedback)
       if done:
           self.nn_upon_reward("REWARD1")
@@ -226,7 +228,8 @@ class nn_apps():
       return self.curr_nn_name
 
     def nn_upon_penalty(self, penalty):
-      self.curr_nn_name = self.app_instance.nn_upon_penalty(self.curr_nn_name, penalty)
+      # self.curr_nn_name = self.app_instance.nn_upon_penalty(self.curr_nn_name, penalty)
+      self.curr_nn_name = self.app_instance.nn_upon_penalty(penalty)
       self.nn_init()
       return self.curr_nn_name
 

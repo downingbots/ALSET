@@ -2,6 +2,7 @@ import numpy as np
 import cv2
 import math
 from config import *
+import time
 
 class AutomatedFuncs():
 
@@ -9,11 +10,12 @@ class AutomatedFuncs():
       self.cfg = Config()
       self.robot = sir_robot
       self.init()
-  
+
   def init(self):
       self.prev_frame = None
       self.curr_frame = None
       self.automatic_function_name = None
+      self.curr_function_name = None
       self.curr_automatic_action = None
       self.last_arm_action = None
       self.left_count = 0
@@ -33,6 +35,7 @@ class AutomatedFuncs():
       if (function_name != self.automatic_function_name):
         self.init()
       self.automatic_function_name = function_name
+      self.curr_function_name = self.automatic_function_name 
       # attr_lst = self.cfg.get_func_value(function_name, "ATTRIBUTES")
       # self.max_nonmovement_count = self.cfg.get_value(attr_lst, "MAX_NON_MOVEMENT")
       # print("Auto Func:", function_name, self.max_nonmovement_count)
@@ -85,18 +88,25 @@ class AutomatedFuncs():
       else: 
           self.curr_automatic_action = self.last_arm_action
       if self.curr_automatic_action != None:
-          print("nn_automatic_action: %s" % self.curr_automatic_action)
-      self.robot.gather_data.set_function(self.curr_automatic_action)
+          print("automatic_action: %s" % self.curr_automatic_action)
+      self.robot.gather_data.set_action(self.curr_automatic_action)
       return self.curr_automatic_action, done
 
   def quick_search(self):
       self.search_and_relocate = "QUICK_SEARCH"
+      # added delay to allow webcam to keep up but 
+      # sleep may have prevented "REWARD1" from getting through.
+      # time.sleep(0.75)
       done = False
-      if (self.rew_pen == "PENALTY1"):
+      if (self.rew_pen == "REWARD1"):
+         self.curr_automatic_action = "REWARD1"
+         done = True
+      elif (self.rew_pen == "PENALTY1"):
          return self.relocate()
-      self.curr_automatic_action = "LEFT"
-      self.left_count += 1
-      self.robot.gather_data.set_function(self.curr_automatic_action)
+      else:
+         self.curr_automatic_action = "LEFT"
+         self.left_count += 1
+      self.robot.gather_data.set_action(self.curr_automatic_action)
       print("quick_search action:", self.curr_automatic_action)
       return self.curr_automatic_action, done
 
@@ -107,7 +117,7 @@ class AutomatedFuncs():
          return self.quick_search()
       self.curr_automatic_action = "FORWARD"
       self.forward_count += 1
-      self.robot.gather_data.set_function(self.curr_automatic_action)
+      self.robot.gather_data.set_action(self.curr_automatic_action)
       print("quick_search action:", self.curr_automatic_action)
       return self.curr_automatic_action, done
 
@@ -205,119 +215,62 @@ class AutomatedFuncs():
   def park_arm_retracted(self, final_gripper_open=True):
       # determine state
       self.last_arm_action = self.curr_automatic_action
-      moved = self.optflow(self.prev_frame, self.curr_frame)
       done = False
-      print("moved:", moved)
       # this is designed to be 100% automatic, but background movement can cause problems
       # PENALTY1 is an error condition from the user saying "don't do that again"
-      if self.rew_pen == "PENALTY1":
-        if self.last_arm_action in ["UPPER_ARM_UP", "UPPER_ARM_DOWN"]:
-          self.upper_arm_count = self.max_nonmovement_count + 1
-        elif self.last_arm_action in ["LOWER_ARM_UP", "LOWER_ARM_DOWN"]:
-          self.lower_arm_count = self.max_nonmovement_count + 1
-        elif self.last_arm_action in ["GRIPPER_CLOSE", "GRIPPER_OPEN"]:
-          self.gripper_count = self.max_nonmovement_count + 1
-      elif not moved and self.last_arm_action in ["UPPER_ARM_UP", "UPPER_ARM_DOWN"]:
-        self.upper_arm_count += 1
-      elif not moved and self.last_arm_action in ["LOWER_ARM_UP", "LOWER_ARM_DOWN"]:
-        self.lower_arm_count += 1
-      elif not moved and self.last_arm_action in ["GRIPPER_CLOSE", "GRIPPER_OPEN"]:
-        self.gripper_count += 1
-      print("counts:", self.gripper_count, self.lower_arm_count, self.upper_arm_count)
-      if self.lower_arm_count > self.max_nonmovement_count:
-        lower_arm_done = True
-      else:
-        lower_arm_done = False
-      if self.upper_arm_count > self.max_nonmovement_count:
-        upper_arm_done = True
-      else:
-        upper_arm_done = False
+      if self.last_arm_action in ["GRIPPER_CLOSE", "GRIPPER_OPEN"]:
+        moved = self.optflow(self.prev_frame, self.curr_frame)
+        if not moved:
+          self.gripper_count += 1
+          print("gripper count:", self.gripper_count)
+        else:
+          self.gripper_count = 0  # require consecutive non-movements
       if self.gripper_count > self.max_nonmovement_count:
         gripper_done = True
       else:
         gripper_done = False
-      print("done  :", gripper_done, lower_arm_done, upper_arm_done)
 
+      print("phase:", self.phase)
       # determine next move
-      if gripper_done and lower_arm_done and upper_arm_done:
-        # All done
-        self.curr_automatic_action = None
-
-      elif self.phase == 0:
-        if gripper_done:
+      if self.phase == 0:
+        if gripper_done or not final_gripper_open:
           self.gripper_count = 0
           self.phase = 1
+          # phase count can be used by automatic functions in different ways
+          # such as counters within phases or across phases
+          self.phase_count = 0
         else:
           self.curr_automatic_action = "GRIPPER_CLOSE"
       elif self.phase == 1:
-        if upper_arm_done:
-          self.upper_arm_count = 0
+        if self.rew_pen == "PENALTY1":
+          self.phase_count = 0
+          self.phase = 3
+        elif self.phase_count >= 1:
+          self.phase_count = 0
           self.phase = 2
         else:
-          self.curr_automatic_action = "UPPER_ARM_UP"
-      elif self.phase == 2:
-        if upper_arm_done or self.phase_count >= 3:
-          self.upper_arm_count = 0
-          self.phase = 3
-          self.phase_count = 0
-        else:
-          # if stopped due to being stuck, unstick
+          self.curr_automatic_action = "LOWER_ARM_DOWN"
           self.phase_count += 1
-          self.curr_automatic_action = "UPPER_ARM_DOWN"
+      elif self.phase == 2:
+        if self.rew_pen == "PENALTY1":
+          self.phase_count = 0
+          self.phase = 3
+        elif self.phase_count >= 3:
+          self.phase_count = 0
+          self.phase = 1
+        else:
+          self.curr_automatic_action = "UPPER_ARM_UP"
+          self.phase_count += 1
       elif self.phase == 3:
-        if lower_arm_done:
-          self.lower_arm_count = 0
+        if gripper_done or not final_gripper_open:
+          self.gripper_count = 0
           self.phase = 4
         else:
-          self.curr_automatic_action = "LOWER_ARM_DOWN"
+          self.curr_automatic_action = "GRIPPER_OPEN"
       elif self.phase == 4:
-        if lower_arm_done or self.phase_count >= 3:
-          self.lower_arm_count = 0
-          self.phase = 5
-          self.phase_count = 0
-        else:
-          # if stopped due to being stuck, unstick
-          self.phase_count += 1
-          self.curr_automatic_action = "LOWER_ARM_UP"
-      elif self.phase == 5:
-        if upper_arm_done:
-          self.upper_arm_count = 0
-          self.phase = 6
-        else:
-          self.curr_automatic_action = "UPPER_ARM_UP"
-      elif self.phase == 6:
-        if gripper_done or not final_gripper_open:
-          self.upper_arm_count = 0
-          self.phase = 7
-        else:
-          self.curr_automatic_action = "GRIPPER"
-      elif self.phase == 7:
+        self.curr_automatic_action = "REWARD1"
         done = True
-        print("DONE!")
+        print("done park_arm_retracted")
 
-      self.robot.gather_data.set_function(self.curr_automatic_action)
+      self.robot.gather_data.set_action(self.curr_automatic_action)
       return self.curr_automatic_action, done
-
-#      elif not gripper_done and not lower_arm_done and not upper_arm_done:
-#        # First: close gripper
-#        self.curr_automatic_action = "GRIPPER_CLOSE"
-#      elif not lower_arm_done:
-#
-#      elif not lower_arm_done and not upper_arm_done:
-#        # Alternate between raising upper arm and lowering lower arm
-#        if self.last_arm_action == "LOWER_ARM_DOWN":
-#           self.curr_automatic_action = "UPPER_ARM_UP"
-#        elif self.last_arm_action == "UPPER_ARM_UP":
-#           self.curr_automatic_action = "LOWER_ARM_DOWN"
-#        else: 
-#           self.curr_automatic_action = "UPPER_ARM_UP"
-#      elif not lower_arm_done:
-#        self.gripper_count = 0  # gripper eligible to be closed next frame
-#        self.curr_automatic_action = "LOWER_ARM_DOWN"
-#      elif not upper_arm_done:
-#        self.gripper_count = 0  # gripper eligible to be closed next frame
-#        self.curr_automatic_action = "UPPER_ARM_UP"
-#      elif lower_arm_done and upper_arm_done and not gripper_done:
-#        # Last: open gripper
-#        self.curr_automatic_action = "GRIPPER_OPEN"
-

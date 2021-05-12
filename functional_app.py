@@ -12,6 +12,7 @@ class FunctionalApp():
       self.dsu = ds_utils.DatasetUtils(app_name, app_type)
       self.app_name = app_name
       self.app_type = app_type
+      self.app_ds_idx = self.dsu.dataset_indices(mode="APP", nn_name=self.app_name, position="NEW")
       self.cfg = Config()
       self.ff_nn_num = None
       self.curr_func_name = None
@@ -36,6 +37,7 @@ class FunctionalApp():
         [self.NN, self.app_flow_model] = val
         self.is_composite_app = True
       elif self.app_name in self.cfg.func_registry:
+          # not currently used
           self.NN = [self.app_name]
           self.app_flow_model = [
                [[],["START", 0]],
@@ -99,6 +101,7 @@ class FunctionalApp():
         if self.curr_func_name is None:
           # reset func flow
           [self.curr_func_name, rew_pen] = self.eval_func_flow_model(reward_penalty="REWARD1", init=True)
+          self.robot.gather_data.set_function_name(self.curr_func_name)
           print("curr_func_name:", self.curr_func_name)
           idx = self.func_names.index(self.curr_func_name)
           print("Current Phase: ", self.func_comment[idx])
@@ -156,7 +159,6 @@ class FunctionalApp():
                 break
               elif it1[2] in ["NEXT_WITH_REWARD1"]:
                 # print("AFM: NEXT WITH REW1")
-                self.ff_rew1_nn_num.append(ff_nn_num)
                 output_rew_pen = "REWARD1"
                 self.ff_nn_num += 1
                 break
@@ -189,9 +191,16 @@ class FunctionalApp():
         bg.append(it1)
     return bg
 
+  def new_nn(self, nn_name):
+      
+      self.app_ds_idx 
+      new_func_ds_idx = self.ds_util.dataset_indices(mode="FUNC", nn_name=self.nn_name, position="NEW")
+      self.robot.gather_data.set_ds_idx(new_func_ds_idx)
+
   def nn_upon_penalty(self, penalty):
       [NN_name, penalty] = self.eval_func_flow_model(penalty)
       self.curr_func_name = NN_name
+      self.robot.gather_data.set_function_name(self.curr_func_name)
       idx = self.func_names.index(self.curr_func_name)
       print("Current Phase: ", self.func_comment[idx])
       if self.func_automated[idx]:
@@ -203,7 +212,11 @@ class FunctionalApp():
 
   def nn_upon_reward(self, reward):
       [NN_name, reward] = self.eval_func_flow_model(reward)
+
+
+
       self.curr_func_name = NN_name
+      self.robot.gather_data.set_function_name(self.curr_func_name)
       idx = self.func_names.index(self.curr_func_name)
       print("Current Phase: ", self.func_comment[idx])
       if self.func_automated[idx]:
@@ -215,9 +228,9 @@ class FunctionalApp():
 
   def nn_process_image(self, NN_name = None, image=None, reward_penalty=None):
       # run NN
-      print("TT process_image %d" % NN_name)
+      print("TT process_image %s" % NN_name)
       # allow reward/penalty to be returned by NN by setting to non-None
-      return self.func.nn_process_image(NN_name = NN_name, image=image, reward_penalty=reward_penalty)
+      return self.func.nn_process_image(NN_name = self.curr_func_name, image=image, reward_penalty=reward_penalty)
 
   def nn_set_automatic_mode(self, TF):
       self.automatic_mode = TF

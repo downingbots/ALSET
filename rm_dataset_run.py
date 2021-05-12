@@ -2,7 +2,7 @@
 
 import sys
 
-from .dataset_utils import *
+from dataset_utils import *
 
 # print 'Number of arguments:', len(sys.argv), 'arguments.'
 # print 'Argument List:', str(sys.argv)
@@ -11,24 +11,32 @@ if str(sys.argv) == "--mode":
   position = "OLD"
 position = "NEW"
 mode = "DQN"
-if str(sys.argv[0]).startswith("--oldest_"):
-  position = "OLD"
-elif str(sys.argv[0]) == "--newest_":
-  position = "NEW"
-elif str(sys.argv[0]) == "--next_":
+if str(sys.argv[1]).startswith("--oldest_"):
+  position = "OLDEST"
+elif str(sys.argv[1]).startswith("--newest_"):
+  position = "NEWEST"
+elif str(sys.argv[1]).startswith("--next_"):
   position = "NEXT"
 else:
-  print("bad option:", str(sys.argv[0]))
+  print("bad option:", str(sys.argv[1]))
 nn_name = None
-if str(sys.argv[0]).endswith("app"):
-  mode = "app"
-  if len(sys.argv) != 2:
+if str(sys.argv[1]).endswith("app"):
+  mode = "APP"
+  if len(sys.argv) <= 3:
     print("missing nn_name: ", sys.argv)
-  nn_name = str(sys.argv[1])
-elif str(sys.argv[0]).endswith("func"):
-  mode = "func"
-elif str(sys.argv[0]).endswith("dqn"):
-  mode = "dqn"
+  nn_name = str(sys.argv[2])
+elif str(sys.argv[1]).endswith("func"):
+  mode = "FUNC"
+  if len(sys.argv) < 3:
+    print("missing nn_name: ", sys.argv)
+  nn_name = str(sys.argv[2])
+elif str(sys.argv[1]).endswith("dqn"):
+  mode = "DQN"
 else:
   print("bad option:", str(sys.argv))
-ds_util.remove_dataset_images(mode, nn_name, position)
+if str(sys.argv[len(sys.argv)-1]) == "--rm":
+  do_remove=True
+else:
+  do_remove=False
+
+ds_util.remove_dataset_images(mode, nn_name, position, do_remove)

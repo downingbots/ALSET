@@ -4,8 +4,11 @@ from dataset_utils import *
 class IsNewFile:
     def __init__(self):
         self.new_images = []
+        self.ds_idx = []
         self.nn_name = None
         self.ds_util = None
+        self.false_cnt = 0
+        self.true_cnt = 0
 
     def __call__(self, path):
         if self.nn_name is None:
@@ -20,12 +23,28 @@ class IsNewFile:
               print("nn_name:", self.nn_name)
               self.ds_util = DatasetUtils(self.nn_name, "FUNC")
               break
-          self.new_images,idx_list = self.ds_util.get_dataset_images(mode="FUNC", nn_name=self.nn_name, position="NEXT")
+          self.new_images,self.ds_idx = self.ds_util.get_dataset_images(mode="FUNC", nn_name=self.nn_name, position="NEXT")
           print("num new_images:", len(self.new_images))
+          # print("new_images:", self.new_images)
           self.new_images = tuple(self.new_images)
         if path in self.new_images:
+#          print("ds_idx:", self.ds_idx)
+#          for directory, num_images in self.idx_file:
+#            print("directory, path:", directory, path)
+#            if directory == path:
+#              if num_images == 0:
+#                print("filtering empty directory from valid files:", path)
+#                return False
+#              print("non-empty directory is valid:", path)
+#              break
+          self.true_cnt += 1
           return True
         else:
+          # print(path)
+          self.false_cnt += 1
+          if self.false_cnt % 10 == 0:
+              print("count False, True", self.false_cnt , self.true_cnt, path)
+          # print("False path:", path)
           return False
 
 
@@ -58,10 +77,11 @@ class ImageFolder2(datasets.ImageFolder):
         if self.app_type == "FUNC":
             self.app_name = None
             self.nn_name = app_name
+            self.ds_util = DatasetUtils(self.nn_name, self.app_type)
         else:
             self.app_name = app_name
             self.nn_name = None
-        self.ds_util = DatasetUtils(self.app_name, self.app_type)
+            self.ds_util = DatasetUtils(self.app_name, self.app_type)
         # From original code:
         # self.classes = [d.name for d in os.scandir(dir) if d.is_dir()]
         # self.classes.sort()
@@ -78,23 +98,34 @@ class ImageFolder2(datasets.ImageFolder):
           old_class_to_idx = self.class_to_idx
           print("old:", old_class_to_idx)
 
-        print("calling super(ImageFolder2)")
+        # print("calling super(ImageFolder2)")
+        # if True:
+        #   print("ARD: find exception calling super(ImageFolder2)")
+        #   File "/usr/local/lib/python3.6/dist-packages/torchvision-0.4.0a0+d31eafa-py3.6-linux-aarch64.egg/torchvision/datasets/folder.py", line 97, in __init__
+        # TypeError: can only join an iterable
+        # 
+        # Misleading error:
+        # If you make an Imagefolder dataset with no samples in the directory and a is_valid_file. 
+        # Because the extensions variable is set to none 
+        # because is_valid_file which causes the TypeError.
+        #if True:
         try:
           if only_new_images is not None and only_new_images:
-            print("only new images")
+            print("only new images", root)
             super(ImageFolder2, self).__init__(root, 
-                                          # loader
-                                          # IMG_EXTENSIONS if is_valid_file is None else None,
                                           transform=transform,
                                           target_transform=target_transform,
                                           is_valid_file=IsNewFile())
           else:
+            print("all images: ", root, is_valid_file)
             super(ImageFolder2, self).__init__(root, transform=transform,
                                           target_transform=target_transform,
                                           is_valid_file=is_valid_file)
-        except:
+        # else:
+        except Exception as e:
           self.imgs = []
-          print("exception calling super(ImageFolder2)")
+          # print("exception calling super(ImageFolder2):", e.message)
+          print("exception calling super(ImageFolder2):", e)
           return 
         self.imgs = self.samples
         print("Number of images:", len(self.imgs))
@@ -109,7 +140,7 @@ class ImageFolder2(datasets.ImageFolder):
 
         if only_new_images is not None and only_new_images:
           # new_images = ds_util.new_images(root)
-          new_images,idx_list = self.ds_util.get_dataset_images(mode="FUNC", nn_name=self.nn_name, position="NEXT")
+          new_images,ds_idx = self.ds_util.get_dataset_images(mode="FUNC", nn_name=self.nn_name, position="NEXT")
 
           img_lst = []
           for i, [image_path, old_class_index] in enumerate(self.imgs): 
@@ -120,7 +151,7 @@ class ImageFolder2(datasets.ImageFolder):
           print("original number of images in dataset:", len(self.imgs))
           print("number of new images in dataset     :", len(img_lst))
           print("number of new images in dataset idx :", len(new_images))
-          print("idx_list:", idx_list)
+          print("ds_idx:", ds_idx)
           # if len(img_lst) == 0:
           #   print("self.imgs:", self.imgs)
           #   print("new_imgs: ", new_images)

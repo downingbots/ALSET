@@ -43,9 +43,10 @@ class Robot(SingletonConfigurable):
           self.app_name  = args['--app'] 
           val = self.cfg.get_value(self.cfg.app_registry, self.app_name)
           if val is None:
-            print("Function name not found: ", self.app_name)
-            print("Known function names: ", self.cfg.app_registry)
-            exit()
+            if self.app_name not in self.cfg.func_registry:
+              print("Function name not found: ", self.app_name)
+              print("Known function names: ", self.cfg.app_registry)
+              exit()
           self.app_type  = "APP"
         elif args['--dqn']:
           self.app_name  = args['--dqn']
@@ -112,7 +113,7 @@ class Robot(SingletonConfigurable):
         elif self.NN_apps.app_type in ["APP", "FUNC"] and self.get_NN_mode() == "NN":
             pass
         elif self.gather_data.is_on():
-            self.gather_data.set_function("FORWARD")
+            self.gather_data.set_action("FORWARD")
             self.sir_robot.drive_forward(speed)
         else:
             self.sir_robot.drive_forward(speed)
@@ -123,7 +124,7 @@ class Robot(SingletonConfigurable):
         elif self.NN_apps.app_type in ["APP", "FUNC"] and self.get_NN_mode() == "NN":
             pass
         elif self.gather_data.is_on():
-            self.gather_data.set_function("REVERSE")
+            self.gather_data.set_action("REVERSE")
             self.sir_robot.drive_reverse(speed)
         else:
             self.sir_robot.drive_reverse(speed)
@@ -134,7 +135,7 @@ class Robot(SingletonConfigurable):
         elif self.NN_apps.app_type in ["APP", "FUNC"] and self.get_NN_mode() == "NN":
             pass
         elif self.gather_data.is_on():
-            self.gather_data.set_function("LEFT")
+            self.gather_data.set_action("LEFT")
             self.sir_robot.drive_rotate_left(speed)
         else:
             self.sir_robot.drive_rotate_left(speed)
@@ -142,16 +143,16 @@ class Robot(SingletonConfigurable):
     def right(self, speed=1.0):
         if self.NN_apps.app_type == "DQN" and self.gather_data.is_on():
             pass
-        elif self.NN_apps.app_tpe in ["APP", "FUNC"] and self.get_NN_mode() == "NN":
+        elif self.NN_apps.app_type in ["APP", "FUNC"] and self.get_NN_mode() == "NN":
             pass
         elif self.gather_data.is_on():
-            self.gather_data.set_function("RIGHT")
+            self.gather_data.set_action("RIGHT")
             self.sir_robot.drive_rotate_right(speed)
         else:
             self.sir_robot.drive_rotate_right(speed)
 
     def stop(self):
-        self.gather_data.set_function(None)
+        self.gather_data.set_action(None)
         self.sir_robot.drive_stop()
 
     def upper_arm(self,direction):
@@ -160,11 +161,11 @@ class Robot(SingletonConfigurable):
         elif self.NN_apps.app_type in ["APP", "FUNC"] and self.get_NN_mode() == "NN":
             pass
         elif direction == "STOP":
-          self.gather_data.set_function(None)
+          self.gather_data.set_action(None)
           self.sir_robot.upper_arm(direction)
         else:
           self.sir_robot.upper_arm(direction)
-          self.gather_data.set_function("UPPER_ARM_" + direction)
+          self.gather_data.set_action("UPPER_ARM_" + direction)
 
     def lower_arm(self,direction):
         if self.NN_apps.app_type == "DQN" and self.gather_data.is_on():
@@ -172,10 +173,10 @@ class Robot(SingletonConfigurable):
         elif self.NN_apps.app_type in ["APP", "FUNC"] and self.get_NN_mode() == "NN":
             pass
         elif direction == "STOP":
-          self.gather_data.set_function(None)
+          self.gather_data.set_action(None)
           self.sir_robot.lower_arm(direction)
         else:
-          self.gather_data.set_function("LOWER_ARM_" + direction)
+          self.gather_data.set_action("LOWER_ARM_" + direction)
           self.sir_robot.lower_arm(direction)
 
     def wrist(self,direction):
@@ -187,18 +188,18 @@ class Robot(SingletonConfigurable):
         elif self.NN_apps.app_type in ["APP", "FUNC"] and self.get_NN_mode() == "NN":
             pass
         elif direction == "STOP":
-          self.gather_data.set_function(None)
+          self.gather_data.set_action(None)
           self.sir_robot.gripper(direction)
         else:
-          self.gather_data.set_function("GRIPPER_" + direction)
+          self.gather_data.set_action("GRIPPER_" + direction)
           self.sir_robot.gripper(direction)
 
     def reward(self):
-        self.gather_data.set_function("REWARD1")
+        self.gather_data.set_action("REWARD1")
         self.sir_robot.stop_all()
 
     def penalty(self):
-        self.gather_data.set_function("PENALTY1")
+        self.gather_data.set_action("PENALTY1")
         self.sir_robot.stop_all()
 
     # gather data / teleop mode
@@ -216,19 +217,22 @@ class Robot(SingletonConfigurable):
 
     # ARD: need to clean up now that generalized beyond TableTop
     def robot_off_table_penalty(self):
-        # self.gather_data.set_function("ROBOT_OFF_TABLE_PENALTY")
-        self.gather_data.set_function("PENALTY2")
+        # self.gather_data.set_action("ROBOT_OFF_TABLE_PENALTY")
+        self.gather_data.set_action("PENALTY2")
         self.sir_robot.stop_all()
 
     def cube_off_table_reward(self):
-        # self.gather_data.set_function("CUBE_OFF_TABLE_REWARD")
-        self.gather_data.set_function("PENALTY2")
+        # self.gather_data.set_action("CUBE_OFF_TABLE_REWARD")
+        self.gather_data.set_action("PENALTY2")
         self.sir_robot.stop_all()
 
     def get_NN_mode(self):
         return self.NN_apps.get_nn_mode()
 
     # webcam integration
+    def get_ds_idx(self):
+        return self.gather_data.get_ds_idx()
+
     def ready_for_capture(self):
         return self.NN_apps.ready_for_capture()
 

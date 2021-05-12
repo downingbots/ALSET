@@ -21,6 +21,7 @@ class SIRNN():
         self.robot = sir_robot
         self.app_name = None
         self.nn_name = nn_name
+        self.app_name = nn_name
         self.app_type = app_type
         self.device = None
         self.model = None
@@ -30,6 +31,8 @@ class SIRNN():
         self.joystick_actions = ["REWARD","PENALTY"]
         self.dsu = DatasetUtils(self.app_name, self.app_type, self.nn_name)
         self.cfg = Config()
+        self.automatic_mode = False
+        self.auto_func = None
 
     def nn_init(self, gather_mode=False):
         self.model = torchvision.models.alexnet(pretrained=True)
@@ -51,7 +54,10 @@ class SIRNN():
         self.dsu.mkdirs(robot_dirs)
         print("nn_init: " , robot_dirs)
         # Class can be used as a single-NN app that can do any action
-        return False, self.cfg.full_action_set
+        if self.is_automated_function():
+          self.auto_func = AutomatedFuncs(self.robot)
+          self.auto_func.set_automatic_function(self.nn_name)
+        return self.is_automated_function(), self.cfg.full_action_set
 
     def preprocess(self, camera_value):
          global device, normalize
@@ -68,7 +74,7 @@ class SIRNN():
          x = x[None, ...]
          return x
 
-    def nn_process_image(self, NN_num = 0, image=None, reward_penalty=None):
+    def nn_process_image(self, NN_name=None, image=None, reward_penalty=None):
         # if image == None:
         if image is None:
           print("NN process image None")
@@ -139,20 +145,37 @@ class SIRNN():
 #            time.sleep(0.08)
 #            self.robot.stop()
       
+    def is_automated_function(self):
+        try:
+          idx1 = self.cfg.func_registry.index(self.nn_name)
+          for [func,parent_func] in self.cfg.func_automated:
+            if func == self.nn_name:
+              print("is_automated_func True")
+              return True
+          print("is_automated_func False")
+          return False
+        except:
+          print("is_automated_func False")
+          return False
+
     def nn_set_automatic_mode(self, TF):
-        pass
+        if not self.is_automated_function:
+          print("not an automated function: ", self.nn_name)
+          exit()
+        self.automatic_mode = TF
 
     def nn_automatic_mode(self):
-        return False
+        return self.automatic_mode
 
-    def nn_automatic_action(self, NN_num, feedback):
-        pass
-
-    def nn_before_action_callback(self, NN_num, feedback):
-        return None
+    def nn_automatic_action(self, NN_name, frame, feedback):
+        if not self.is_automated_function():
+          print("not an automated function: ", NN_name)
+          exit()
+        return self.auto_func.automatic_function(frame, feedback)
 
     def nn_upon_penalty(self, penalty):
-        exit()
+        # goto teleop mode
+        self.nn_set_automatic_mode(False)
 
     def nn_upon_reward(self, reward):
         exit()
@@ -164,17 +187,12 @@ class SIRNN():
     # Use a split of the data so that we know the test accuracy.
     # This test accuracy might help with determining whether there is enough
     # data for TT_DQN.
-    #
-    # Always trains from the full dataset from scratch. Only DQN starts from where
-    # it left off.
     def train(self, dataset_root_list=None, best_model_path=None, full_action_set=None, noop_remap=None, only_new_images=True):
         # nn.py is a primitive NN that can be used by higher layers like tabletop_func_app.
         # Set default parameters if unset by caller
         if dataset_root_list is None:
           # num_NN = self.cfg.func_registry.index(self.app_name)
           dataset_root_list = []
-          # for nn_num in range(1, len(self.cfg.func_registry)+1):
-          # dsp = self.dsu.dataset_path("FUNC", app_name, nn_name, nn_num)
           dsp = self.dsu.dataset_path("FUNC", self.nn_name)
           dataset_root_list.append(dsp)
         best_model = self.dsu.best_model("FUNC", self.nn_name)

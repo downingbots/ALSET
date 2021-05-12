@@ -233,7 +233,7 @@ class SIR_control:
            self.curr_pin_io_val = self.ALL_FUNC
            self.switch_exec(exec_next_pulse=False)
            # restore state for next pulse
-           if self._driver.gather_data.function_name != None or process_image:
+           if self._driver.gather_data.action_name != None or process_image:
              if take_picture:
                # take picture and collect data
                action = self._driver.gather_data.save_snapshot(process_image)
@@ -243,21 +243,25 @@ class SIR_control:
                print("command: ", action)
                self.execute_command(action)
              self.switch_exec(exec_next_pulse=True)
-           elif self._driver.gather_data.function_name == None:
-             print("None function_name")
+           elif self._driver.gather_data.action_name == None:
+             print("None action_name")
 
   def handle_pulse(self, pulse_num, process_image):
         all_on = self.ALL_FUNC
         functions_not_stopped = all_on ^ self.curr_pin_io_val
-        print("active pins, pulse_num:", self._driver.gather_data.function_name,
-              bin(functions_not_stopped)[2:].zfill(8), pulse_num)
-        if (pulse_num+1) % 5 == 2:
+        # print("active pins, pulse_num:", self._driver.gather_data.action_name,
+        #       bin(functions_not_stopped)[2:].zfill(8), pulse_num)
+        if ((self._driver.gather_data.is_on() and
             # next pulse: essentially everything is half speed during data collection
+            divisor = 10
+        else:
+            divisor = 5
+        if (pulse_num+1) % divisor == 2:
             print("take snapshot, process image, store image:", process_image)
             self.pwm_stop(take_picture = True, process_image = process_image)
             # action(state) -> next state
             return
-        elif (pulse_num+1) % 5 == 0:
+        elif (pulse_num+1) % divisor == 0:
             self.switch_exec(exec_next_pulse=False)
         return
 
@@ -280,11 +284,10 @@ class SIR_control:
        # if gather data mode and automatic Function 
        (self._driver.gather_data.is_on() and self._driver.NN_apps.nn_automatic_mode())):
         print("auto or nn mode")
-        if self._driver.gather_data.function_name in ["REWARD1", "PENALTY1", "REWARD2", "PENALTY2"]:
-           print("func:",self._driver.gather_data.function_name)
+        if self._driver.gather_data.action_name in ["REWARD1", "PENALTY1", "REWARD2", "PENALTY2"]:
+           print("func:",self._driver.gather_data.action_name)
            self.stop_all(execute_immediate=True)
            self._driver.gather_data.save_snapshot(process_image = True)
-           self._driver.gather_data.save_snapshot(take_picture = True, process_image = True)
            return
         self.handle_pulse(pulse_num, process_image=True)
         return
@@ -292,22 +295,22 @@ class SIR_control:
     #########################################
     # if gather data mode, do simplified non-pwm processing
     #########################################
-    elif self._driver.gather_data.is_on() and self._driver.gather_data.function_name != None:
+    elif self._driver.gather_data.is_on() and self._driver.gather_data.action_name != None:
         print("teleop gather mode")
-        # gather data, not automatic mode, function name provided by joystick
-        if self._driver.gather_data.function_name in ["REWARD1", "REWARD2"]:
+        # gather data, not automatic mode, action provided by joystick
+        if self._driver.gather_data.action_name in ["REWARD1", "REWARD2"]:
            print("nn_upon_reward")
            self.stop_all(execute_immediate=True)
-           # self._driver.gather_data.set_function("REWARD")
+           # self._driver.gather_data.set_action("REWARD")
            self._driver.gather_data.save_snapshot()
-           self._driver.NN_apps.nn_upon_reward(self._driver.gather_data.function_name)
+           self._driver.NN_apps.nn_upon_reward(self._driver.gather_data.action_name)
            return
-        elif self._driver.gather_data.function_name in ["PENALTY1", "PENALTY2"]:
+        elif self._driver.gather_data.action_name in ["PENALTY1", "PENALTY2"]:
            print("nn_upon_penalty")
            self.stop_all(execute_immediate=True)
-           # self._driver.gather_data.set_function("PENALTY")
+           # self._driver.gather_data.set_action("PENALTY")
            self._driver.gather_data.save_snapshot()
-           self._driver.NN_apps.nn_upon_penalty(self._driver.gather_data.function_name)
+           self._driver.NN_apps.nn_upon_penalty(self._driver.gather_data.action_name)
            return
         self.handle_pulse(pulse_num, process_image=False)
         return
