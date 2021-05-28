@@ -47,7 +47,7 @@ The Sharper Image robot was hacked as followed:
    - the RC control uses Tri-state logic on 6 pins.
    - The expansion board uses I2C to communicate with the Jetson Development board
    - The expansion board is connected to the RC control via wires
- - It is powered by a mongo BONAI 5.6A battery pack. 
+ - It is powered by a mongo BONAI 5.6A battery pack, but smaller 5.6A battery packs also work.
  - Logitech gamepad joystick communicates with the jetson to provide more sophisticated and specialized RC control.
 
 The code started with the Jetson Notebook tutorial on Obstacle avoidance, but was changed 
@@ -137,8 +137,8 @@ It's relatively easy to add other apps because the training
 is done via teleop.  It's a matter of defining and hooking together
 the different functions to train the NNs on and defining the DQN
 compute_reward() policies.  You can also add "automatic mode" NNs
-to assist in training, as is done for the "scan for cube" and 
-"scan for box" NNs.
+to assist in training, as is done for the "Park Arm Retracted", 
+"scan for cube" and "scan for box" NNs.
 
 The DQN tabletop reward policies are defined in compute_reward().
 Basically, the rewards are for picking up the cube, dropping the
@@ -171,7 +171,8 @@ I made a simple cheap press-board harness glued to wooden right-angle brackets s
 
 Put the fan and wifi on the nano.
 
-Take apart the joystick RC controller for the robot. Take out the board. Solder wires to the other side of the buttons up/down on the board. Also, solder the positive voltage. Also solder the 9 volt battery connector to the 9volt wires that are integrated into the plastic controller.  The RC controller is the key to the integration with the toy and the Nano to provide simple autonomy.  As long as you can do similar soldering to a different toy's joystick, you can use much of the same code and board layout for a toy crane, excavator, bulldozer, etc.  The fact that the joystick was a simple up/down set of switches (with no speed control) makes the joystick easier to integrate.
+Take apart the joystick RC controller for the robot. Take out the board. Solder wires to the other side of the buttons up/down on the board. Also, solder the positive voltage. Also solder the 9 volt battery connector to the 9volt wires that are integrated into the plastic controller.  The RC controller is the key to the integration with the toy and the Nano to provide simple autonomy.  As long as you can do similar soldering to a different toy's joystick, you can use much of the same code and board layout for a toy crane, excavator, bulldozer, etc.  The fact that the joystick was a simple up/down set of switches (with no speed control) makes the joystick easier to integrate.  We purchased an excavator and verified that the joystick 
+was also a set of simple up/down switcheds.
 
 The other side of the joystick wires go to the MCP23017.
 
@@ -236,8 +237,14 @@ Training should automatically be done at the end of every run.  New data gathere
 from the DQN app will be automatically processed at the beginning of every
 run.  So, there's no reason to explicitly train the DQN app as it does automated
 incremental training.
+                
+The replay buffer in DQN allows random samples from the buffer to be used for
+training multiple times.  The following command constructs a random set of the
+app functions to form an artificial application run for DQN:
+                
+                python3 ./mk_rand_func_idx.py --app TT
 
-The FUNC and TT APP are also trained incrementally and require training
+The FUNC, TT APP, TT RAND are trained incrementally and require training
 by executing sir_jetbot_train.py as discussed below.  All three
 app types (FUNC, APP, and DQN) use the FUNC app to gather data and will be
 trained from the FUNC data. 
@@ -327,7 +334,7 @@ don't have to train from scratch each time, which is very time consuming.
 
 The key infrastructure is working. There's many directions that we can go from here. Each of the following aren't very hard for me to implement on top of the existing infrastructure. If you are interested in any of these (or other suggestions), contact me via my downingbots gmail:
  - Define single-level NN that provide specific named functionality (line following, stay-on-table). Currently possible with some file-copying of NN or training data in the current code. The idea is to expose this functionality.
- - Allow simple linking together of the functional NN to define an app. Currently, this functionality is available via straight-forward coding of a TT_FUNC-like application. The idea is to replace an hour's worth of coding with some declarative or graphical approach.
+ - Provide a graphical interface to do simple linking together of the functional NN to define an app. Currently, this functionality is available via declarative definition in config.py. 
  - Associate Fiducials with the NN functionalities. When the fiducial is seen, launch a new functional NN or assign a reward/penalty for reinforcement learning.  Maybe do line-following to go from fiducial to fiducial.
  - Generalize to other analogous "platforms" like a bulldozer, an excavator, a dump truck, etc.
  - Generalize to more dissimilar platforms like a hexipod that I've previously competed at the April 2018 Robogames tabletop and obstacle challenges.
