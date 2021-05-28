@@ -244,14 +244,14 @@ class SIR_control:
                self.execute_command(action)
              self.switch_exec(exec_next_pulse=True)
            elif self._driver.gather_data.action_name == None:
-             print("None action_name")
+             print("None action_name", self._driver.gather_data.nn_name)
 
   def handle_pulse(self, pulse_num, process_image):
         all_on = self.ALL_FUNC
         functions_not_stopped = all_on ^ self.curr_pin_io_val
         # print("active pins, pulse_num:", self._driver.gather_data.action_name,
         #       bin(functions_not_stopped)[2:].zfill(8), pulse_num)
-        if ((self._driver.gather_data.is_on() and
+        if self._driver.gather_data.is_on():
             # next pulse: essentially everything is half speed during data collection
             divisor = 10
         else:

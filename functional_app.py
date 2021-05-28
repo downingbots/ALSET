@@ -198,6 +198,7 @@ class FunctionalApp():
       self.robot.gather_data.set_ds_idx(new_func_ds_idx)
 
   def nn_upon_penalty(self, penalty):
+      print("######################################")
       [NN_name, penalty] = self.eval_func_flow_model(penalty)
       self.curr_func_name = NN_name
       self.robot.gather_data.set_function_name(self.curr_func_name)
@@ -211,10 +212,13 @@ class FunctionalApp():
       return NN_name
 
   def nn_upon_reward(self, reward):
+      print("######################################")
       [NN_name, reward] = self.eval_func_flow_model(reward)
-
-
-
+      if NN_name is None:
+          # complete APP_IDX entry
+          self.robot.gather_data.set_function_name("DUMMY_IDX")
+          print("DONE!")
+          exit()
       self.curr_func_name = NN_name
       self.robot.gather_data.set_function_name(self.curr_func_name)
       idx = self.func_names.index(self.curr_func_name)
@@ -230,7 +234,7 @@ class FunctionalApp():
       # run NN
       print("TT process_image %s" % NN_name)
       # allow reward/penalty to be returned by NN by setting to non-None
-      return self.func.nn_process_image(NN_name = self.curr_func_name, image=image, reward_penalty=reward_penalty)
+      return self.func_app_function.nn_process_image(NN_name = self.curr_func_name, image=image, reward_penalty=reward_penalty)
 
   def nn_set_automatic_mode(self, TF):
       self.automatic_mode = TF
@@ -242,9 +246,11 @@ class FunctionalApp():
       if self.nn_automatic_mode:
         # automatic_function(self, frame, reward_penalty):
         idx = self.func_names.index(self.curr_func_name)
-        [parent_action_func] = self.func_automated[idx]
-        print("auto_action: ", NN_name, reward_penalty, self.curr_func_name, parent_action_func)
-        self.auto_func.set_automatic_function(parent_action_func)
+        # [parent_action_func] = self.func_automated[idx]
+        # print("auto_action: ", NN_name, reward_penalty, self.curr_func_name, parent_action_func)
+        print("auto_action: ", NN_name, reward_penalty, self.curr_func_name)
+        # self.auto_func.set_automatic_function(parent_action_func)
+        self.auto_func.set_automatic_function(self.curr_func_name)
         val,done = self.auto_func.automatic_function(image, reward_penalty)
         print("auto_action val: ", val)
         return val,done

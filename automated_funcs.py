@@ -9,6 +9,7 @@ class AutomatedFuncs():
   def __init__(self, sir_robot):
       self.cfg = Config()
       self.robot = sir_robot
+      self.quick_search_variations = ["QUICK_SEARCH_FOR_CUBE","QUICK_SEARCH", "QUICK_SEARCH_FOR_BOX_WITH_CUBE", "QUICK_SEARCH_AND_RELOCATE"]
       self.init()
 
   def init(self):
@@ -49,12 +50,10 @@ class AutomatedFuncs():
       self.rew_pen = reward_penalty
       if self.automatic_function_name == "HIGH_SLOW_SEARCH":
         return self.high_slow_search()
-      elif self.automatic_function_name == "QUICK_SEARCH":
+      elif self.automatic_function_name in self.quick_search_variations:
         return self.quick_search()
       elif self.automatic_function_name == "RELOCATE":
         return self.relocate()
-      elif self.automatic_function_name == "QUICK_SEARCH_AND_RELOCATE":
-        return self.quick_search()
       elif self.automatic_function_name == "PARK_ARM_RETRACTED":
         return self.park_arm_retracted()
       elif self.automatic_function_name == "PARK_ARM_RETRACTED_WITH_CUBE":
@@ -230,47 +229,58 @@ class AutomatedFuncs():
       else:
         gripper_done = False
 
-      print("phase:", self.phase)
-      # determine next move
-      if self.phase == 0:
-        if gripper_done or not final_gripper_open:
-          self.gripper_count = 0
-          self.phase = 1
-          # phase count can be used by automatic functions in different ways
-          # such as counters within phases or across phases
-          self.phase_count = 0
-        else:
-          self.curr_automatic_action = "GRIPPER_CLOSE"
-      elif self.phase == 1:
-        if self.rew_pen == "PENALTY1":
-          self.phase_count = 0
-          self.phase = 3
-        elif self.phase_count >= 1:
-          self.phase_count = 0
-          self.phase = 2
-        else:
-          self.curr_automatic_action = "LOWER_ARM_DOWN"
-          self.phase_count += 1
-      elif self.phase == 2:
-        if self.rew_pen == "PENALTY1":
-          self.phase_count = 0
-          self.phase = 3
-        elif self.phase_count >= 3:
-          self.phase_count = 0
-          self.phase = 1
-        else:
-          self.curr_automatic_action = "UPPER_ARM_UP"
-          self.phase_count += 1
-      elif self.phase == 3:
-        if gripper_done or not final_gripper_open:
-          self.gripper_count = 0
-          self.phase = 4
-        else:
-          self.curr_automatic_action = "GRIPPER_OPEN"
-      elif self.phase == 4:
-        self.curr_automatic_action = "REWARD1"
-        done = True
-        print("done park_arm_retracted")
+      go_again = True
+      while go_again:
+        go_again = False
+        done = False
+        print("phase:", self.phase)
+        # determine next move
+        if self.phase == 0:
+          if gripper_done or not final_gripper_open:
+            self.gripper_count = 0
+            self.phase = 1
+            # phase count can be used by automatic functions in different ways
+            # such as counters within phases or across phases
+            self.phase_count = 0
+            go_again = True
+          else:
+            self.curr_automatic_action = "GRIPPER_CLOSE"
+        elif self.phase == 1:
+          if self.rew_pen == "PENALTY1":
+            self.phase_count = 0
+            self.phase = 3
+            go_again = True
+          elif self.phase_count >= 1:
+            self.phase_count = 0
+            self.phase = 2
+            go_again = True
+          else:
+            self.curr_automatic_action = "LOWER_ARM_DOWN"
+            self.phase_count += 1
+        elif self.phase == 2:
+          if self.rew_pen == "PENALTY1":
+            self.phase_count = 0
+            self.phase = 3
+            go_again = True
+          elif self.phase_count >= 3:
+            self.phase_count = 0
+            self.phase = 1
+            go_again = True
+          else:
+            self.curr_automatic_action = "UPPER_ARM_UP"
+            self.phase_count += 1
+        elif self.phase == 3:
+          print("R,D,O:", self.rew_pen, gripper_done, final_gripper_open)
+          if self.rew_pen == "REWARD1" or gripper_done or not final_gripper_open:
+            self.gripper_count = 0
+            self.phase = 4
+            go_again = True
+          else:
+            self.curr_automatic_action = "GRIPPER_OPEN"
+        elif self.phase == 4:
+          self.curr_automatic_action = "REWARD1"
+          done = True
+          print("done park_arm_retracted")
 
       self.robot.gather_data.set_action(self.curr_automatic_action)
       return self.curr_automatic_action, done

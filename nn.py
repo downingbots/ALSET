@@ -28,7 +28,7 @@ class SIRNN():
         self.optimizer = None
         self.outputs = outputs   # outputs may be much smaller than full_action_set for a function
         self.num_outputs = len(outputs)
-        self.joystick_actions = ["REWARD","PENALTY"]
+        # self.joystick_actions = ["REWARD","PENALTY"]
         self.dsu = DatasetUtils(self.app_name, self.app_type, self.nn_name)
         self.cfg = Config()
         self.automatic_mode = False

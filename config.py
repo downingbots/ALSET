@@ -1,3 +1,5 @@
+import copy
+
 class Config():
     def __init__(self):
       ###################################
@@ -13,6 +15,7 @@ class Config():
       # via a NN.
       self.robot_actions = self.base_actions + self.arm_actions
       self.joystick_actions  = ["REWARD1", "REWARD2", "PENALTY1", "PENALTY2"]
+      self.nn_disallowed_actions = ["REWARD1", "REWARD2", "PENALTY1", "PENALTY2", "WRIST_ROTATE_LEFT", "WRIST_ROTATE_RIGHT"]
       self.full_action_set = self.robot_actions + self.joystick_actions
       self.full_action_set.sort()
       self.full_action_set = tuple(self.full_action_set)
@@ -108,10 +111,10 @@ class Config():
 
       self.func_movement_restrictions = [
                              ["PARK_ARM_RETRACTED", self.arm_actions_no_wrist],
-                             ["SEARCH_AND_RELOCATE_FOR_CUBE", self.base_actions],
-                             ["GOTO_OBJECT", self.base_actions],
+                             ["QUICK_SEARCH_FOR_CUBE", self.base_actions],
+                             ["GOTO_CUBE", self.base_actions],
                              ["PICK_UP_CUBE", self.robot_actions],
-                             ["SEARCH_AND_RELOCATE_FOR_BOX_WITH_CUBE", self.base_actions],
+                             ["QUICK_SEARCH_FOR_BOX_WITH_CUBE", self.base_actions],
                              ["GOTO_BOX_WITH_CUBE", self.base_actions],
                              ["DROP_CUBE_IN_BOX", self.robot_actions],
                              ["STAY_ON_TABLE", ["LEFT"]]
@@ -268,7 +271,7 @@ class Config():
             [[1], ["IF", "PENALTY1", [0]]],
             ]
 
-      self.TTT_DQN_policy = self.TT_DQN_policy
+      self.TTT_DQN_policy = copy.deepcopy(self.TT_DQN_policy)
       self.TTT_DQN_policy[0] = ["DQN_REWARD_PHASES", [[100,   400]]]  # replace
 
       # for composite apps, key-value pirs

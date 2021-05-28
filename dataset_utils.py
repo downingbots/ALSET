@@ -3,98 +3,27 @@
 #
 ##############
 ##################################################
-# NN mode:
-#
-# ./apps/NN/NN_SEARCH_FOR_CUBE_MODEL.pth
-##  a single NN trained across all SEARCH_FOR_CUBE runs.
-#
-# ./apps/NN/dataset/SEARCH_FOR_CUBE/LOWER_ARM_DOWN/a1099b28-4334-11eb-8cce-3413e860d1ff.jpg
-##  the dataset repository for an atomic NN / autonomous action.
-#
-# ./apps/NN/dataset_indexes/SEARCH_FOR_CUBE_NN_IDX_YY_MM_DDa.txt
-##  contains lines like (when run in TT_FUNC or NN modes only):
-##  18:31:28 ./apps/NN/dataset/SEARCH_FOR_CUBE/LOWER_ARM_DOWN/a1099b28-4334-11eb-8cce-3413e860d1ff.jpg
-#  
-# ./apps/NN/dataset_indexes/NN_SEARCH_FOR_CUBE_IDX_PROCESSED.txt
-##  ./apps/NN/dataset_indexes/NN_SEARCH_FOR_CUBE_IDX_YY_MM_DDa.txt
-#
-##################################################
 # FUNC mode:
 #
-# ./apps/TT_FUNC/dataset_indexes/TT_FUNC_IDX.txt
-##  This index is mainly used by DQN to train on end-to-end NN runs.
-##  contains lines for each TT NN like (when run in TT_FUNC mode only):
-##  1 1 ./apps/NN/dataset_indexes/NN_SEARCH_FOR_CUBE_IDX_YY_MM_DDa.txt
-##  1 2 ./apps/NN/dataset_indexes/NN_DRIVE_TO_CUBE_IDX_YY_MM_DDa.txt
-##  ...
-##  1 8 ./apps/NN/dataset_indexes/NN_DROP_CUBE_IN_BOX_IDX_YY_MM_DDa.txt
-##  2 1 ./apps/NN/dataset_indexes/NN_SEARCH_FOR_CUBE_IDX_YY_MM_DDb.txt
-##  ...
-##  2 8 ./apps/NN/dataset_indexes/NN_DROP_CUBE_IN_BOX_IDX_YY_MM_DDb.txt
+# The lowest level of autonomous functionality is FUNC model
+# You might train to SEARCH_FOR_CUBE, GOTO_CUBE, PARK_ARM_RETRACTED, etc.
 #
-# ./apps/TT_FUNC/dataset_indexes/TT_FUNC_IDX_PROCESSED_BY_DQN.txt
-##  contains single line of the final most recent TT_FUNC run processed by DQN like:
-##  2 8 ./apps/NN/dataset_indexes/NN_DROP_CUBE_IN_BOX_IDX_YY_MM_DDb.txt
+# Dataset indices are stored in files like:
+##  ./apps/FUNC/dataset_indexes/NN_SEARCH_FOR_CUBE_IDX_YY_MM_DDa.txt
 #
-# ./apps/TT_FUNC/TT_FUNC_MODEL.pth
-##  a single NN trained across all 8 NNs.
+# The dataset for each of the indices are stored in the following directory:
+##  ./apps/FUNC/dataset
 #
-# ./apps/TT_FUNC/dataset_indexes/TT_FUNC_IDX_PROCESSED.txt
-##  contains 1 line for each NN used to train the TT_FUNC_MODEL.pth.
-##  Contents not specific to a TT_FUNC run.  It can contain stand-alone NN runs:
-##  ./apps/NN/dataset_indexes/NN_SEARCH_FOR_CUBE_IDX_YY_MM_DDa.txt
-##  ./apps/NN/dataset_indexes/NN_DRIVE_TO_CUBE_IDX_YY_MM_DDc.txt
-##  ...
-##  ./apps/NN/dataset_indexes/NN_DROP_CUBE_IN_BOX_IDX_YY_MM_DDb.txt
-#  
+# The NN for the functionality is:
+##  ./apps/FUNC/FUNC_MODEL.pth
+#
+##################################################
+# APP
 ##################################################
 # DQN
 # 
-# ./apps/TT_DQN/dataset/LOWER_ARM_DOWN/a1099b28-4334-11eb-8cce-3413e860d1ff.jpg
-# DQN dataset as a result of a DQN run
-# 
-# ./apps/TT_DQN/dataset_indexes/TT_DQN_IDX_YY_MM_DDa.txt
-##  contains lines like:
-##  18:31:28 ./apps/TT_DQN/dataset/LOWER_ARM_DOWN/a1099b28-4334-11eb-8cce-3413e860d1ff.jpg
-#
-# ./apps/TT_DQN/dataset_indexes/TT_DQN_NN_TRAINING_COMBOS.txt
-##  random sets of NN runs are played back in TT_FUNC order. Contains lines like:
-##  ./apps/NN/dataset_indexes/NN_SEARCH_FOR_CUBE_IDX_YY_MM_DDa.txt
-##  ./apps/NN/dataset_indexes/NN_DRIVE_TO_CUBE_IDX_YY_MM_DDa.txt
-##  ...
-#
-# ./apps/TT_DQN/dataset_indexes/dataset_idx_processed.txt
-##  contains single line containing the most recently processed DQN run like:
-##  ./apps/TT_DQN/dataset_indexes/TT_DQN_IDX_YY_MM_DDa.txt
-#
-# ./apps/TT_DQN/TT_DQN_MODEL.pth
-##  dump of the DQN model.
-#
-# ./apps/TT_DQN/replay_buffer.data
-##  dump of the replay_buffer
 #
 ##################################################
-##############
-#  All datasets are stored in the format of the least-common denominator (TT_NN). 
-#  Each NN is trained from its dataset in TT_NN/datasets/<NN_name> and
-#  stored in <NN_name>_NN_MODEL.pth
-#
-#  TT_FUNC combines the actions from the 8 NNs together to form a single NN (TT_FUNC)
-#  and stored in <NN_name>_NN_model.pth
-#
-#  TT_DQN processes individual actions in the original order created across all 8 NN.
-#  Afterwards, TT_DQN uses the replay buffer and the apps/TT_DQN/dataset/NN1
-#  and stored in TT_NN_model1.pth
-#
-#  In the future, TT_DQN/dataset/NN1 could also be used to train TTDQN_model1.pth and TT_NN_m
-#  TT_FUNC cannot be trained from TT_DQN files.
-#
-#  TT_FUNC Datasets are indexed by files: dataset_idx_%y_%m_%d[a-zA-Z].txt 
-#  and contain data of the format:
-#  18:31:31 ./NN1/LOWER_ARM_DOWN/a3258980-4334-11eb-8cce-3413e860d1ff.jpg
-#
-#  The datasets are processed in order of creation. Upon processing, the file
-#  dataset_idx_processed is updated so the entries are only processed once.
 #
 
 # Import the datetime module
@@ -117,7 +46,10 @@ class DatasetUtils():
         if nn_name is not None:
           self.last_ds_idx = self.last_dataset_idx_processed(app_type, nn_name)
         else:
-          self.last_ds_idx = self.last_dataset_idx_processed(app_type, app_name)
+          if app_type == "DQN":
+            self.last_ds_idx = self.last_dataset_idx_processed("APP", app_name)
+          else:
+            self.last_ds_idx = self.last_dataset_idx_processed(app_type, app_name)
 
     ################################
     # Dataset Index
@@ -128,12 +60,16 @@ class DatasetUtils():
     # ./apps/TT_FUNC/dataset_index/
     # ./apps/TT_DQN/dataset_index/
     def dataset_index_path(self, mode="DQN", nn_name=None):
-        if mode in ["DQN", "APP"]:
-          if mode is None or self.app_name is None:
+        if mode in ["RAND"]:
+          if self.app_name is None:
+              print("dataset_index_path mode,app_name:", mode, self.app_name)
+          ds_idx_path = self.cfg.APP_DIR + self.app_name + "_" + "APP" + self.cfg.DATASET_IDX_DIR
+        elif mode in ["DQN", "APP"]:
+          if self.app_name is None:
               print("dataset_index_path mode,app_name:", mode, self.app_name)
           ds_idx_path = self.cfg.APP_DIR + self.app_name + "_" + mode + self.cfg.DATASET_IDX_DIR 
         elif mode == "FUNC":
-          if mode is None or self.app_name is None:
+          if self.app_name is None:
               print("dataset_index_path mode,nn_name:", mode, nn_name)
           ds_idx_path = self.cfg.APP_DIR + mode + "/" + nn_name + self.cfg.DATASET_IDX_DIR 
         else:
@@ -153,7 +89,7 @@ class DatasetUtils():
         if mode == "FUNC":
           # ds_idx_nm = "FUNC_" + nn_name + "_IDX_" 
           ds_idx_nm = "FUNC_" + nn_name  + "_"
-        elif mode in ["APP","DQN"]:
+        elif mode in ["APP","DQN","RAND"]:
           # ds_idx_nm = self.app_name + "_" + mode + "_IDX_" 
           ds_idx_nm = self.app_name + "_" + mode + "_IDX_"
         if position == "NEXT":
@@ -173,7 +109,10 @@ class DatasetUtils():
         # Sort the list in ascending order of dates
         idx_list = os.listdir(ds_idx_pth)
         idx_list.sort()
-        lastdataset = self.last_dataset_idx_processed(mode, nn_name)
+        if mode == "DQN":
+          lastdataset = self.last_dataset_idx_processed("APP", nn_name)
+        else:
+          lastdataset = self.last_dataset_idx_processed(mode, nn_name)
         today = datetime.now().strftime("%d_%m_%y")
         # initialize 
         next_dataset = ds_idx_nm + today + "a.txt"
@@ -206,6 +145,8 @@ class DatasetUtils():
                   print("next_dataset:", next_dataset)
                   break
               else:
+                # maybe dataset_idx_processed(self, mode="DQN", nn_name=None)
+                # if so, all done.
                 return None
         else:
           # should be there unless explicitly skipped by command line option
@@ -240,16 +181,22 @@ class DatasetUtils():
 
         idx_list = os.listdir(ds_idx_pth)
         idx_list.sort()
-        if len(idx_list) > 0:
-          last_ds_idx = idx_list[-1]
-          len_idx = len(last_ds_idx)
-        else:
-          last_ds_idx = None
-        print("last ds idx", last_ds_idx)
+        # find valid ds_idx_nm
         now = datetime.now()
         today = now.strftime("%y_%m_%d")
         letter = "a"
         name = ds_idx_nm + today + letter + ".txt"
+#        i = 1
+#        while True:
+#          if len(idx_list) > 0:
+#            last_ds_idx = idx_list[-i]
+#            len_idx = len(last_ds_idx)
+#          else:
+#            last_ds_idx = None
+#          if len(last_ds_idx) == len(name) and last_ds_idx.startswith(ds_idx_name):
+#            break
+#          i = i + 1
+#        print("last ds idx", last_ds_idx)
         lower_done = False
         while name in idx_list:
           print("duplicate name: ", name)
@@ -301,6 +248,8 @@ class DatasetUtils():
     def dataset_idx_processed(self, mode="DQN", nn_name=None):
         if mode == "FUNC":
           ds_idx_p = self.dataset_index_path(mode=mode, nn_name=nn_name) + mode + "_" + nn_name + "_IDX_PROCESSED.txt"
+        elif mode == "RAND":
+          ds_idx_p = self.dataset_index_path(mode=mode, nn_name=nn_name) + self.app_name + "_" + mode + "_IDX_PROCESSED_BY_DQN.txt"
         elif mode == "APP":
           ds_idx_p = self.dataset_index_path(mode=mode, nn_name=nn_name) + self.app_name + "_" + mode + "_IDX_PROCESSED_BY_DQN.txt"
         elif mode == "DQN":
@@ -311,16 +260,18 @@ class DatasetUtils():
         filename = self.dataset_idx_processed(mode,nn_name)
         try:
           with open(filename, 'r') as file:
-            line = file.readline()
+            last_ds_idx_processed = file.readline()
+          print("last_dataset_idx_processed: ", filename, last_ds_idx_processed, mode)
         except:
           # first_processed = self.dataset_indices(mode, nn_name, position="OLDEST")
           first_processed = "DUMMY_IDX"
           return first_processed
 
         # verify line
-        if line:
-          [time, app, mode, nn_name, action, img_name, img_path] = self.get_dataset_info(line, mode=mode)
-        return line
+        # if line:
+        #   [time, app, mode, nn_name, action, img_name, img_path] = self.get_dataset_info(line, mode=mode)
+        # return line
+        return last_ds_idx_processed
 
     # save last dataset_index that has been processed for an App 
     def save_dataset_idx_processed(self, mode="DQN", nn_name=None, clear=False):
@@ -332,8 +283,10 @@ class DatasetUtils():
         with open(filename, 'w+') as file:
           if clear:
             file.truncate()
+            print("save_dataset_idx_processed: truncated")
           else:
             file.write( last_processed )
+            print("save_dataset_idx_processed: ", filename, last_processed, mode)
 
 
     ################################
@@ -349,6 +302,15 @@ class DatasetUtils():
         dataset_info = full_path.split("/")
         return dataset_info[-1]
 
+    def get_func_name_from_full_path(self, full_path):
+        dataset_info = full_path.split("/")
+        return dataset_info[3]
+
+    def get_func_name_from_idx(self, idx):
+        ds_idx_info = idx.split("/")
+        # print("ds_idx_info", ds_idx_info)
+        return ds_idx_info[3]
+
     def get_dataset_info(self, ds_line, mode="DQN"):
         #  "18:31:28 ./apps/TT_DQN/dataset/LOWER_ARM_DOWN/a1099b28-4334-11eb-8cce-3413e860d1ff.jpg"
         dataset_info = ds_line.split()
@@ -360,13 +322,13 @@ class DatasetUtils():
         dataset_info = full_img_path.split("/")
         if not ((len(dataset_info) == 7 and mode == "APP") or
                 (len(dataset_info) == 6 and mode == "DQN") or
-                (len(dataset_info) == 8 and mode == "FUNC")):
+                (len(dataset_info) == 8 and mode == "FUNC") or
+                (len(dataset_info) == 8 and mode == "RAND")):
           print("get_dataset_info error:",mode, len(dataset_info), dataset_info)
           return undefined_var
           return [None, None, None, None, None, None, None]
         app_mode = dataset_info[2]
         if app_mode.endswith("APP"):
-          # ./apps/TT_APP/dataset/PICK_UP_CUBE/LOWER_ARM_DOWN/a1099b28-4334-11eb-8cce-3413e860d1ff.jpg"
           ds_line_app = app_mode[:-4]
           # print("ds_line_app", ds_line_app)
           ds_line_mode = "APP"
@@ -374,13 +336,19 @@ class DatasetUtils():
           ds_line_action = dataset_info[5]
           ds_line_img = dataset_info[6]
         elif app_mode.endswith("DQN"):
-          # ./apps/TT_DQN/dataset/LOWER_ARM_DOWN/a1099b28-4334-11eb-8cce-3413e860d1ff.jpg"
           ds_line_app = app_mode[:-4]
           # print("ds_line_app", ds_line_app)
           ds_line_mode = "DQN"
           ds_line_nn = None
           ds_line_action = dataset_info[4]
           ds_line_img = dataset_info[5]
+        elif app_mode.endswith("RAND"):
+          ds_line_app = app_mode[:-4]
+          print("ds_line_app", ds_line_app)
+          ds_line_mode = "RAND"
+          ds_line_nn = dataset_info[4]
+          ds_line_action = dataset_info[5]
+          ds_line_img = dataset_info[6]
         elif app_mode.endswith("FUNC"):
           # ./apps/FUNC/PICK_UP_CUBE/dataset/PICK_UP_CUBE/LOWER_ARM_DOWN/a1099b28-4334-11eb-8cce-3413e860d1ff.jpg"
           # print("dataset_info:", dataset_info)
@@ -406,7 +374,7 @@ class DatasetUtils():
         filehandle = open(full_path, 'r')
         # new_image = ["DUMMY.jpg"]
         new_image = []
-        if mode in ["DQN", "APP"]:
+        if mode in ["DQN", "APP", "RAND"]:
           while True:
             nn_line = filehandle.readline()
             if not nn_line:
@@ -501,6 +469,7 @@ class DatasetUtils():
     ##  a single NN trained across all SEARCH_FOR_CUBE runs.
     ##  dump of the DQN model.
     def best_model_path(self, mode="DQN", nn_name=None):
+        # no separate model for RAND. RAND is only used by DQN.
         if mode not in ["DQN", "APP", "FUNC"]:
           print("Mode must be one of DQN, NN, FUNC. Received: ", mode)
           exit()
@@ -524,7 +493,7 @@ class DatasetUtils():
         print("dataset_idx_to_func:", ds_idx, nn_name)
         return nn_name
 
-    # ./apps/NN/dataset/FUNC_DRIVE_TO_CUBE
+    # ./apps/FUNC/dataset/FUNC_DRIVE_TO_CUBE
     # ./apps/TT_DQN/dataset
     def dataset_path(self, mode="DQN", nn_name=None):
         if mode == "FUNC":

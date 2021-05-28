@@ -43,6 +43,16 @@ def webcam_captureFrames():
     video_capture = cv2.VideoCapture(WEBCAM_GSTREAMER_PIPELINE, cv2.CAP_GSTREAMER)
     ds_util = DatasetUtils(webcam_robot.app_name,webcam_robot.app_type)
 
+    def verify_func(image_loc, ds_idx):
+        img_func = ds_util.get_func_name_from_full_path(image_loc)
+        idx_func = ds_util.get_func_name_from_idx(ds_idx)
+        if img_func != idx_func:
+            print("###########  WARNING  ##########")
+            print("image_func != idx_func", img_func, idx_func, image_loc, ds_idx)
+            print("################################")
+            return False
+        return True
+
     while True and video_capture.isOpened():
         return_key, frame = video_capture.read()
         if not return_key:
@@ -72,6 +82,9 @@ def webcam_captureFrames():
             return_key, encoded_image = cv2.imencode(".jpg", webcam_video_frame)
             if return_key:
                 curr_ds_idx = webcam_robot.get_ds_idx()
+                if not verify_func( image_loc, curr_ds_idx):
+                   webcam_robot.capture_frame_completed()
+                   break
                 try:
                   # write image to file
                   with open(image_loc, 'wb') as f:

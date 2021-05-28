@@ -88,6 +88,7 @@ class nn_apps():
       self.frame = None
       self.robot = sir_robot
       self.auto_funcs = AutomatedFuncs(self.robot)
+      self.auto_done = False
       self.nn_dir = None
 
     ####################################################
@@ -211,16 +212,21 @@ class nn_apps():
       return self.app_instance.nn_automatic_mode()
 
     def nn_automatic_action(self, feedback):
+      print("auto act", self.curr_nn_name, feedback)
+      val,self.auto_done = self.app_instance.nn_automatic_action(self.curr_nn_name, self.frame, feedback)
+      return val
+
+    def nn_automatic_post_action(self, feedback):
+      # called after storing image & updating indx 
       if feedback == "REWARD1":
           self.app_instance.nn_set_automatic_mode(False)
           self.curr_nn_name = self.nn_upon_reward(feedback)
           self.nn_init()
           return "REWARD1"
-      print("auto act", self.curr_nn_name, feedback)
-      val,done = self.app_instance.nn_automatic_action(self.curr_nn_name, self.frame, feedback)
-      if done:
-          self.nn_upon_reward("REWARD1")
-      return val
+      if self.auto_done:
+          return self.nn_upon_reward("REWARD1")
+      print("nn_automatic_post_action")
+      return self.curr_nn_name
 
     def nn_upon_reward(self, reward):
       self.curr_nn_name = self.app_instance.nn_upon_reward(reward)

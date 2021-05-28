@@ -3,8 +3,22 @@ import cv2
 from uuid import uuid1
 import time
 from dataset_utils import *
+from config import *
 
 class GatherData():
+    
+    def check_func_movement_restrictions(self):
+        if self.action_name is None:
+          return True
+        for [func, allowed_actions] in self.cfg.func_movement_restrictions:
+          if self.nn_name == func:
+            if self.action_name not in allowed_actions:
+              if self.action_name not in  ["REWARD1", "PENALTY1", "PENALTY2", "REWARD2"]:
+                print("#######  WARNING  ########")
+                print("func action not in allowed_actions", self.nn_name, self.action_name, allowed_actions)
+                print("##########################")
+                return False
+        return True
 
     def save_snapshot(self, process_image=False):
       frm_loc = None
@@ -82,6 +96,9 @@ class GatherData():
     def set_action(self, action):
         if self.nn_app.set_action(action):
           self.action_name = action
+          if not self.check_func_movement_restrictions():
+            print("User Error: setting action to None")
+            self.action_name = None
 
     def set_function_name(self, func_name):
         if self.nn_app.app_type != "APP":
@@ -108,11 +125,11 @@ class GatherData():
     def capture_frame_location(self):
           return self.frame_location
 
-
     def capture_frame_completed(self):
-        if self.frame_location == "DONE":
-            return
-        self.frame_location = None
+        if self.frame_location != "DONE":
+          self.frame_location = None
+        if self.is_on() and self.nn_app.nn_automatic_mode():
+          self.nn_app.nn_automatic_post_action(self.action_name)
 
     def __init__(self, app):
         self.mode = False
@@ -124,6 +141,7 @@ class GatherData():
         self.process_image_action = None
         # Video capture is done in __main__()
         self.ds_util =  DatasetUtils(self.nn_app.app_name, self.nn_app.app_type)
+        self.cfg = Config()
         if self.nn_app.app_type == "FUNC":
           self.nn_name = self.nn_app.app_name
           self.curr_func_ds_idx = self.ds_util.dataset_indices(mode="FUNC", nn_name=self.nn_name, position="NEW")

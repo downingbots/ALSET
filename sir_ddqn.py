@@ -117,8 +117,9 @@ class ReplayBuffer():
           print("No qval in replay buffer. Adding qval.")
           add_q_val = True
         if not done[done_end-sample_start-1]:
-            print("[state, action, reward, next_state, done]:")
-            print([state, action, reward, next_state, done])
+            # print("[state, action, reward, next_state, done]:")
+            # print([state, action, reward, next_state, done])
+            print("compute_real_q_values: last DONE must be True")
         assert done[done_end-sample_start-1], "Only compute real q values upon completion of run"
         next_q_val = 0
         q_val = 0
@@ -502,9 +503,10 @@ class CnnDQN():
         #               outputs = model(inputs)
         #               loss = criterion(outputs, labels)
         #           _, preds = torch.max(outputs, 1)
-
+        sortact  = q_value.sort(dim=1, descending=True)[1].data[0]
         action  = q_value.max(1)[1].data[0]
-        return action
+        print("q_value", q_value, action, sortact)
+        return sortact, q_value
 
 
 ##################
@@ -547,6 +549,9 @@ class SIR_DDQN():
 
         # Reward computation constants from config file attributes
         dqn_registry           = self.cfg.get_value(self.cfg.DQN_registry, self.app_name)
+        # print("dqn_registry:", dqn_registry)
+        # print("DQN_registry:", self.cfg.DQN_registry)
+        # print("app_name:", self.app_name)
         DQN_Policy = dqn_registry[0]
 
         self.REPLAY_INITIAL    = self.cfg.get_value(DQN_Policy, "REPLAY_BUFFER_CAPACITY")
@@ -613,14 +618,14 @@ class SIR_DDQN():
 
         if (self.init_model):  # probably done on laptop
             # starts from the first dataset
-            self.parse_app_dataset(init=True)
+            self.parse_unprocessed_app_datasets(init=True)
             self.save_replay_buffer()
             if (self.train_model):
               self.train_DQN_qvalue()
         else:
             self.load_replay_buffer()
             # get new datasets
-            self.parse_app_dataset(init=False)
+            self.parse_unprocessed_app_datasets(init=False)
             self.save_replay_buffer()
             if (self.train_model):
               self.train_DQN_qvalue()
@@ -773,6 +778,7 @@ class SIR_DDQN():
         action_idx = tuple(action_idx)
         print("action_idx:",action_idx)
         print("max action_idx:",len(self.cfg.full_action_set))
+        print("q_val:", q_val)
 
 
         action_idx = self.Variable(torch.LongTensor(action_idx))
@@ -849,7 +855,7 @@ class SIR_DDQN():
         else:
           PHASE_ALLOCATED_MOVES = self.DQN_REWARD_PHASES[-1][1]
           PHASE_REWARD = self.DQN_REWARD_PHASES[-1][0]
-          print("WARN: curr phase exceeds DQN_REWARD_PHASES.", self.curr_phase, frame_num, action)
+          print("WARN: curr phase exceeds DQN_REWARD_PHASES.", self.curr_phase, frame_num, action, len(self.DQN_REWARD_PHASES), self.DQN_REWARD_PHASES)
         # print("COMPUTE_REWARD: action, phase, self.DQN_REWARD_PHASES:",  action, frame_num, self.curr_phase, self.DQN_REWARD_PHASES, len(self.DQN_REWARD_PHASES))
         reward = 0
         if frame_num > self.MAX_MOVES:
@@ -868,8 +874,9 @@ class SIR_DDQN():
           return (self.PENALTY2_PENALTY / self.ESTIMATED_VARIANCE), True
         elif self.curr_phase < len(self.DQN_REWARD_PHASES):
           return (self.PER_MOVE_PENALTY / self.ESTIMATED_VARIANCE), False
-        print("unknown action: ",  action)
-        exit()
+        elif action not in self.cfg.full_action_set:
+          print("unknown action: ",  action)
+          exit()
     
     #
     #  Can improve scoring over time as collect more output (mean, stddev).
@@ -892,13 +899,13 @@ class SIR_DDQN():
         return self.dqn_action
     
     # for training DQN by processing app dataset (series of functions/NNs)
-    def parse_app_dataset(self, init=False):
+    def parse_app_dataset(self, init=False, app_mode="APP"):
         print(">>>>> parse_app_dataset")
         app_dsu = DatasetUtils(self.app_name, "APP")
         if init:
           # start at the beginning
           # e.g., clear TTT_APP_IDX_PROCESSED_BY_DQN.txt
-          app_dsu.save_dataset_idx_processed(mode = "APP", clear = True )
+          app_dsu.save_dataset_idx_processed(mode = app_mode, clear = True )
 
         frame_num = 0
         reward = []
@@ -908,7 +915,7 @@ class SIR_DDQN():
 
         ###################################################
         # iterate through NNs and fill in the active buffer
-        app_index = app_dsu.dataset_indices(mode="APP",nn_name=None,position="NEXT")
+        app_index = app_dsu.dataset_indices(mode=app_mode,nn_name=None,position="NEXT")
         if app_index is None:
           print("parse_app_dataset: unknown NEXT index")
           return None
@@ -919,47 +926,69 @@ class SIR_DDQN():
         next_action = None
         next_line = None
         self.active_buffer.clear()
+        self.curr_phase = 0
+        func_flow_reward = None
         while True:  
           # find out what the func flow model expects
           [func_flow_nn_name, func_flow_reward] = func_app.eval_func_flow_model(reward_penalty="REWARD1")
-          print("Func flow nn:", func_flow_nn_name, func_flow_reward)
           # get the next function index 
           nn_idx = app_filehandle.readline()
           if not nn_idx:
             if func_flow_nn_name is None:
-              if func_flow_reward is not None:
+              if func_flow_reward == "REWARD1":
                 if next_action != "REWARD1":
-                  print("Soft Error: last action of run is expected to be a reward:", action, next_action)
+                  print("Soft Error: last action of run is expected to be a reward:", func_flow_action, next_action)
+                if func_flow_nn_name is None and func_flow_reward == "REWARD1":
+                    # End of Func Flow. Append reward.
+                    reward, done = self.compute_reward(frame_num, "REWARD1")
+                    frame_num += 1
+                    # add dummy 0 q_val for now. Compute q_val at end of run.
+                    q_val = 0
+                    done = True
+                    self.active_buffer.push(state,"REWARD1", reward, next_state, done, q_val)
+                    print("Appending default REWARD1 at end of buffer", func_flow_nn_name)
               run_complete = True
-              print("Function flow complete")
+              print("Function flow complete", state, action, reward, next_state, done, q_val)
+
               break
             else:
-              print("Function Flow expected:", nn_name, "but app index ended: ", app_index)
-              exit()
+              print("Function Flow expected:", func_flow_nn_name, "but app index ended: ", app_index)
+              # don't train DQN with incomplete TT results; continue with next idx
+              # ARD: TODO: differentiate APP_FOR_DQN and native DQN datasets
+              # TT_APP_IDX_PROCESSED.txt vs. TT_APP_IDX_PROCESSED_BY_DQN.txt 
+              app_dsu.save_dataset_idx_processed(mode = app_mode)
+              return "INCOMPLETE_APP_RUN"
             break
-          file_name = nn_idx[0:-1]   # remove carriage return
-          NN_name = app_dsu.dataset_idx_to_func(file_name)
+          nn_idx = nn_idx[0:-1]
+          # print("remove trailing newline1", nn_idx)
+          # file_name = nn_idx[0:-1]   # remove carriage return
+          # NN_name = app_dsu.dataset_idx_to_func(file_name)
+          NN_name = app_dsu.get_func_name_from_idx(nn_idx)
           if NN_name != func_flow_nn_name:
             print("Func flow / index inconsistency:", NN_name, func_flow_nn_name)
-          file_name = app_dsu.dataset_index_path(mode="FUNC", nn_name=NN_name) + file_name
-          print("Parsing NN idx", nn_idx, file_name)
-          nn_filehandle = open(file_name, 'r')
+          # file_name = app_dsu.dataset_index_path(mode="FUNC", nn_name=NN_name) + file_name
+          # print("Parsing NN idx", nn_idx, file_name)
+          # nn_filehandle = open(file_name, 'r')
+          print("Parsing NN idx", nn_idx)
+          nn_filehandle = open(nn_idx, 'r')
           line = None
           while True: # iterate through Img frames in nn
             # read a single line
             next_line = nn_filehandle.readline()
             if not next_line:
-                print("Function Index completed:", frame_num, NN_name)
+                print("Function Index completed:", frame_num, NN_name, next_action, func_flow_nn_name, func_flow_reward)
                 break
             # get action & next_action
             [tm, app, mode, next_nn_name, next_action, img_name, next_state] = self.dsu.get_dataset_info(next_line, mode="FUNC")
             if line is not None:
               [tm, app, mode, nn_name, action, img_name, state] = self.dsu.get_dataset_info(line, mode="FUNC")
-              if func_flow_reward is not None:
-                print("Real reward:", frame_num, func_flow_reward)
-                real_reward=True
-                break
-              elif action == "NOOP":
+              # if func_flow_reward is not None:
+                # ARD: is this correct? real_reward is never used. Why only called once?
+                # ARD: Why break?
+                # print("Real reward:", frame_num, func_flow_reward, func_flow_nn_name, next_action)
+                # real_reward=True
+                # break
+              if action == "NOOP":
                 # Too common in initial test dataset. Print warning later?
                 # print("NOOP action, NN:", action, nn_name)
                 line = next_line
@@ -968,9 +997,12 @@ class SIR_DDQN():
                 print("Goto next NN; NOOP Reward, curr_NN", action, nn_name)
                 line = next_line
                 continue
-              if next_action == "REWARD1":
+              if next_action == "REWARD1" and func_flow_reward == "REWARD1":
+                # func_flow determines if a function completes a "reward phase"
                 reward, done = self.compute_reward(frame_num, next_action)
+                print("completed REWARD phase", frame_num, next_action, reward, done)
               else:
+                # print("compute_reward:", frame_num, action)
                 reward, done = self.compute_reward(frame_num, action)
               frame_num += 1
               # add dummy 0 q_val for now. Compute q_val at end of run.
@@ -995,7 +1027,7 @@ class SIR_DDQN():
             loss = 0
             while loss is not None:
               loss = self.compute_td_loss(batch_size=self.BATCH_SIZE, mode="REAL_Q_VALUES")
-              # print("real q values loss: ",loss)
+              print("real q values loss: ",loss)
             # print("loss: ",loss)
             # print("ACTIVE BUFFER:", self.active_buffer)
             self.replay_buffer.concat(self.active_buffer)
@@ -1004,24 +1036,54 @@ class SIR_DDQN():
             self.current_model.save_state(self.BEST_MODEL_PATH)
             # torch.save(model.state_dict(), self.BEST_MODEL_PATH)
             self.update_target(self.current_model, self.target_model)
-            app_dsu.save_dataset_idx_processed(mode = "APP")
+            app_dsu.save_dataset_idx_processed(mode = app_mode)
             print("STATE SAVED")
-        return "DONE"
+        return "PROCESSED_APP_RUN"
 
+    def parse_unprocessed_app_datasets(self, init=False):
+        # nn_apps sets self.init_model to True in following line:
+        #         self.app_instance = SIR_DDQN(True, False, sir_app_name, sir_app_type)
+        # Why? set to False? 
+        # Alternatie taken: don't use self.init_model here...
+        # init_ds = init
+        init_ds = False
+        while self.parse_app_dataset(init_ds) in ["PROCESSED_APP_RUN", "INCOMPLETE_APP_RUN"]:
+            init_ds = False
+            print("process another app dataset")
+
+    def parse_unprocessed_rand_datasets(self, init=False):
+        # nn_apps sets self.init_model to True in following line:
+        #         self.app_instance = SIR_DDQN(True, False, sir_app_name, sir_app_type)
+        # Why? set to False?
+        # Alternatie taken: don't use self.init_model here...
+        # init_ds = init
+        print(">>>>> parse_rand_dataset")
+        init_ds = False
+        while self.parse_app_dataset(init=init_ds, app_mode="RAND") in ["PROCESSED_APP_RUN", "INCOMPLETE_APP_RUN"]:
+            init_ds = False
+            print("process another rand dataset")
+
+
+    def parse_unprocessed_dqn_datasets(self, init=False):
+        init_ds = init
+        while self.parse_dqn_dataset(init_ds) in ["PROCESSED_DQN_RUN", "INCOMPLETE_DQN_RUN"]:
+            init_ds = False
+            print("process another dqn dataset")
 
     # for training DQN by processing native DQN dataset
     def parse_dqn_dataset(self, init=False):
         print(">>>>> parse_dqn_dataset")
         if init:
           # start at the beginning
-          self.dsu.save_dataset_idx_processed(mode = "DQN", nn_name = None, dataset_idx = None)
+          self.dsu.save_dataset_idx_processed(mode = "APP", nn_name = None, dataset_idx = None)
         frame_num = 0
         reward = []
         #######################
         # iterate through NNs
-        dqn_index = self.dsu.dataset_indices(mode="DQN",nn_name=None,position="NEXT")
+        dqn_index = self.dsu.dataset_indices(mode="APP",nn_name=None,position="NEXT")
         if dqn_index is None:
-          print("parse_func_dataset: unknown NEXT index")
+          # print("parse_func_dataset: unknown NEXT index")
+          print("parse_func_dataset: no more indexes")
           return
         print("Parsing DQN idx", dqn_index)
         dqn_filehandle = open(dqn_index, 'r')
@@ -1062,16 +1124,18 @@ class SIR_DDQN():
         val = self.cfg.get_value(self.cfg.app_registry, self.app_name)
         func_nn_list = val[1]
         func_app = FunctionalApp(sir_robot=None, app_name=self.app_name, app_type=self.app_type)
+        ff_init = True
         while True:
           # Assume only the primary "successful" func_flow
-          [nn_name, reward] = func_app.eval_func_flow_model(reward_penalty="REWARD1")
-          if nn_name is None:
+          [func_flow_nn_name, func_flow_reward] = func_app.eval_func_flow_model(reward_penalty="REWARD1", init=ff_init)
+          ff_init = False
+          if func_flow_nn_name is None:
             reward, done = self.compute_reward(frame_num, "REWARD1")
             done = True
             break   # done func flow
 
           # randomly select NN dataset
-          nn_idx = self.dsu.dataset_indices(mode="FUNC",nn_name=nn_name,position="RANDOM")
+          nn_idx = self.dsu.dataset_indices(mode="FUNC",nn_name=func_flow_nn_name,position="RANDOM")
           if nn_idx is None:
             break
           print("Parsing NN idx", nn_idx)
@@ -1111,8 +1175,9 @@ class SIR_DDQN():
     def nn_process_image(self, NN_num, next_state, reward_penalty = None):
         # NN_num is unused by ddqn, but keeping nn_apps API
 
+        print("DQN process_image")
         if len(self.replay_buffer) > self.REPLAY_INITIAL:
-            # assume immitation learning initialization reduces need for pure random ations
+            # assume immitation learning initialization reduces need for pure random actions
             epsilon_start = .3 * self.REPLAY_INITIAL / len(self.replay_buffer)
         else:
             epsilon_start = 1.0
@@ -1126,11 +1191,18 @@ class SIR_DDQN():
         if reward_penalty in ["REWARD1", "PENALTY1", "PENALTY2", "REWARD2"]:
             next_action = reward_penalty
             print("reward/penalty: ", next_action)
-        elif rand_num < epsilon:
-            next_action_num = random.randrange(self.num_actions)
-            # next_action = list(self.robot_actions)[next_action_num]
-            next_action = list(self.cfg.full_action_set)[next_action_num]
-            print("random action: ", next_action, epsilon, rand_num, fr_num, self.frame_num)
+        # ARD: for debugging supervised learning, minimize random actions
+        elif False and rand_num < epsilon:
+            # ARD: We start with supervised learning. The original algorithm starts
+            # with pure random actions.  We want to be more focused and add randomness
+            # based upon a results of the DQN NN weights.
+            while True:
+              next_action_num = random.randrange(self.num_actions)
+              # next_action = list(self.robot_actions)[next_action_num]
+              next_action = list(self.cfg.full_action_set)[next_action_num]
+              print("random action: ", next_action, epsilon, rand_num, fr_num, self.frame_num)
+              if next_action not in self.cfg.nn_disallowed_actions:
+                  break
         else:
             # print("next_state:",next_state)
             # next_state = self.transform_image_from_path(next_state)
@@ -1141,7 +1213,7 @@ class SIR_DDQN():
             #  weight 64 3 11 11, but got 3-dimensional input of size [224, 224, 3] instead
             # RuntimeError: Given groups=1, weight of size 64 3 11 11, expected input[1, 224, 224, 3] to have 3 channels, but got 224 channels instead
 
-
+            print("B4 DQN NN exec")
             next_state = next_state.transpose((2, 0, 1))
             next_state_tensor = self.Variable(torch.FloatTensor(np.float32(next_state)))
             next_state_tensor = torch.unsqueeze(next_state_tensor, 0)
@@ -1150,10 +1222,41 @@ class SIR_DDQN():
             # next_state_tensor = torchvision.transforms.ToTensor()(next_state).unsqueeze(batch_item_num) 
             # next_state_tensor = torch.unsqueeze(next_state_tensor, 0)
             # torch.transpose(next_state_tensor, 0, 1)
-            next_action_num = self.current_model.act(next_state_tensor)
+            sorted_actions, q_value = self.current_model.act(next_state_tensor)
             # next_action = list(self.robot_actions)[next_action_num]
-            next_action = list(self.cfg.full_action_set)[next_action_num]
-            print("NN: ", next_action)
+            if rand_num < epsilon:
+              # ARD: Random selection weighted by positive q_val
+              q_val = q_value.data[0]
+              # find max random number (sum of positive allowed q_vals)
+              tot = 0
+              for act in sorted_actions:
+                  next_action = list(self.cfg.full_action_set)[act]
+                  if q_val[act] <= 0:
+                     break
+                  if next_action not in self.cfg.nn_disallowed_actions:
+                     tot += q_val[act]
+              rand_num = random.random() * tot
+              # find random selection
+              tot2 = 0
+              for act in sorted_actions:
+                  next_action = list(self.cfg.full_action_set)[act]
+                  if q_val[act] <= 0:
+                     print("ERR: rand select: ", act, next_action, rand_num, tot2, tot)
+                     break
+                  if next_action not in self.cfg.nn_disallowed_actions:
+                     tot2 += q_val[act]
+                     if rand_num <= tot2:
+                        print("rand select: ", act, next_action, rand_num, tot2, tot)
+                        break
+            else:
+              next_action = None
+              for next_action_num in sorted_actions:
+                  next_action = list(self.cfg.full_action_set)[next_action_num]
+                  if next_action not in self.cfg.nn_disallowed_actions:
+                      print("next_action:", next_action)
+                      break
+                  print("action disallowed:", next_action)
+              print("NN: ", next_action)
         if self.frame_num == 0 and self.state == None:
           self.frame_num += 1
           self.state  = next_state
@@ -1220,9 +1323,14 @@ class SIR_DDQN():
     # FUNC training based on a single end-to-end run of a random selection of FUNC/NN runs.
     # FUNC is done by calling:
     #   ./copy_to_python ; python3 ./sir_jetbot_train.py --dqn TTT
-    def train(self):
+    def train(self, number_of_random_func_datasets = 30):
         # Check if any app training left undone:
         print("Checking if any Functional APP training to do...")
-        self.parse_app_dataset(init=self.init_model)
+        self.parse_unprocessed_app_datasets(init=self.init_model)
+        # TODO: RL training of DQN
+        # print("Checking if any DQN training to do...")
+        # self.parse_unprocessed_dqn_datasets(init=self.init_model)
         print("Train DQN based upon random selection of Functional Runs...")
-        self.parse_func_dataset(init=self.init_model)
+        self.parse_unprocessed_rand_datasets(init=self.init_model)
+        # for i in range(number_of_random_func_datasets):
+        #   self.parse_func_datasets(init=self.init_model)
