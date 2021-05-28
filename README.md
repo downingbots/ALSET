@@ -172,7 +172,7 @@ I made a simple cheap press-board harness glued to wooden right-angle brackets s
 Put the fan and wifi on the nano.
 
 Take apart the joystick RC controller for the robot. Take out the board. Solder wires to the other side of the buttons up/down on the board. Also, solder the positive voltage. Also solder the 9 volt battery connector to the 9volt wires that are integrated into the plastic controller.  The RC controller is the key to the integration with the toy and the Nano to provide simple autonomy.  As long as you can do similar soldering to a different toy's joystick, you can use much of the same code and board layout for a toy crane, excavator, bulldozer, etc.  The fact that the joystick was a simple up/down set of switches (with no speed control) makes the joystick easier to integrate.  We purchased an excavator and verified that the joystick 
-was also a set of simple up/down switcheds.
+was also a set of simple up/down switches.
 
 The other side of the joystick wires go to the MCP23017.
 
