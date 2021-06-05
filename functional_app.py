@@ -127,22 +127,22 @@ class FunctionalApp():
        self.ff_nn_num = None
        # self.curr_phase = 0
     for [it0, it1] in self.app_flow_model:
-      # print("AFM:", reward_penalty, self.ff_nn_num, it0, it1)
+      print("AFM:", reward_penalty, self.ff_nn_num, it0, it1)
       # AFM: ending:  None
       output_rew_pen = None
       if len(it0) == 0 and self.ff_nn_num is None:
          # starting point
-         # print("AFM: starting")
+         print("AFM: starting")
          self.ff_nn_num = it1[1]
          break
       elif ((type(it0) == str and it0 == "ALL") or 
           (type(it0) == list and self.ff_nn_num in it0)):
           if it1[0] == "IF":
-            # print("AFM: IF")
+            print("AFM: IF")
             if reward_penalty == it1[1]:
-              # print("AFM: matching reward")
+              print("AFM: matching reward")
               if type(it1[2])==list:
-                # print("AFM: list compare")
+                print("AFM: list compare")
                 self.ff_nn_num = it1[2][1]
                 if len(it1[2]) == 2 and it1[2][0] == "GOTO_WITH_REWARD1":
                   output_rew_pen = "REWARD1"
@@ -154,20 +154,20 @@ class FunctionalApp():
                   output_rew_pen = "PENALTY2"
                 break
               elif it1[2] == "NEXT":
-                # print("AFM: NEXT")
+                print("AFM: NEXT")
                 self.ff_nn_num += 1
                 break
               elif it1[2] in ["NEXT_WITH_REWARD1"]:
-                # print("AFM: NEXT WITH REW1")
+                print("AFM: NEXT WITH REW1")
                 output_rew_pen = "REWARD1"
                 self.ff_nn_num += 1
                 break
               elif it1[2] == "STOP":
-                # print("AFM: STOP")
+                print("AFM: STOP")
                 self.ff_nn_num = None
                 break
               elif it1[2] in ["STOP_WITH_REWARD1", "STOP_WITH_REWARD2", "STOP_WITH_PENALTY1", "STOP_WITH_PENALTY2"]:
-                # print("AFM: STOP w REW/PEN")
+                print("AFM: STOP w REW/PEN")
                 self.ff_nn_num = None
                 if it1[2] == "STOP_WITH_REWARD1":
                   output_rew_pen = "REWARD1"

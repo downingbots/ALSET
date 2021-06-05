@@ -125,13 +125,55 @@ class ReplayBuffer():
         q_val = 0
         len_reward = len(reward)
         converted = False
+
+        #################
+        # ARD: TODO
+        #  Following code was prototyped to look into a bug, but it doesn't accurately represent
+        #  the Bellman Equation.
+        #
+        #  Step1: Find current rewards at each step -> sum the rewards from beginning to now.
+#        current_reward = 0
+#        if sample_start != 0:
+#            print("ERROR: sample start not zero:", sample_start)
+#        for i,reward_val in enumerate(reward):
+#            current_reward += reward_val
+#            lst = list(self.buffer[sample_start+offset])
+#            lst[5] = current_reward
+#            self.buffer[sample_start+offset] = tuple(lst)
+#
+#
+#
+#        #  Step2: Find future rewards. Discount for each step backwards
+#        discounted_future_reward = 0
+#        for i,reward_val in enumerate(reversed(reward)):
+#            d = len_reward - i - 1
+#            if done[d]:
+#              next_q_val = 0
+#            else:
+#              next_q_val = q_val # "next" because iterating in reverse order
+#
+#            q_val = reward_val + gamma * next_q_val
+#            offset = done_end - sample_start - i - 1
+#            lst = list(self.buffer[sample_start+offset])
+#            lst[5] += q_val
+#            self.buffer[sample_start+offset] = tuple(lst)
+
+
+        #################
+
+        #  This potential reward is a weighted sum of the expected values of 
+        #  the rewards of all future steps starting from the current state.
+        q_val_lst = []
         for i,reward_val in enumerate(reversed(reward)):
             d = len_reward - i - 1
-            if done[d]:
-              next_q_val = 0
-            else:
-              next_q_val = q_val # "next" because iterating in reverse order
+            next_q_val = q_val # "next" because iterating in reverse order
+            # if done[d]:
+            #   next_q_val = 0
+            # else:
+            #   next_q_val = q_val # "next" because iterating in reverse order
+
             q_val = reward_val + gamma * next_q_val
+            q_val_lst.append(q_val)
             offset = done_end - sample_start - i - 1
             if add_q_val:
               assert len(self.buffer[sample_start+offset])==5,"Wrong number of entries in replay buffer"
@@ -146,6 +188,9 @@ class ReplayBuffer():
               self.buffer[sample_start+offset] = tuple(lst)
         if converted:
             print("Added q_val to replay_buffer")
+        print("qval:", q_val_lst)
+        print("action:", action)
+        print("reward:", reward)
 
     def __len__(self):
         return len(self.buffer)
@@ -505,7 +550,6 @@ class CnnDQN():
         #           _, preds = torch.max(outputs, 1)
         sortact  = q_value.sort(dim=1, descending=True)[1].data[0]
         action  = q_value.max(1)[1].data[0]
-        print("q_value", q_value, action, sortact)
         return sortact, q_value
 
 
@@ -542,17 +586,28 @@ class SIR_DDQN():
         self.app_type = app_type
         self.cfg = Config()
         self.dsu = DatasetUtils(self.app_name, self.app_type)
-        self.BEST_MODEL_PATH = self.dsu.best_model(mode="DQN")
-        self.DQN_PATH_PREFIX = self.dsu.dataset_path()
-        self.REPLAY_BUFFER_PATH = self.dsu.dqn_replay_buffer()
-        self.DQN_DS_PATH = self.dsu.dataset_path(mode="DQN")
+        if app_type == "DQN" or app_type == "APP":
+          self.BEST_MODEL_PATH = self.dsu.best_model(mode="DQN")
+          self.DQN_PATH_PREFIX = self.dsu.dataset_path()
+          self.REPLAY_BUFFER_PATH = self.dsu.dqn_replay_buffer()
+          if app_type == "DQN":
+            self.DQN_DS_PATH = self.dsu.dataset_path(mode="DQN")
+          else:
+            self.DQN_DS_PATH = self.dsu.dataset_path(mode="APP")
 
-        # Reward computation constants from config file attributes
-        dqn_registry           = self.cfg.get_value(self.cfg.DQN_registry, self.app_name)
-        # print("dqn_registry:", dqn_registry)
-        # print("DQN_registry:", self.cfg.DQN_registry)
-        # print("app_name:", self.app_name)
-        DQN_Policy = dqn_registry[0]
+          # Reward computation constants from config file attributes
+          dqn_registry           = self.cfg.get_value(self.cfg.DQN_registry, self.app_name)
+          # print("dqn_registry:", dqn_registry)
+          # print("DQN_registry:", self.cfg.DQN_registry)
+          # print("app_name:", self.app_name)
+          DQN_Policy = dqn_registry[0]
+        else:
+          self.BEST_MODEL_PATH = self.dsu.best_model(mode="FUNC", nn_name=app_name )
+          self.DQN_PATH_PREFIX = self.dsu.dataset_path()
+          print("sir_ddqn: ", self.BEST_MODEL_PATH, self.DQN_PATH_PREFIX)
+          self.REPLAY_BUFFER_PATH = self.dsu.dqn_replay_buffer()
+          self.DQN_DS_PATH = self.dsu.dataset_path(mode="FUNC", nn_name=app_name)
+          DQN_Policy = self.cfg.FUNC_policy
 
         self.REPLAY_INITIAL    = self.cfg.get_value(DQN_Policy, "REPLAY_BUFFER_CAPACITY")
         self.REPLAY_PADDING    = self.cfg.get_value(DQN_Policy, "REPLAY_BUFFER_PADDING")
@@ -604,6 +659,8 @@ class SIR_DDQN():
         # FINE TUNE PRETRAINED MODEL USING IMITATION LEARNING
         # add to history
         
+        self.mean_cnt = 0
+        self.mean_i = 0
         self.num_actions = len(self.cfg.full_action_set)
         self.current_model = None
         self.target_model = None
@@ -625,7 +682,8 @@ class SIR_DDQN():
         else:
             self.load_replay_buffer()
             # get new datasets
-            self.parse_unprocessed_app_datasets(init=False)
+            if self.app_type != "FUNC":
+              self.parse_unprocessed_app_datasets(init=False)
             self.save_replay_buffer()
             if (self.train_model):
               self.train_DQN_qvalue()
@@ -699,21 +757,25 @@ class SIR_DDQN():
     # json.dump(self.replay_buffer, filehandle)
     # json.load(filehandle)
     def save_replay_buffer(self):
-        with open(self.REPLAY_BUFFER_PATH, 'wb') as filehandle:
+        with open(self.REPLAY_BUFFER_PATH, 'wb+') as filehandle:
           # store the data as binary data stream
           pickle.dump(self.replay_buffer, filehandle)
         filehandle.close()
 
     def load_replay_buffer(self):
-        with open(self.REPLAY_BUFFER_PATH, 'rb') as filehandle:
-          self.replay_buffer = pickle.load(filehandle)
-        filehandle.close()
-        print("loaded replay_buffer. Len = ", len(self.replay_buffer))
+        try:
+          with open(self.REPLAY_BUFFER_PATH, 'rb') as filehandle:
+            self.replay_buffer = pickle.load(filehandle)
+          filehandle.close()
+        except:
+            print("load_replay_buffer: open failed")
+        print("loaded replay_buffer. Len = ", self.replay_buffer.entry_len())
         if self.replay_buffer.entry_len() == 5:
-          # state, action, reward, next_state, done
-          print("adding q_values to replay_buffer")
-          self.replay_buffer.compute_real_q_values(gamma=self.GAMMA)
-          self.save_replay_buffer()
+            # compatibility with earlier version of buffer format
+            # state, action, reward, next_state, done
+            print("adding q_values to replay_buffer")
+            self.replay_buffer.compute_real_q_values(gamma=self.GAMMA)
+            self.save_replay_buffer()
 
     def train_DQN_qvalue(self):
         loss = 0
@@ -738,7 +800,7 @@ class SIR_DDQN():
           state_path, action, rewards, next_state_path, done_val, q_val = self.active_buffer.get_next_sample(batch_size=batch_size, name="active")
         elif mode == "RANDOM_FUNCTIONAL_TRAINING":
           # Train based on random runs of func/NN datasets
-          self.parse_func_dataset(self, init=False)   # creates a replay buffer
+          self.parse_rand_func_dataset(self, init=False)   # creates a replay buffer
           state_path, action, rewards, next_state_path, done_val, q_val = self.active_buffer.get_next_sample(batch_size=batch_size, name="active")
         elif mode == "EXPERIENCE_REPLAY":
           # Part of DQN algorithm.
@@ -864,7 +926,8 @@ class SIR_DDQN():
           done = False
           reward = PHASE_REWARD + max((PHASE_ALLOCATED_MOVES - frame_num),0)*self.DQN_MOVE_BONUS
           self.curr_phase += 1
-          print("reward, phase, self.DQN_REWARD_PHASES:",  reward, self.curr_phase, self.DQN_REWARD_PHASES, len(self.DQN_REWARD_PHASES))
+          print("reward, phase, self.DQN_REWARD_PHASES:",  reward, self.curr_phase, self.DQN_REWARD_PHASES, len(self.DQN_REWARD_PHASES), frame_num)
+          # reward, phase, self.DQN_REWARD_PHASES: 52.0 1 [[50, 300], [100, 400]] 2 292
           if self.curr_phase >= len(self.DQN_REWARD_PHASES):
             done = True
           return (reward / self.ESTIMATED_VARIANCE), done
@@ -898,6 +961,112 @@ class SIR_DDQN():
         # set by joystick: REWARD1, PENALTY1, REWARD2, PENALTY2
         return self.dqn_action
     
+    # Func: need to factor out common functionality with parse_app_dataset
+    #       Currently, just a minor modified clone
+    def parse_func_dataset(self, NN_name, init=False, app_mode="FUNC"):
+        print(">>>>> parse_func_dataset")
+        app_dsu = DatasetUtils(self.app_name, "FUNC")
+        if init:
+          # start at the beginning
+          # e.g., clear TTT_APP_IDX_PROCESSED_BY_DQN.txt
+          app_dsu.save_dataset_idx_processed(mode = app_mode, clear = True )
+
+        frame_num = 0
+        final_reward_computed = False
+        reward = []
+        ###################################################
+        # iterate through NNs and fill in the active buffer
+        while True:
+          func_index = app_dsu.dataset_indices(mode=app_mode,nn_name=NN_name,position="NEXT")
+          if func_index is None:
+            print("parse_func_dataset: done")
+            break
+          print("Parsing FUNC idx", func_index)
+          run_complete = False
+          line = None
+          next_action = None
+          next_line = None
+          self.active_buffer.clear()
+          self.curr_phase = 0
+          nn_filehandle = open(func_index, 'r')
+          line = None
+          final_reward_computed = False
+          while True: # iterate through Img frames in nn
+            # read a single line
+            next_line = nn_filehandle.readline()
+            if not next_line:
+                run_complete = True
+                print("Function Index completed:", frame_num, NN_name, next_action)
+                # Function Index completed: 293 PARK_ARM_RETRACTED_WITH_CUBE REWARD1 PARK_ARM_RETRACTED_WITH_CUBE REWARD1
+
+                if not final_reward_computed:
+                  reward, done = self.compute_reward(frame_num, next_action)
+                  done = True  # end of func is done in this mode
+                  print("completed REWARD phase1", frame_num, next_action, reward, done)
+                  self.active_buffer.push(state, action, reward, next_state, done, q_val)
+                  final_reward_computed = True
+                break
+            # get action & next_action
+            [tm, app, mode, next_nn_name, next_action, img_name, next_state] = self.dsu.get_dataset_info(next_line, mode="FUNC")
+            if line is not None:
+              [tm, app, mode, nn_name, action, img_name, state] = self.dsu.get_dataset_info(line, mode="FUNC")
+              if action == "NOOP":
+                line = next_line
+                continue
+              elif action == "REWARD1":
+                print("Goto next NN; NOOP Reward, curr_NN", action, nn_name)
+                line = next_line
+                continue
+              if next_action == "REWARD1":
+                reward, done = self.compute_reward(frame_num, next_action)
+                done = True  # end of func is done in this mode
+                print("completed REWARD phase2", frame_num, next_action, reward, done)
+                final_reward_computed = True
+              else:
+                # print("compute_reward:", frame_num, action)
+                reward, done = self.compute_reward(frame_num, action)
+              frame_num += 1
+              # add dummy 0 q_val for now. Compute q_val at end of run.
+              q_val = 0
+              self.active_buffer.push(state, action, reward, next_state, done, q_val)
+            if next_action != "REWARD1":
+              line = next_line
+          # close the pointer to that file
+          nn_filehandle.close()
+          #################################################
+          ## NOT DONE FOR IMMITATION LEARNING
+          # if len(self.replay_buffer) > self.REPLAY_INITIAL:
+          #   loss = self.compute_td_loss(batch_size, app_path_prefix)
+          # if frame_num % 1000 == 0 or done:
+          #   self.update_target(self.current_model, self.target_model)
+          #################################################
+          if run_complete:
+              print("SAVING STATE; DO NOT STOP!!!")
+              self.active_buffer.compute_real_q_values(gamma=self.GAMMA,  name="active")
+              self.active_buffer.reset_sample(name="active", start=0)
+              for i in range(self.cfg.NUM_EPOCHS):
+                loss = 0
+                while loss is not None:
+                  loss = self.compute_td_loss(batch_size=self.BATCH_SIZE, mode="REAL_Q_VALUES")
+                  print("real q values loss: ", i, loss)
+              # print("loss: ",loss)
+              # print("ACTIVE BUFFER:", self.active_buffer)
+              try:
+                self.replay_buffer.concat(self.active_buffer)
+              except:
+                if self.replay_buffer is None:
+                    print("self.replay_buffer is None")
+                if self.active_buffer is None:
+                    print("self.active_buffer is None")
+              self.save_replay_buffer()
+              print(self.BEST_MODEL_PATH)
+              self.current_model.save_state(self.BEST_MODEL_PATH)
+              # torch.save(model.state_dict(), self.BEST_MODEL_PATH)
+              self.update_target(self.current_model, self.target_model)
+              app_dsu.save_dataset_idx_processed(mode = app_mode, nn_name=nn_name)
+              print("STATE SAVED")
+        return "PROCESSED_FUNC_RUN"
+
     # for training DQN by processing app dataset (series of functions/NNs)
     def parse_app_dataset(self, init=False, app_mode="APP"):
         print(">>>>> parse_app_dataset")
@@ -970,6 +1139,7 @@ class SIR_DDQN():
           # print("Parsing NN idx", nn_idx, file_name)
           # nn_filehandle = open(file_name, 'r')
           print("Parsing NN idx", nn_idx)
+          # Parsing NN idx ./apps/FUNC/PARK_ARM_RETRACTED_WITH_CUBE/dataset_indexes/FUNC_PARK_ARM_RETRACTED_WITH_CUBE_21_05_15a.txt
           nn_filehandle = open(nn_idx, 'r')
           line = None
           while True: # iterate through Img frames in nn
@@ -977,6 +1147,7 @@ class SIR_DDQN():
             next_line = nn_filehandle.readline()
             if not next_line:
                 print("Function Index completed:", frame_num, NN_name, next_action, func_flow_nn_name, func_flow_reward)
+                # Function Index completed: 293 PARK_ARM_RETRACTED_WITH_CUBE REWARD1 PARK_ARM_RETRACTED_WITH_CUBE REWARD1
                 break
             # get action & next_action
             [tm, app, mode, next_nn_name, next_action, img_name, next_state] = self.dsu.get_dataset_info(next_line, mode="FUNC")
@@ -1001,6 +1172,8 @@ class SIR_DDQN():
                 # func_flow determines if a function completes a "reward phase"
                 reward, done = self.compute_reward(frame_num, next_action)
                 print("completed REWARD phase", frame_num, next_action, reward, done)
+                # completed REWARD phase 292 REWARD1 0.17333333333333334 False
+
               else:
                 # print("compute_reward:", frame_num, action)
                 reward, done = self.compute_reward(frame_num, action)
@@ -1024,10 +1197,11 @@ class SIR_DDQN():
             print("SAVING STATE; DO NOT STOP!!!")
             self.active_buffer.compute_real_q_values(gamma=self.GAMMA,  name="active")
             self.active_buffer.reset_sample(name="active", start=0)
-            loss = 0
-            while loss is not None:
-              loss = self.compute_td_loss(batch_size=self.BATCH_SIZE, mode="REAL_Q_VALUES")
-              print("real q values loss: ",loss)
+            for i in range(self.cfg.NUM_EPOCHS):
+              loss = 0
+              while loss is not None:
+                loss = self.compute_td_loss(batch_size=self.BATCH_SIZE, mode="REAL_Q_VALUES")
+                print("real q values loss: ", i, loss)
             # print("loss: ",loss)
             # print("ACTIVE BUFFER:", self.active_buffer)
             self.replay_buffer.concat(self.active_buffer)
@@ -1116,8 +1290,8 @@ class SIR_DDQN():
         filehandle.close()
 
     # for training DQN by processing random NN datasets
-    def parse_func_dataset(self, init=False):
-        print(">>>>> parse_func_dataset")
+    def parse_rand_func_dataset(self, init=False):
+        print(">>>>> parse_rand_func_dataset")
         frame_num = 0
         done = False
         reward = []
@@ -1187,6 +1361,7 @@ class SIR_DDQN():
         fr_num = self.frame_num + len(self.replay_buffer)
         epsilon = epsilon_by_frame(fr_num)
         rand_num = random.random()
+        next_action = None
 
         if reward_penalty in ["REWARD1", "PENALTY1", "PENALTY2", "REWARD2"]:
             next_action = reward_penalty
@@ -1223,44 +1398,88 @@ class SIR_DDQN():
             # next_state_tensor = torch.unsqueeze(next_state_tensor, 0)
             # torch.transpose(next_state_tensor, 0, 1)
             sorted_actions, q_value = self.current_model.act(next_state_tensor)
+            func_restrict = self.cfg.get_func_value(self.app_name, "MOVEMENT_RESTRICTIONS")
+            sorted_action_order = sorted_actions.tolist()
+            # print("sao:",sorted_action_order)
+            sal = []
+            tot = 0
+            for i, s_a in enumerate(sorted_action_order):
+                a = self.cfg.full_action_set[s_a]
+                if a in func_restrict:
+                  q_val = q_value[0].tolist()
+                  sal.append([i, a, q_val[s_a]])
+                  if q_val[s_a] > 0:
+                    tot += q_val[s_a]
+            # print("all actions:",self.cfg.full_action_set)
+            # print("disallowed:", self.cfg.nn_disallowed_actions)
+            # print("restrictions:",self.app_name, func_restrict) 
+
             # next_action = list(self.robot_actions)[next_action_num]
+            # SUM_1_16 = 136
+            # ARD: hack
+            # epsilon = .1
             if rand_num < epsilon:
               # ARD: Random selection weighted by positive q_val
-              q_val = q_value.data[0]
+              # q_val = q_value.data[0]
               # find max random number (sum of positive allowed q_vals)
-              tot = 0
-              for act in sorted_actions:
-                  next_action = list(self.cfg.full_action_set)[act]
-                  if q_val[act] <= 0:
-                     break
-                  if next_action not in self.cfg.nn_disallowed_actions:
-                     tot += q_val[act]
-              rand_num = random.random() * tot
-              # find random selection
-              tot2 = 0
-              for act in sorted_actions:
-                  next_action = list(self.cfg.full_action_set)[act]
-                  if q_val[act] <= 0:
-                     print("ERR: rand select: ", act, next_action, rand_num, tot2, tot)
-                     break
-                  if next_action not in self.cfg.nn_disallowed_actions:
-                     tot2 += q_val[act]
-                     if rand_num <= tot2:
-                        print("rand select: ", act, next_action, rand_num, tot2, tot)
+              # tot = 0
+              # for act in sorted_actions:
+                  # next_action = list(self.cfg.full_action_set)[act]
+                  # if q_val[act] <= 0:
+                  #    break
+                  # if next_action not in self.cfg.nn_disallowed_actions:
+                     # tot += q_val[act]
+              # rand_num = random.random() * tot
+              # while True:
+              if True:
+                # rand_num = random.random() * SUM_1_16
+                rand_num = random.random() * tot
+                # find random selection
+                tot2 = 0
+                # for i, act in enumerate(sorted_actions):
+                for i, act in enumerate(sal):
+                  # next_action = list(self.cfg.full_action_set)[act]
+                  # if q_val[act] <= 0:
+                  #    print("ERR: rand select: ", act, next_action, rand_num, tot2, tot)
+                  #    break
+                  # tot2 += 16 - i
+                  next_action = act[1]
+                  if act[2] > 0:   # problem if all negative 
+                    tot2 += act[2]
+                  else:
+                    next_action = sal[0][1]
+                    print("chose highest qval: ", sal[0] )
+                    break
+                  if rand_num <= tot2:
+                        self.mean_cnt += 1
+                        self.mean_i += act[0]
+                        print("rand select: ", act, rand_num, tot2, tot, (self.mean_i/self.mean_cnt))
+                        # rand select:  tensor(0, device='cuda:0') FORWARD 47.237562023512126 55 0
                         break
+                # if next_action in func_restrict:
+                #     print("allowed1")
+                #     break
+                # elif next_action not in self.cfg.nn_disallowed_actions:
+                #    print("allowed2")
+                #    break
+                else:
+                    print("disallowed")
             else:
-              next_action = None
               for next_action_num in sorted_actions:
                   next_action = list(self.cfg.full_action_set)[next_action_num]
-                  if next_action not in self.cfg.nn_disallowed_actions:
-                      print("next_action:", next_action)
-                      break
+                  if next_action in func_restrict:
+                    print("allowed1")
+                    break
+                  # elif next_action not in self.cfg.nn_disallowed_actions:
+                  #     print("next_action:", next_action)
+                  #     break
                   print("action disallowed:", next_action)
-              print("NN: ", next_action)
+        print("sel_act:",  next_action, sal)
         if self.frame_num == 0 and self.state == None:
           self.frame_num += 1
           self.state  = next_state
           self.action = next_action
+          print("NN3: ", next_action)
           return next_action
 
         # having figured out our next_action based upon the state next_state,
@@ -1315,6 +1534,7 @@ class SIR_DDQN():
             self.prev_action = self.action 
             self.action = next_action 
             
+        print("NN4: ", next_action)
         return next_action
 
     # APP training is done automatically at start of DQN.  Just running DQN will pick up

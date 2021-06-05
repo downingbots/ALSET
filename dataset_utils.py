@@ -37,6 +37,7 @@ class DatasetUtils():
     def __init__(self, app_name, app_type, nn_name=None):
         self.app_name = app_name
         self.app_type = app_type
+        self.nn_name = nn_name
         self.cfg = Config()
         # Note: for non-TT apps, STOP is a legitimate (non)action.  For example, you might
         # be waiting for an action by another robot to happen.  For object-tracking, you 
@@ -71,6 +72,7 @@ class DatasetUtils():
         elif mode == "FUNC":
           if self.app_name is None:
               print("dataset_index_path mode,nn_name:", mode, nn_name)
+          print("dip: ", self.cfg.APP_DIR, mode, nn_name , self.cfg.DATASET_IDX_DIR)
           ds_idx_path = self.cfg.APP_DIR + mode + "/" + nn_name + self.cfg.DATASET_IDX_DIR 
         else:
           print("dataset_index_path: unknown mode", mode)
@@ -507,8 +509,12 @@ class DatasetUtils():
 
     # ./apps/TT_DQN/dataset_indexes/TT_DQN_replay_buffer.data
     def dqn_replay_buffer(self):
-        dir_pth = self.best_model_path(mode="DQN")
-        dqn_replay_buff = dir_pth + self.app_name + "_DQN" + self.cfg.REPLAY_BUFFER
+        if self.app_type == "FUNC": 
+          dir_pth = self.best_model_path(mode="FUNC", nn_name=self.app_name)
+          dqn_replay_buff = dir_pth + self.app_name + "_DQN" + self.cfg.REPLAY_BUFFER
+        else:
+          dir_pth = self.best_model_path(mode="DQN")
+          dqn_replay_buff = dir_pth + self.app_name + "_DQN" + self.cfg.REPLAY_BUFFER
         return dqn_replay_buff
 
     # ./apps/TT_DQN/dataset_indexes/TT_DQN_NN_TRAINING_COMBOS.txt

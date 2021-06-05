@@ -10,6 +10,7 @@ class Config():
       self.base_actions  = ["FORWARD", "REVERSE", "LEFT", "RIGHT"]
       self.arm_actions_no_wrist  = ["UPPER_ARM_UP", "UPPER_ARM_DOWN", "GRIPPER_OPEN", "GRIPPER_CLOSE",
                                     "LOWER_ARM_UP", "LOWER_ARM_DOWN"]
+      self.arm_actions_park_arm_retracted  = ["UPPER_ARM_UP", "GRIPPER_OPEN", "GRIPPER_CLOSE", "LOWER_ARM_DOWN"]
       self.arm_actions = self.arm_actions_no_wrist + ["WRIST_ROTATE_LEFT", "WRIST_ROTATE_RIGHT"]
       # Note: Wrist Rotate is unreliable. Should just support horiz and vert positioning
       # via a NN.
@@ -27,6 +28,27 @@ class Config():
       #####################################################
       # SIMPLE PRETRAINED ATOMIC NNs OR AUTOMATED FUNCTIONS
       #####################################################
+      self.FUNC_policy = [
+                         # reward_ph0 = 50 + max((ALLOCATED_MOVES_CUBE_PICKUP - frame_num),0)*MOVE_BONUS
+                         # reward_ph1 = 100 + max((ALLOCATED_MOVES_CUBE_DROP_IN_BOX - frame_num),0)*MOVE_BONUS
+                         # The reward phases map to the "WITH_REWARD1" actions in the function_flow_model
+                         # phase 0: to first DQN reward; 50 award & 300 allocated moves
+                         # phase 1: to second DQN reward; 100 award & 400 allocated moves
+                         # more phases allowed
+                         ["DQN_REWARD_PHASES", [[50,    300],   [100,   400]]],
+                         ["REWARD2", 50],  # "CUBE_OFF_TABLE_REWARD"
+                         ["PENALTY2", -50],  # "ROBOT_OFF_TABLE_PENALTY"
+                         ["DQN_MOVE_BONUS", 0.25],
+                         ["PER_MOVE_PENALTY", -0.25],
+                         ["MAX_MOVES", 1500],
+                         ["MAX_MOVES_EXCEEDED_PENALTY", -100.0],
+                         ["GAMMA", 0.99],
+                         ["ESTIMATED_VARIANCE", 300.0],
+                         ["REPLAY_BUFFER_CAPACITY", 10000],
+                         ["REPLAY_BUFFER_PADDING", 20],
+                         ["BATCH_SIZE", 32]   # ["BATCH_SIZE", 8] ["BATCH_SIZE", 1]
+                       ]
+
       self.func_registry = [
                             # TABLETOP ATOMIC NNs
                             "PARK_ARM_HIGH",
@@ -110,7 +132,7 @@ class Config():
                             ]
 
       self.func_movement_restrictions = [
-                             ["PARK_ARM_RETRACTED", self.arm_actions_no_wrist],
+                             ["PARK_ARM_RETRACTED", self.arm_actions_park_arm_retracted],
                              ["QUICK_SEARCH_FOR_CUBE", self.base_actions],
                              ["GOTO_CUBE", self.base_actions],
                              ["PICK_UP_CUBE", self.robot_actions],
@@ -371,6 +393,7 @@ class Config():
       self.REPLAY_BUFFER         = "_replay_buffer.data" 
       self.DQN_NN_COMBOS         = "_DQN_NN_TRAINING_COMBOS.txt"
 
+      self.NUM_EPOCHS            = 30
       ###################################
       # TODO: CONTROLLER MAPPINGS: 
       ###################################

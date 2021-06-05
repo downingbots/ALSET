@@ -5,6 +5,7 @@ import numpy as np
 from robot import *
 from image_folder2 import *
 from config import *
+from sir_ddqn import *
 import torch.nn.functional as F
 import time
 import torch
@@ -23,6 +24,7 @@ class SIRNN():
         self.nn_name = nn_name
         self.app_name = nn_name
         self.app_type = app_type
+        self.sir_dqn = None
         self.device = None
         self.model = None
         self.optimizer = None
@@ -75,6 +77,22 @@ class SIRNN():
          return x
 
     def nn_process_image(self, NN_name=None, image=None, reward_penalty=None):
+        # self.nn_process_image_cnn(NN_name=None, image=None, reward_penalty=None)
+        if image is None:
+          print("NN process image None", NN_name, reward_penalty)
+          return "NOOP"
+        return self.nn_process_image_dqn(NN_name, image, reward_penalty)
+
+    def nn_process_image_dqn(self, NN_name=None, image=None, reward_penalty=None):
+        print("NN process image")
+        if self.sir_dqn is None:
+          self.sir_dqn = SIR_DDQN(initialize_model=False, do_train_model=False, app_name=NN_name, app_type="FUNC")
+          self.sir_dqn.nn_init(gather_mode=False)
+        return self.sir_dqn.nn_process_image(NN_name, image, reward_penalty)
+        # NN_name=None, image=None, reward_penalty=None)
+
+
+    def nn_process_image_cnn(self, NN_name=None, image=None, reward_penalty=None):
         # if image == None:
         if image is None:
           print("NN process image None")
@@ -107,7 +125,7 @@ class SIRNN():
                 if best_action == -1:
                     print("invalid action " + self.cfg.full_action_set[i] + "not in " + self.cfg.full_action_set)
                     exit()
-        action_name = self.full_action_set[best_action]
+        action_name = self.cfg.full_action_set[best_action]
         return action_name
 #        if action_name == "FORWARD":
 #            print("NN FORWARD") 
@@ -188,6 +206,27 @@ class SIRNN():
     # This test accuracy might help with determining whether there is enough
     # data for TT_DQN.
     def train(self, dataset_root_list=None, best_model_path=None, full_action_set=None, noop_remap=None, only_new_images=True):
+        # self.train_cnn(dataset_root_list, best_model_path, full_action_set, noop_remap, only_new_images)
+        self.train_dqn(dataset_root_list, best_model_path, full_action_set, noop_remap, only_new_images)
+
+    def train_dqn(self, dataset_root_list=None, best_model_path=None, full_action_set=None, noop_remap=None, only_new_images=True):
+        if dataset_root_list is None:
+          # num_NN = self.cfg.func_registry.index(self.app_name)
+          dataset_root_list = []
+          dsp = self.dsu.dataset_path("FUNC", self.nn_name)
+          dataset_root_list.append(dsp)
+        for ds_root in dataset_root_list:
+           func_name = self.dsu.get_func_name_from_full_path(ds_root)
+           sir_dqn = SIR_DDQN(initialize_model=False, do_train_model=False, app_name=func_name, app_type="FUNC")
+           sir_dqn.nn_init(gather_mode=False)
+           sir_dqn.parse_func_dataset(func_name, False, "FUNC")
+           # sir_dqn.parse_func_dataset(init=False, app_name=ds_root, app_mode="FUNC")
+           #   def parse_func_dataset(self, init=False, app_name=None, app_mode="FUNC"):
+           # TypeError: parse_func_dataset() got an unexpected keyword argument 'app_name'
+
+
+
+    def train_cnn(self, dataset_root_list=None, best_model_path=None, full_action_set=None, noop_remap=None, only_new_images=True):
         # nn.py is a primitive NN that can be used by higher layers like tabletop_func_app.
         # Set default parameters if unset by caller
         if dataset_root_list is None:
