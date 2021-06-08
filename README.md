@@ -5,7 +5,7 @@ Welcome to ALSET. Do you want an inexpensive, open-source autonomous vehicle wit
  - Model X: an autonomous Excavator.    
 
 <p align="center">
-  <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/sharper_image_robot.jpg" width="200 title="Sharper Image Robot">
+  <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/sharper_image_robot.jpg" width="400 title="Sharper Image Robot">
   <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/excavator.jpg" width="200" title="RC Excavator">
 </p>
 
@@ -22,7 +22,7 @@ ALSET X: The ALSET X is based upon the Top Race 15 Channel RC Excavator. This is
 Future platforms include: the Top Race Bulldozer and Dump Truck. You will be able train these future ALSET vehicles via Remote Control to do Bulldozer-like behavior or Dump-truck-like behavior without explicitly programming anything.  With minimal changes, you can train individual "functionality" like put down the bulldozer blade and drive forward and then lift the blade and drive in reverse. You can link functionality together to do a higher-level task. Then, finally you can define some "policy" so that the linked functionalities can be optimized via end-to-end reinforcement learning.  Other possible RC toys: firetrucks with RC ladder/firehose, RC Forklifts, RC Utility Bucket Trucks, RC tanks.
 <p align="center">
   <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/bulldozer.jpg" width="200" alt="accessibility text">
-</p>
+  <img src="https://github.com/downingbots/ALSET/blob/master/Future_ALSET_Vehicles.jpg" width="200" alt="accessibility text"> 
                                                                                               
 Both the ALSET Models X and S can be trained to do simple Jetbot-like functionality like "stay on a table."
 The Jetbot is an educational robot with just 2 motored wheels from NVIDIA. The
