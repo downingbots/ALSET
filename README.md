@@ -1,44 +1,44 @@
-# SIR_JETBOT
+# ALSET Autonomous Vehicles with full self-driving capabilities
 
-Every robot builder hears the question: "What does your robot do?"  A goal of this
-project is answer: "Whatever you train the robot to do."  Another goal is to relatively 
-easily add this autonomous capability to many inexpensive remote control toys.
-
-This is SIRjetbot1. The SIR stands for Sharper Image Robot, which I purchased on
-clearance for less than $20. The 1 is because we bought 3 of them.  We tested
-the robots on clearance with batteries to check if the robots were 100% functional, and most of 
-them were not.  
+Welcome to ALSET. Do you want an inexpensive, open-source autonomous vehicle with full-self driving capabilities?  Currently ALSET has 2 models, with more on the way:
+ - Model S: an autonomous robotic arm on tracks. 
+ - Model X: an autonomous Excavator.    
 
 <p align="center">
   <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/sharper_image_robot.jpg" width="200 title="Sharper Image Robot">
+  <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/excavator.jpg" width="200" title="RC Excavator">
+</p>
+
+What does your ALSET S or ALSET X do?  Whatever you train it to do!  Both run the same software and mostly the same hardware to support the most advanced Deep Learning capabilities.
+                                                                                        
+ALSET S: The ALSET S is based upon the Sharper Image Robot, which was purchased on clearance for less than $20. Note that robots on clearance should be checked in advance of purchase to ensure they are 100% functional.
+
+<p align="center">]
   <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/sharper_image_robot2.jpg" width="200" alt="accessibility text">
 </p>
 
-SIRjetbot1 can be trained to do simple Jetbot-like functionality like "stay on a table."
+ALSET X: The ALSET X is based upon the Top Race 15 Channel RC Excavator. This is an amazing RC vehicle for the price.  This tractor vehicle works just like a real excavator with the ability and power to really dig with its heavy steel shovel.  It has 680° Degree Cab Rotation and 3 separate motors on digging arm to lift up and down to its full extent.
+                        
+Future platforms include: the Top Race Bulldozer and Dump Truck. You will be able train these future ALSET vehicles via Remote Control to do Bulldozer-like behavior or Dump-truck-like behavior without explicitly programming anything.  With minimal changes, you can train individual "functionality" like put down the bulldozer blade and drive forward and then lift the blade and drive in reverse. You can link functionality together to do a higher-level task. Then, finally you can define some "policy" so that the linked functionalities can be optimized via end-to-end reinforcement learning.  Other possible RC toys: firetrucks with RC ladder/firehose, RC Forklifts, RC Utility Bucket Trucks, RC tanks.
+<p align="center">
+  <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/bulldozer.jpg" width="200" alt="accessibility text">
+</p>
+                                                                                              
+Both the ALSET Models X and S can be trained to do simple Jetbot-like functionality like "stay on a table."
 The Jetbot is an educational robot with just 2 motored wheels from NVIDIA. The
 NVIDIA Jetbot has a set of nice tutorials of running neural nets (NNs) on the Jetson Nano 
 AI computer including facial recognition, obstacle avoidance, object tracking, and line following.
-SIRjetbot1 can run all the jetbot tutorials with minor mods. In addition,
-the software for SIRjetbot1 can be trained to do a sequence of individual tasks like 
-"search for cube", "drive to cube",and "pick up cube". SIRjetbot1 has a robot arm
+The ALSET vehicles can run all the jetbot tutorials with minor mods. In addition,
+the software for ALSET vehicles can be trained to do a sequence of individual tasks like 
+"search for cube", "drive to cube",and "pick up cube". The ALSET S has a robot arm
 for mobile manipulation. Finally, SIRjetbot1 can do end-to-end optimizations
 of the sequence of individual tasks via reinforcement learning. 
 
-SIRjetbot1 is an inexpensive platform to run NNs and DDQN reinforcement learning on a mobile manipulator. 
-However, the software is not specific to the Sharper Image Robot. In theory, it could easily
-be generalized to many inexpensive RC toys with tracked or differential-drive wheels that have 
-an arm or crane or dozer blade or shovel. Just add a Jetson Nano, battery, and camera mounted
-near the end of the arm/excavator/bulldozer/crane/shovel as described below. Contact me if interested.
+ALSET vehicles are inexpensive platforms to run NNs and DDQN reinforcement learning on a mobile manipulator. The ALSET hardware and software is generalized to handle many inexpensive RC toys with tracked or differential-drive wheels that have  an arm or crane or dozer blade or shovel. Just add a Jetson Nano, battery, and camera mounted near the end of the arm/excavator/bulldozer/crane/shovel as described below. Contact me if interested.
 
-Other potential platforms that code might work for (with jetson nano and minor mods): Remote Control Bulldozer + Top Race 15 Channel RC Excavator. You can train the robot via Remote Control to do Bulldozer-like behavior or Excavator-like behavior without explicitly programming anything.  With minimal changes, you can train individual "functionality" like put down the bulldozer blade and drive forward and then lift the blade and drive in reverse. You can link functionality together to do a higher-level task. Then, finally you can define some "policy" so that the linked functionalities can be optimized via end-to-end reinforcement learning.  Other possible RC toys: firetrucks with RC ladder/firehose, RC Forklifts, RC Utility Bucket Trucks, RC tanks.
-<p align="center">
-  <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/excavator.jpg" width="200" title="RC Excavator">
-  <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/bulldozer.jpg" width="200" alt="accessibility text">
-</p>
-
-The Sharper Image robot was hacked as followed:
+The original Sharper Image robot and Top Race Excavator were hacked as followed:
  - Jetson Nano Developer Board with wifi
- - raspberry pi camera v2 with 2 ft cable mounted on a cookie wheel case near the end of the arm.
+ - raspberry pi camera v2 with 2 ft cable mounted on a cookie wheel case near the end of the arm (model S) or front of the operator compartment.
  - A hacked RC:
    - the circuit board from inside of the low-end RC control that came with the robot. 
    - You can see/use the buttons from the RC circuit board to control the robot. 
