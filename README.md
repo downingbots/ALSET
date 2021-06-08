@@ -119,12 +119,12 @@ DQN also uses an experience replay buffer that intermix the
 acting and learning phases of RL.  DDQN is an evolution of the DQN 
 algorithm that addresses various technical deficiencies of DQN.
 
-The SIRjetbot software allows intermediate rewards to be assigned
-by the user. SIRjetbot uses a jpg image to represent the state after 
+The ALSET software allows intermediate rewards to be assigned
+by the user. ALSET uses a jpg image to represent the state after 
 each move. For DQN, minor penalties are assigned for each move to
 encourage learning more efficient actions.
 
-Here's Sir_jetbot1 running the phase1 tabletop (2x speed):
+Here's the ALSET S running the phase1 tabletop (2x speed):
 https://youtu.be/QVFHAMyEyaI
 
 The same training can be used for both a sequence of functional
@@ -171,8 +171,7 @@ I made a simple cheap press-board harness glued to wooden right-angle brackets s
 
 Put the fan and wifi on the nano.
 
-Take apart the joystick RC controller for the robot. Take out the board. Solder wires to the other side of the buttons up/down on the board. Also, solder the positive voltage. Also solder the 9 volt battery connector to the 9volt wires that are integrated into the plastic controller.  The RC controller is the key to the integration with the toy and the Nano to provide simple autonomy.  As long as you can do similar soldering to a different toy's joystick, you can use much of the same code and board layout for a toy crane, excavator, bulldozer, etc.  The fact that the joystick was a simple up/down set of switches (with no speed control) makes the joystick easier to integrate.  We purchased an excavator and verified that the joystick 
-was also a set of simple up/down switches.
+Take apart the joystick RC controller for the robot. Take out the board. Solder wires to the other side of the buttons up/down on the board. Also, solder the positive voltage. Also solder the 9 volt battery connector to the 9volt wires that are integrated into the plastic controller.  The RC controller is the key to the integration with the toy and the Nano to provide simple autonomy.  As long as you can do similar soldering to a different toy's joystick, you can use much of the same code and board layout for a toy crane, excavator, bulldozer, etc.  The fact that the joystick was a simple up/down set of switches (with no speed control) makes the joystick easier to integrate.  We purchased an excavator and verified that the joystick was also a set of simple up/down switches.
 
 The other side of the joystick wires go to the MCP23017.
 
@@ -215,9 +214,9 @@ killing the robot executable. If so, run the following script:
 To execute the teleop app, run:
   - sir_robot_{teleop,train}.py [--func=nn_name] [--app=app_name] [--dqn=app_name] [--init]
   - For example: 
-    - python3 ./sir_jetbot_teleop.py --app="TT"
-    - python3 ./sir_jetbot_teleop.py --func="STAY_ON_TABLE"
-    - python3 ./sir_jetbot_teleop.py --dqn="TT"
+    - python3 ./alset_teleop.py --app="TT"
+    - python3 ./alset_teleop.py --func="STAY_ON_TABLE"
+    - python3 ./alset_teleop.py --dqn="TT"
     
 When you start executing, the default mode is teleoperation. To gather
 data, use the TT_FUNC app on the command line and toggle the "gather_data" 
@@ -258,10 +257,10 @@ APP datasets is that thousands of random initial runs can be avoided.
 
 To train, run:
 
-  - python3 ./sir_jetbot_train.py --app="TT"
-  - python3 ./sir_jetbot_train.py --func="QUICK_SCAN_FOR_CUBE"
+  - python3 ./alset_train.py --app="TT"
+  - python3 ./alset_train.py --func="QUICK_SCAN_FOR_CUBE"
 
-The joystick commands on the logitech controller are:
+The joystick commands for the ALSET S on the logitech controller are:
 
   - TELEOP LEFT_TRACK               => "y" axis
   - TELEOP RIGHT_TRACK              => "ry" axis
@@ -351,9 +350,9 @@ I want to do Reinforcement Learning (RL) on real robots (specifically mobile man
 
 ROS is a good place to start with real robots, but you'll eventually hit the limits of what custom software can achieve.  Robot perception is still not solved and the best human-designed algorithms leave a lot to be desired.  My hope is that RL can adapt to handle low-end hardware and fill some of the intelligence void in robotics. Unfortunately, RL presents its own set of challenges.  I want to learn these challenges and try to solve subsets of these open-end research problems.
 
-SIR_jetbot_the_first addresses several lessons learned the hard way.
+ALSET addresses several lessons learned the hard way.
   - Over time, I've become convinced that inexpensive Robot Arms should have camera attached directly to the arm and use RL for digital servoing. SIR_jetbot1 does this with its only sensor - the RPi camera on its gripper (just below the "wrist").
-  - SIR_jetbot1 does discrete moves to avoid realtime processing and also to handle low-end hardware limitions (mcp23017 communication rate).
+  - ALSET does discrete moves to avoid realtime processing and also to handle low-end hardware limitions (mcp23017 communication rate).
   - The on-board Jetson is the most expensive component. Total price of the whole robot is a few hundred dollars.
   - Use imitation-learning to reduce amount of RL episodes that you have to run.
   
