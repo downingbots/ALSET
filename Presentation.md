@@ -1,13 +1,9 @@
-|
+ALSET Autonomous Vehicles
+
+Inexpensive Autonmous RC Vehicles with Full Self-Driving Capabilities
 
 
-# Q: "What does your robot do?"  
-
-|
-# A: "Whatever you train the robot to do."
-
-
-https://github.com/downingbots/SIR_jetbot
+https://github.com/downingbots/ALSET
 
 downingbots @ gmail.com
 
@@ -18,14 +14,14 @@ downingbots @ gmail.com
  - RC Armed Mobile Manipulator 
     - $20 on clearance
 
-<p align="center">
-  <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/sharper_image_robot.jpg" width="200 title="Sharper Image Robot">
-  <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/sharper_image_robot2.jpg" width="200" alt="accessibility text">
+<p align="left">
+  <img src="https://github.com/downingbots/ALSET/blob/master/ReadMeImages/sharper_image_robot.jpg" width="200 title="Sharper Image Robot">
+  <img src="https://github.com/downingbots/ALSET/blob/master/ReadMeImages/sharper_image_robot2.jpg" width="200" alt="accessibility text">
 </p>
                                                                                                                                              
 =========================
 
-# SIR_JETBOT
+# ALSET Model S
 
 Converted to Autonomous robot:
   - Jetson Nano Developer Board with wifi
@@ -42,14 +38,23 @@ Converted to Autonomous robot:
   - Logitech gamepad joystick communicates with the jetson
      - Will eventually have Smart Phone control via browser
 
-<p align="center">
-  <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/Sir_jetbot1.jpg" width="200" alt="accessibility text">
-  <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/Sir_jetbot2.jpg" width="200" alt="accessibility text">
-</p>
-
 =========================
+                                                                                                           
+# ALSET Model X
+                                                                                                                                    
+ 
+# Q: "What does the ALSET Model X do?"  
 
-# SIR_JETBOT Operating Modes
+# A: "Whatever you train it to do!"                                                                                                                                   
+
+<p align="center">
+  <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/excavator.jpg" width="200" title="RC Excavator">
+</p>
+                                                                                                                                    
+=========================
+                                                                                                                                   
+
+# ALSET Vehicle Operating Modes
 
 1. RC telepresence
 2. Telepresence data-capture 
@@ -134,6 +139,5 @@ Same software and analogous RC/HW mods to support:
 Have the robots work together!
 
 <p align="center">
-  <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/excavator.jpg" width="200" title="RC Excavator">
-  <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/bulldozer.jpg" width="200" alt="accessibility text">
+  <img src="https://github.com/downingbots/SIR_jetbot/blob/master/Future_ALSET_Vehicles.jpg" width="200" title="Future ALSET Vehicles">
 </p>
