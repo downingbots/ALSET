@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/downingbots/ALSET/master/ReadMeImages/alset5.png" width="200" alt="accessibility text">
+  <img src="https://raw.githubusercontent.com/downingbots/ALSET/master/ReadMeImages/alset5.png" width="600" alt="accessibility text">
 </p> 
 
 # ALSET Autonomous Vehicles with full self-driving capabilities
