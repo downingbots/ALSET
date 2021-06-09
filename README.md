@@ -3,7 +3,7 @@
 </p> 
 
 # ALSET Autonomous Vehicles 
-# Inexpensive Autonomous RC Vehicles with Full Self-Driving Capabilities
+## Inexpensive Autonomous RC Vehicles with Full Self-Driving Capabilities
 
 Welcome to ALSET. Do you want an inexpensive, open-source autonomous vehicle with full-self driving capabilities?  Currently ALSET has 2 models, with more on the way:
  - Model S: an autonomous robotic arm on tracks. 
