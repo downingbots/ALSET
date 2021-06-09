@@ -47,7 +47,7 @@ Converted to Autonomous robot:
 
 # A: "Whatever you train it to do!"                                                                                                                                   
 
-<p align="center">
+<p align="left">
   <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/excavator.jpg" width="200" title="RC Excavator">
 </p>
                                                                                                                                     
@@ -85,7 +85,7 @@ Converted to Autonomous robot:
  
 =========================
 
-# SIR_JETBOT: HBRC TABLETOP CHALLENGE
+# ALSET S: HBRC TABLETOP CHALLENGE
 
 - A single CNN is sufficient to stay on table
 
@@ -93,7 +93,7 @@ https://youtu.be/QVFHAMyEyaI
 
 =========================
 
-# SIR_JETBOT: HBRC TABLETOP CHALLENGE
+# ALSET S: HBRC TABLETOP CHALLENGE
 
 8 parts for an HBRC phase-3 tabletop bot is:
  - get the arm to a known position
@@ -138,6 +138,6 @@ Same software and analogous RC/HW mods to support:
 
 Have the robots work together!
 
-<p align="center">
+<p align="left">
   <img src="https://github.com/downingbots/SIR_jetbot/blob/master/Future_ALSET_Vehicles.jpg" width="200" title="Future ALSET Vehicles">
 </p>
