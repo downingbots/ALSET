@@ -1,7 +1,6 @@
 ALSET Autonomous Vehicles
 
-Inexpensive Autonmous RC Vehicles with Full Self-Driving Capabilities
-
+Inexpensive Autonomous RC Vehicles with Full Self-Driving Capabilities
 
 https://github.com/downingbots/ALSET
 
