@@ -1,4 +1,8 @@
-ALSET Autonomous Vehicles
+<p align="left">
+  <img src="https://raw.githubusercontent.com/downingbots/ALSET/master/ReadMeImages/alset5.png" width="500 title="Sharper Image Robot">
+</p>
+                                                                                                                                        
+# ALSET Autonomous Vehicles
 
 Inexpensive Autonomous RC Vehicles with Full Self-Driving Capabilities
 
@@ -138,5 +142,5 @@ Same software and analogous RC/HW mods to support:
 Have the robots work together!
 
 <p align="left">
-  <img src="https://github.com/downingbots/SIR_jetbot/blob/master/Future_ALSET_Vehicles.jpg" width="200" title="Future ALSET Vehicles">
+  <img src="https://github.com/downingbots/ALSET/blob/master/ReadMeImages/Future_ALSET_Vehicles.jpg" width="200" title="Future ALSET Vehicles">
 </p>
