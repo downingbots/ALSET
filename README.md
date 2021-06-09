@@ -13,7 +13,7 @@ What does your ALSET S or ALSET X do?  Whatever you train it to do!  Both run th
                                                                                         
 ALSET S: The ALSET S is based upon the Sharper Image Robot, which was purchased on clearance for less than $20. Note that robots on clearance should be checked in advance of purchase to ensure they are 100% functional.
 
-<p align="center">]
+<p align="center">
   <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/sharper_image_robot2.jpg" width="200" alt="accessibility text">
 </p>
 
