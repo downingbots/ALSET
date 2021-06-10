@@ -37,7 +37,7 @@ AI computer including facial recognition, obstacle avoidance, object tracking, a
 The ALSET vehicles can run all the jetbot tutorials with minor mods. In addition,
 the software for ALSET vehicles can be trained to do a sequence of individual tasks like 
 "search for cube", "drive to cube",and "pick up cube". The ALSET S has a robot arm
-for mobile manipulation. Finally, SIRjetbot1 can do end-to-end optimizations
+for mobile manipulation. Finally, ALSET software can do end-to-end optimizations
 of the sequence of individual tasks via reinforcement learning. 
 
 ALSET vehicles are inexpensive platforms to run NNs and DDQN reinforcement learning on a mobile manipulator. The ALSET hardware and software is generalized to handle many inexpensive RC toys with tracked or differential-drive wheels that have  an arm or crane or dozer blade or shovel. Just add a Jetson Nano, battery, and camera mounted near the end of the arm/excavator/bulldozer/crane/shovel as described below. Contact me if interested.
