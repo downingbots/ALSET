@@ -581,9 +581,10 @@ from dataset_utils import *
 # class SIR_DDQN(nn.Module):
 class SIR_DDQN():
 
-    def __init__(self, initialize_model=False, do_train_model=False, app_name=None, app_type=None):
+    def __init__(self, sir_robot=None, initialize_model=False, do_train_model=False, app_name=None, app_type=None):
         self.app_name = app_name
         self.app_type = app_type
+        self.robot = sir_robot
         self.cfg = Config()
         self.dsu = DatasetUtils(self.app_name, self.app_type)
         if app_type == "DQN" or app_type == "APP":
@@ -1080,13 +1081,14 @@ class SIR_DDQN():
         reward = []
         val = self.cfg.get_value(self.cfg.app_registry, self.app_name)
         func_nn_list = val[1]
-        func_app = FunctionalApp(sir_robot=None, app_name=self.app_name, app_type=self.app_type)
+        func_app = FunctionalApp(sir_robot=self.robot, app_name=self.app_name, app_type=self.app_type)
+        func_app.nn_init()
 
         ###################################################
         # iterate through NNs and fill in the active buffer
         app_index = app_dsu.dataset_indices(mode=app_mode,nn_name=None,position="NEXT")
         if app_index is None:
-          print("parse_app_dataset: unknown NEXT index")
+          print("parse_app_dataset: unknown NEXT index or DONE")
           return None
         print("Parsing APP idx", app_index)
         app_filehandle = open(app_index, 'r')
@@ -1097,9 +1099,11 @@ class SIR_DDQN():
         self.active_buffer.clear()
         self.curr_phase = 0
         func_flow_reward = None
+        first_time_through = True
         while True:  
           # find out what the func flow model expects
-          [func_flow_nn_name, func_flow_reward] = func_app.eval_func_flow_model(reward_penalty="REWARD1")
+          [func_flow_nn_name, func_flow_reward] = func_app.eval_func_flow_model(reward_penalty="REWARD1", init=first_time_through)
+          first_time_through = False
           # get the next function index 
           nn_idx = app_filehandle.readline()
           if not nn_idx:
@@ -1405,7 +1409,7 @@ class SIR_DDQN():
             tot = 0
             for i, s_a in enumerate(sorted_action_order):
                 a = self.cfg.full_action_set[s_a]
-                if a in func_restrict:
+                if func_restrict is None or a in func_restrict:
                   q_val = q_value[0].tolist()
                   sal.append([i, a, q_val[s_a]])
                   if q_val[s_a] > 0:
@@ -1462,12 +1466,12 @@ class SIR_DDQN():
                 # elif next_action not in self.cfg.nn_disallowed_actions:
                 #    print("allowed2")
                 #    break
-                else:
-                    print("disallowed")
+                if func_restrict is None or next_action in func_restrict:
+                    print("allowed:", next_action)
             else:
               for next_action_num in sorted_actions:
                   next_action = list(self.cfg.full_action_set)[next_action_num]
-                  if next_action in func_restrict:
+                  if func_restrict is None or next_action in func_restrict:
                     print("allowed1")
                     break
                   # elif next_action not in self.cfg.nn_disallowed_actions:

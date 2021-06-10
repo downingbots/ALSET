@@ -57,9 +57,15 @@ class nn_apps():
     def __init__(self, sir_robot, sir_app_name=None, sir_app_type=None):
       self.app_name = sir_app_name
       self.app_type = sir_app_type
+      self.cfg = Config()
+      self.action_set = self.cfg.full_action_set
       if sir_app_type == "FUNC":
         self.nn_name = sir_app_name
-      self.cfg = Config()
+        classifier = self.cfg.get_func_value(self.nn_name, "CLASSIFIER")
+        if classifier is not None:
+          self.classifier_output = classifier[0]
+          print("classifier output: ", self.classifier_output)
+          self.action_set = self.classifier_output
       # self.app_instance = []
       robot_dirs = []
       robot_dirs.append("apps/")
@@ -69,7 +75,6 @@ class nn_apps():
       self.app_functions = None
       self.func_flow_model = None
       self.dqn_policy = None
-      self.action_set = self.cfg.full_action_set
       self.curr_nn_name = None
       if sir_app_type == "FUNC":
         self.app_instance = sir_nn.SIRNN(sir_robot, self.action_set, self.nn_name, sir_app_type)
@@ -80,7 +85,7 @@ class nn_apps():
       elif sir_app_type == "DQN":
         [self.app_functions, self.func_flow_model] = self.cfg.get_value(self.cfg.app_registry, sir_app_name)
         [self.dqn_policy] = self.cfg.get_value(self.cfg.DQN_registry, sir_app_name)
-        self.app_instance = SIR_DDQN(True, False, sir_app_name, sir_app_type)
+        self.app_instance = SIR_DDQN(sir_robot, True, False, sir_app_name, sir_app_type)
       # for action in self.action_set:
       #     robot_dirs.append("apps/FUNC/" + action)
       self.mode = "TELEOP"

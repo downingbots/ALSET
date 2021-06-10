@@ -35,6 +35,7 @@ class SIRNN():
         self.cfg = Config()
         self.automatic_mode = False
         self.auto_func = None
+        self.func_flow_model = None
 
     def nn_init(self, gather_mode=False):
         self.model = torchvision.models.alexnet(pretrained=True)
@@ -51,7 +52,15 @@ class SIRNN():
         robot_dirs = []
         self.nn_dir = self.dsu.dataset_path(mode=self.app_type, nn_name=self.nn_name)
         robot_dirs.append(self.nn_dir)
-        for dir_name in self.cfg.full_action_set:
+        func_classifier = self.cfg.get_func_value(self.nn_name, "CLASSIFIER")
+        if func_classifier is not None:
+            outputs = func_classifier[0]
+            self.func_flow_model = FunctionalApp(self.robot, self.nn_name, "FUNC") 
+            self.func_flow_model.nn_init()
+            action_name = self.func_flow_model.eval_func_flow_model(reward_penalty=None,init=True)
+        else:
+            outputs = self.cfg.full_action_set
+        for dir_name in outputs:
           robot_dirs.append(self.nn_dir + dir_name)
         self.dsu.mkdirs(robot_dirs)
         print("nn_init: " , robot_dirs)
@@ -59,7 +68,7 @@ class SIRNN():
         if self.is_automated_function():
           self.auto_func = AutomatedFuncs(self.robot)
           self.auto_func.set_automatic_function(self.nn_name)
-        return self.is_automated_function(), self.cfg.full_action_set
+        return self.is_automated_function(), outputs
 
     def preprocess(self, camera_value):
          global device, normalize
@@ -77,16 +86,18 @@ class SIRNN():
          return x
 
     def nn_process_image(self, NN_name=None, image=None, reward_penalty=None):
-        # self.nn_process_image_cnn(NN_name=None, image=None, reward_penalty=None)
-        if image is None:
+        if self.cfg.get_func_value(NN_name, "CLASSIFIER") is not None:
+          return self.nn_process_image_cnn(NN_name=NN_name, image=image, reward_penalty=reward_penalty)
+        elif image is None:
           print("NN process image None", NN_name, reward_penalty)
           return "NOOP"
-        return self.nn_process_image_dqn(NN_name, image, reward_penalty)
+        else:
+          return self.nn_process_image_dqn(NN_name, image, reward_penalty)
 
     def nn_process_image_dqn(self, NN_name=None, image=None, reward_penalty=None):
         print("NN process image")
         if self.sir_dqn is None:
-          self.sir_dqn = SIR_DDQN(initialize_model=False, do_train_model=False, app_name=NN_name, app_type="FUNC")
+          self.sir_dqn = SIR_DDQN(robot=self.robot, initialize_model=False, do_train_model=False, app_name=NN_name, app_type="FUNC")
           self.sir_dqn.nn_init(gather_mode=False)
         return self.sir_dqn.nn_process_image(NN_name, image, reward_penalty)
         # NN_name=None, image=None, reward_penalty=None)
@@ -110,22 +121,32 @@ class SIRNN():
         max_prob = 0
         best_action = -1
         # for i in range(self.num_outputs):
-        for i in range(len(self.cfg.full_action_set)):
+        # for i in range(len(self.cfg.full_action_set)):
+        for i in range(len(self.outputs)):
             prob = float(y.flatten()[i])
-            print("PROB", i, self.cfg.full_action_set[i], prob)
+            # print("PROB", i, self.cfg.full_action_set[i], prob)
+            print("PROB", i, self.outputs[i], prob)
             if max_prob < prob:
-                for j, name in enumerate(self.cfg.full_action_set):
-                    # if name == self.outputs[i]:
-                    if name == self.cfg.full_action_set[i]:
+                # for j, name in enumerate(self.cfg.full_action_set):
+                for j, name in enumerate(self.outputs):
+                    # if name == self.cfg.full_action_set[i]:
+                    if name == self.outputs[i]:
                         if (reward_penalty is not None or 
                             name not in ["REWARD1", "PENALTY1", "REWARD2", "PENALTY2"]):
                           max_prob = prob
                           best_action = j
                           break
                 if best_action == -1:
-                    print("invalid action " + self.cfg.full_action_set[i] + "not in " + self.cfg.full_action_set)
+                    # print("invalid action " + self.cfg.full_action_set[i] + "not in " + self.cfg.full_action_set)
+                    print("invalid action " + self.outputs[i] + " not in " + self.outputs)
                     exit()
-        action_name = self.cfg.full_action_set[best_action]
+        # action_name = self.cfg.full_action_set[best_action]
+        if self.func_flow_model is None:
+          action_name = self.outputs[best_action]
+        else:
+          print("eval func flow input:", self.outputs[best_action])
+          curr_nn, action_name = self.func_flow_model.eval_func_flow_model(self.outputs[best_action])
+          print("eval func flow:", curr_nn, self.outputs[best_action], action_name)
         return action_name
 #        if action_name == "FORWARD":
 #            print("NN FORWARD") 
@@ -206,8 +227,10 @@ class SIRNN():
     # This test accuracy might help with determining whether there is enough
     # data for TT_DQN.
     def train(self, dataset_root_list=None, best_model_path=None, full_action_set=None, noop_remap=None, only_new_images=True):
-        # self.train_cnn(dataset_root_list, best_model_path, full_action_set, noop_remap, only_new_images)
-        self.train_dqn(dataset_root_list, best_model_path, full_action_set, noop_remap, only_new_images)
+        if self.cfg.get_func_value(self.nn_name, "CLASSIFIER") is not None:
+          self.train_cnn(dataset_root_list, best_model_path, full_action_set, noop_remap, only_new_images)
+        else:
+          self.train_dqn(dataset_root_list, best_model_path, full_action_set, noop_remap, only_new_images)
 
     def train_dqn(self, dataset_root_list=None, best_model_path=None, full_action_set=None, noop_remap=None, only_new_images=True):
         if dataset_root_list is None:
@@ -383,9 +406,10 @@ class SIRNN():
     # wipe_memory(self)
     def cleanup(self):
         del self.model
-        self._optimizer_to(torch.device('cpu'))
-        del self.optimizer
-        gc.collect()
+        if self.optimizer is not None:
+          self._optimizer_to(torch.device('cpu'))
+          del self.optimizer
+          gc.collect()
         torch.cuda.empty_cache()
         # you can check that memory was released using nvidia-smi
 

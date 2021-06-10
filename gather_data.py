@@ -72,6 +72,8 @@ class GatherData():
         else:
           self.process_image_action = self.nn_app.nn_process_image()
         print("process_image:", self.nn_app.get_snapshot_dir(), self.process_image_action)
+        if self.process_image_action is None:
+            return None
         directory = os.path.join(self.nn_app.get_snapshot_dir(), self.process_image_action)
         if self.do_process_image() and not self.is_on():
             frame_location = None

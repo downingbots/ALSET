@@ -72,7 +72,7 @@ class DatasetUtils():
         elif mode == "FUNC":
           if self.app_name is None:
               print("dataset_index_path mode,nn_name:", mode, nn_name)
-          print("dip: ", self.cfg.APP_DIR, mode, nn_name , self.cfg.DATASET_IDX_DIR)
+          # print("dip: ", self.cfg.APP_DIR, mode, nn_name , self.cfg.DATASET_IDX_DIR)
           ds_idx_path = self.cfg.APP_DIR + mode + "/" + nn_name + self.cfg.DATASET_IDX_DIR 
         else:
           print("dataset_index_path: unknown mode", mode)
@@ -132,7 +132,10 @@ class DatasetUtils():
           print("idx_list:", idx_list)
           lastdatasetname = self.get_filename_from_full_path(lastdataset)
           print("lastdatasetname:", lastdatasetname)
-          i = idx_list.index(lastdatasetname) # else value index error
+          try:
+            i = idx_list.index(lastdatasetname) # else value index error
+          except:
+            return None
           # print("i = ", i)
           if i+1 >= len(idx_list):
             print("all datasets processed", lastdatasetname)

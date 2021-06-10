@@ -1,11 +1,13 @@
-./restart_camera ; ./copy_to_python ; python3 ./sir_jetbot_teleop.py --app TT
-./restart_camera ; ./copy_to_python ; python3 ./sir_jetbot_teleop.py --app TT | unbuffer -p tee ~/tmp/output
+./restart_camera ; ./copy_to_python ; python3 ./alset_teleop.py --app TT
+./restart_camera ; ./copy_to_python ; python3 ./alset_teleop.py --app TT | unbuffer -p tee ~/tmp/output
 
-./restart_camera ; ./copy_to_python ; python3 ./sir_jetbot_teleop.py --dqn TT
-./restart_camera ; ./copy_to_python ; python3 ./sir_jetbot_train.py --dqn TT
+./restart_camera ; ./copy_to_python ; python3 ./alset_teleop.py --dqn TT
+./restart_camera ; ./copy_to_python ; python3 ./alset_train.py --dqn TT
 
-./restart_camera ; ./copy_to_python ; python3 ./sir_jetbot_teleop.py --func PARK_ARM_RETRACTED
-./restart_camera ; ./copy_to_python ; python3 ./sir_jetbot_train.py --func PARK_ARM_RETRACTED
+./restart_camera ; ./copy_to_python ; python3 ./alset_teleop.py --func PARK_ARM_RETRACTED
+./restart_camera ; ./copy_to_python ; python3 ./alset_train.py --func PARK_ARM_RETRACTED
+
+./restart_camera ; ./copy_to_python ; python3 ./alset_teleop.py --func PT_COLLISION_AVOIDANCE
 
 python ./rm_dataset_run.py --newest_func DROP_CUBE_IN_BOX
 python ./rm_dataset_run.py --newest_func DROP_CUBE_IN_BOX --rm

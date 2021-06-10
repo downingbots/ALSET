@@ -23,23 +23,32 @@ class FunctionalApp():
       self.func_background  = []
       self.func_comment     = []
       self.func_outputs     = []
+      self.func_classifier_outputs = []
+      self.func_classifier_flow = []
       self.func_attributes  = []
       self.func_subsumption = []
       self.func_attributes  = []
-      self.func_classifier_nn = []
       if app_type not in ["FUNC", "APP", "DQN"]:
         print("App Type must be in [nn, func_app, dqn]. Unknown value:", mode)
         exit()
       self.app_type = app_type
       outputs = self.cfg.full_action_set
       val = self.cfg.get_value(self.cfg.app_registry, self.app_name)
+      print("app registry val:", val)
       if val is not None:
         [self.NN, self.app_flow_model] = val
         self.is_composite_app = True
       elif self.app_name in self.cfg.func_registry:
           # not currently used
           self.NN = [self.app_name]
-          self.app_flow_model = [
+          print("Stand-alone function execution:", self.app_name)
+          classifier = self.cfg.get_func_value(self.app_name, "CLASSIFIER")
+          if classifier is not None:
+            self.classifier_outputs = classifier[0]
+            func_flow = classifier[1]
+            self.app_flow_model = func_flow
+          else:
+            self.app_flow_model = [
                [[],["START", 0]],
                [[0], ["IF", "REWARD1", "STOP_WITH_REWARD1"] ],
                [[0], ["IF", "REWARD2", "STOP_WITH_REWARD2"] ],
@@ -58,16 +67,11 @@ class FunctionalApp():
   def nn_init(self, gather_mode=False):
       # defaults
       gather_mode = False  # ARD: why does gather_mode matter for nn_init?
-      outputs = self.cfg.full_action_set
       print("App: ", self.app_name, " mode:", self.app_type, " of ", len(self.NN))
       self.robot.sir_robot.stop_all()
       ds_dirs = []
       print(" ")
-      if self.nn_init_done:  # previously run
-        pass 
-      if not self.is_composite_app:
-        print("Stand-alone function execution err. Not a funcional app:", self.app_name)
-      else:
+      if not self.nn_init_done:  # previously run
         for nn_num, nn_name in enumerate(self.NN):
             if nn_name in self.func_names:
                 continue
@@ -79,8 +83,20 @@ class FunctionalApp():
             # self.cfg.set_debug(False)
             self.func_subsumption.append(self.cfg.get_func_value(nn_name, "SUBSUMPTION"))
             self.func_outputs.append(self.cfg.get_func_value(nn_name, "MOVEMENT_RESTRICTIONS"))
+            classifier = self.cfg.get_func_value(nn_name, "CLASSIFIER")
+            if classifier is None:
+              self.func_classifier_outputs.append(None)
+              self.func_classifier_flow.append(None)
+              outputs = self.cfg.full_action_set
+            else:
+              outputs = classifier[0]
+              self.func_classifier_outputs.append(outputs)
+              func_flow = classifier[1]
+              self.func_classifier_flow.append(func_flow)
+              self.app_flow_model = func_flow
+              print("classifier info: ", outputs, func_flow, len(self.func_classifier_flow))
+
             # for movement+checks
-            self.func_classifier_nn.append(False)     # TODO
 
             ds_path = self.dsu.dataset_path(mode="FUNC", nn_name=nn_name)
             ds_dirs.append(ds_path)
@@ -88,14 +104,20 @@ class FunctionalApp():
               ds_dirs.append(ds_path + act)
 
             print("func_automated", nn_name, self.func_automated)
-            if not self.func_automated[nn_num] and not self.func_classifier_nn[nn_num]:
+            # if not self.func_automated[nn_num] and self.func_classifier_outputs[nn_num] is None:
+            # ARD: if we're in training mode, we still need to create SIRNN object.
+            # ARD: postpone creation until until needed...
+            # if not self.func_automated[nn_num] and self.func_classifier_outputs[nn_num] is None:
+            if not self.func_automated[nn_num] or self.func_classifier_outputs[nn_num] is not None:
+              print("func_classifier_outputs: ", self.func_classifier_outputs[nn_num], nn_num)
               # SIRNN is an actual torch NN after the call to nn_init. 
               # type depends if a classification or not
               self.func_app_function.append(sir_nn.SIRNN(self.robot, outputs, self.func_names[nn_num], "FUNC"))
               # Don't instantiate yet by calling nn_init
               # self.func_app_function[-1].nn_init(gather_mode)
-            elif self.func_classifier_nn[nn_num]:
-              self.func_app_function.append(ClassifierNN(self.robot, self.func_names, "FUNC"))
+            else:
+                # TODO: handle a clasifier function!
+              self.func_app_function.append(None)
       if not self.nn_init_done:
         self.dsu.mkdirs(ds_dirs)
         if self.curr_func_name is None:
@@ -123,26 +145,34 @@ class FunctionalApp():
   #############
   def eval_func_flow_model(self, reward_penalty, init=False):
     rew_pen = None
+    nn_output = None
     if init:
        self.ff_nn_num = None
        # self.curr_phase = 0
+    if self.ff_nn_num is not None:
+      NN_name = self.NN[self.ff_nn_num]
+      if self.func_classifier_outputs[self.ff_nn_num] is None:
+        nn_output = self.cfg.full_action_set
+      else:
+        nn_output = self.func_classifier_outputs[self.ff_nn_num]
+      # print("AFM: nn_output: ", nn_output)
     for [it0, it1] in self.app_flow_model:
-      print("AFM:", reward_penalty, self.ff_nn_num, it0, it1)
+      # print("AFM:", reward_penalty, self.ff_nn_num, it0, it1)
       # AFM: ending:  None
       output_rew_pen = None
       if len(it0) == 0 and self.ff_nn_num is None:
          # starting point
-         print("AFM: starting")
+         # print("AFM: starting")
          self.ff_nn_num = it1[1]
          break
       elif ((type(it0) == str and it0 == "ALL") or 
           (type(it0) == list and self.ff_nn_num in it0)):
           if it1[0] == "IF":
-            print("AFM: IF")
+            # print("AFM: IF")
             if reward_penalty == it1[1]:
-              print("AFM: matching reward")
+              # print("AFM: matching reward")
               if type(it1[2])==list:
-                print("AFM: list compare")
+                # print("AFM: list compare")
                 self.ff_nn_num = it1[2][1]
                 if len(it1[2]) == 2 and it1[2][0] == "GOTO_WITH_REWARD1":
                   output_rew_pen = "REWARD1"
@@ -154,20 +184,20 @@ class FunctionalApp():
                   output_rew_pen = "PENALTY2"
                 break
               elif it1[2] == "NEXT":
-                print("AFM: NEXT")
+                # print("AFM: NEXT")
                 self.ff_nn_num += 1
                 break
               elif it1[2] in ["NEXT_WITH_REWARD1"]:
-                print("AFM: NEXT WITH REW1")
+                # print("AFM: NEXT WITH REW1")
                 output_rew_pen = "REWARD1"
                 self.ff_nn_num += 1
                 break
               elif it1[2] == "STOP":
-                print("AFM: STOP")
+                # print("AFM: STOP")
                 self.ff_nn_num = None
                 break
               elif it1[2] in ["STOP_WITH_REWARD1", "STOP_WITH_REWARD2", "STOP_WITH_PENALTY1", "STOP_WITH_PENALTY2"]:
-                print("AFM: STOP w REW/PEN")
+                # print("AFM: STOP w REW/PEN")
                 self.ff_nn_num = None
                 if it1[2] == "STOP_WITH_REWARD1":
                   output_rew_pen = "REWARD1"
@@ -178,8 +208,12 @@ class FunctionalApp():
                 elif it1[2] == "STOP_WITH_PENALTY2":
                   output_rew_pen = "PENALTY2"
                 break
+              elif nn_output is not None and it1[1] in nn_output and it1[2] in self.cfg.full_action_set:
+                # print("AFM: output mapping:", it1[1], it1[2])
+                output_rew_pen = it1[2]
+                break
     if self.ff_nn_num is None:
-      print("AFM: ending: ", output_rew_pen)
+      # print("AFM: ending: ", output_rew_pen)
       return [None, output_rew_pen]
     print("AFM: eval ", self.ff_nn_num, self.NN[self.ff_nn_num], output_rew_pen)
     return [self.NN[self.ff_nn_num], output_rew_pen]
@@ -232,7 +266,11 @@ class FunctionalApp():
 
   def nn_process_image(self, NN_name = None, image=None, reward_penalty=None):
       # run NN
-      print("TT process_image %s" % NN_name)
+      print("Functional App process_image %s" % NN_name)
+      if image is None or NN_name is None:
+          return None
+      if not self.nn_init_done:
+          self.nn_init()
       # allow reward/penalty to be returned by NN by setting to non-None
       return self.func_app_function.nn_process_image(NN_name = self.curr_func_name, image=image, reward_penalty=reward_penalty)
 
@@ -266,9 +304,16 @@ class FunctionalApp():
         for nn_num, nn_name in enumerate(self.func_names):
           print("Train model: ", nn_name)
           nn = self.func_app_function[nn_num]
+          if nn is None:
+              # JIT creation of SIRNN
+              outputs = self.func_classifier_outputs[nn_num]
+              if outputs is None:
+                 outputs = self.cfg.full_action_set
+              self.func_app_function[nn_num] = sir_nn.SIRNN(self.robot, outputs, self.func_names[nn_num], "FUNC")
+              nn = self.func_app_function[nn_num]
           # nn.nn_init(gather_mode=False)
           nn.nn_init(False)
-          if not self.func_automated[nn_num] and not self.func_classifier_nn[nn_num]:
+          if not self.func_automated[nn_num] and not self.func_classifier_outputs[nn_num]:
             ds = self.dsu.dataset_path(mode="FUNC", nn_name=nn_name)
             dataset_root_list = [ds]
             model = self.dsu.best_model(mode="FUNC", nn_name=nn_name)

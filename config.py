@@ -51,6 +51,8 @@ class Config():
 
       self.func_registry = [
                             # TABLETOP ATOMIC NNs
+                            "PT_COLLISION_AVOIDANCE",
+                            "COLLISION_AVOIDANCE",
                             "PARK_ARM_HIGH",
                             "PARK_ARM_HIGH_WITH_CUBE",
                             "PARK_ARM_RETRACTED",
@@ -99,6 +101,8 @@ class Config():
       self.func_key_val = self.init_func_key_value(self.func_registry)
 
       self.func_comments = [
+                    ["PT_COLLISION_AVOIDANCE", "PreTrained Collision Avoidance for Jetbot from NVidia"],
+                    ["COLLISION_AVOIDANCE", "Collision Avoidance trained via teleop"],
 		    ["PARK_ARM_HIGH", "Arm parked with upper arm vertical and lower arm pointing down, with base of robot slightly visible between grippers."],
                     ["PARK_ARM_RETRACTED_WITH_CUBE","PARK_ARM_HIGH with cube in gripper"],
 		    ["PARK_ARM_RETRACTED", "Arm parked with upper arm flat backwards and lower arm flat pointing forward. Gripper is open and ground seen a few inches in front of robot.", "ALEXNET"],
@@ -142,7 +146,14 @@ class Config():
                              ["STAY_ON_TABLE", ["LEFT"]]
                            ]
 
-      self.func_classifier = []
+      # use CNN instead of DQN to train.  May allow more classification app logic in future.
+      self.func_pt_col_avoid_func_flow_model = [
+            [[],["START", 0]],
+            [[0], ["IF", "BLOCKED", "LEFT" ]],
+            [[0], ["IF", "FREE", "FORWARD" ]],
+            [[0], ["IF", "PENALTY1", "STOP" ]],
+            ]
+      self.func_classifier = [ ["PT_COLLISION_AVOIDANCE", [["BLOCKED", "FREE"], self.func_pt_col_avoid_func_flow_model]]]
       # TODO: self.classifier = [FIDUCIAL, OBJECT, FACE, DARK_LIGHT]
 
       # TODO:
@@ -187,6 +198,8 @@ class Config():
       self.add_to_func_key_value("SUBSUMPTION", self.func_subsumption)
       self.add_to_func_key_value("AUTOMATED", self.func_automated)
       self.add_to_func_key_value("MOVEMENT_RESTRICTIONS", self.func_movement_restrictions)
+      self.add_to_func_key_value("MOVEMENT_RESTRICTIONS", self.func_movement_restrictions)
+      self.add_to_func_key_value("CLASSIFIER", self.func_classifier)
 
 
       #######################
@@ -299,6 +312,54 @@ class Config():
       # for composite apps, key-value pirs
       self.app_registry.append(["TTT",[self.TTT_func, self.TTT_func_flow_model]])
       self.DQN_registry.append(["TTT",[self.TTT_DQN_policy]])
+
+
+      ############################
+      # DEFINE PRETRAINED PT_COLLISION_AVOIDANCE
+      ############################
+      self.pt_col_avoid_name        = ["PT_COLLISION_AVOIDANCE_APP"]
+      self.pt_col_avoid_func        = [
+                                      "PARK_ARM_RETRACTED",           #  0
+                                      "PT_COLLISION_AVOIDANCE"        #  1
+                                      ]
+
+      # LEFT
+      self.app_pt_col_avoid_func_flow_model = [
+            [[],["START", 0]],
+            [[0], ["IF", "REWARD1", "NEXT"] ],
+            [[1], ["IF", "REWARD1", "LEFT"] ],
+            [[1], ["IF", "PENALTY", "STOP" ]],
+            [[1], ["IF", "BLOCKED", "LEFT" ]],
+            [[1], ["IF", "FREE", "FORWARD" ]],
+            ]
+
+      # for composite apps, key-value pirs
+      self.app_registry.append(["PT_COLLISION_AVOIDANCE_APP",[self.pt_col_avoid_func, self.app_pt_col_avoid_func_flow_model]])
+
+      ############################
+      # DEFINE COLLISION_AVOIDANCE
+      ############################
+      # if we do regular teleop training from scratch instead of pre-trained classifier, 
+      # we would define following
+      self.col_avoid_name        = ["COLLISION_AVOIDANCE"]
+      self.col_avoid_func     = [
+                                   "PARK_ARM_RETRACTED",           #  0
+                                   "COLLISION_AVOIDANCE"           #  1
+                                   ]
+
+      # LEFT
+      self.col_avoid_func_flow_model = [
+            [[],["START", 0]],
+            [[0], ["IF", "REWARD1", "NEXT"] ],
+            [[1], ["IF", "REWARD1", "LEFT"] ],
+            [[1], ["IF", "PENALTY", "STOP" ]],
+            ]
+
+      # for composite apps, key-value pirs
+      self.app_registry.append(["COLLISION_AVOIDANCE",[self.col_avoid_func, self.col_avoid_func_flow_model]])
+
+      self.col_avoid_restrict = ["FORWARD", "LEFT"]
+      self.func_movement_restrictions.append(["COLLISION_AVOIDANCE", self.col_avoid_restrict])
 
       ########################
       # DEFINE PERSONALITY APP
