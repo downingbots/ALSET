@@ -44,11 +44,9 @@ Converted to Autonomous robot:
 =========================
                                                                                                            
 # ALSET Model X
-                                                                                                                                    
  
-# Q: "What does the ALSET Model X do?"  
-
-# A: "Whatever you train it to do!"                                                                                                                                   
+## Q: "What does the ALSET Model X do?"  
+## A: "Whatever you train it to do!"                                            
 
 <p align="left">
   <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/excavator.jpg" width="200" title="RC Excavator">
@@ -115,7 +113,7 @@ https://youtu.be/....
 # Simple Functions Combined to Define App Behavior
 
  - Parking the robot arm in known positions
- - Different searches for objects (pretrained, newly trained, faces, ficucials)
+ - Different searches for objects (pretrained, newly trained, faces, fiducials)
  - Drive to objects
  - Pick up or push objects
  - Drop or place objects
