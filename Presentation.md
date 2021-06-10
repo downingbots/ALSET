@@ -142,3 +142,16 @@ Have the robots work together!
 <p align="left">
   <img src="https://github.com/downingbots/ALSET/blob/master/ReadMeImages/Future_ALSET_Vehicles.jpg" width="200" title="Future ALSET Vehicles">
 </p>
+
+=========================
+
+<p align="left">
+  <img src="https://raw.githubusercontent.com/downingbots/ALSET/master/ReadMeImages/alset5.png" width="500 title="ALSET Autonomous Vehicles">
+</p>     
+
+Inexpensive Autonomous RC Vehicles with Full Self-Driving Capabilities
+
+https://github.com/downingbots/ALSET
+
+downingbots @ gmail.com
+
