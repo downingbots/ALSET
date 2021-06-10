@@ -6,7 +6,7 @@
 
 Inexpensive Autonomous RC Vehicles with Full Self-Driving Capabilities
 
-https://github.com/downingbots/ALSET
+Open Source: https://github.com/downingbots/ALSET
 
 downingbots @ gmail.com
 
@@ -151,7 +151,7 @@ Have the robots work together!
 
 Inexpensive Autonomous RC Vehicles with Full Self-Driving Capabilities
 
-https://github.com/downingbots/ALSET
+Open Source: https://github.com/downingbots/ALSET
 
 downingbots @ gmail.com
 
