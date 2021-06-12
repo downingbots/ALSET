@@ -10,23 +10,23 @@ Welcome to ALSET. Do you want an inexpensive, open-source autonomous vehicle wit
  - Model X: an autonomous Excavator.    
 
 <p align="center">
-  <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/sharper_image_robot.jpg" width="400 title="Sharper Image Robot">
-  <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/excavator.jpg" width="200" title="RC Excavator">
+  <img src="https://github.com/downingbots/ALSET/blob/master/ReadMeImages/sharper_image_robot.jpg" width="400 title="Sharper Image Robot">
+  <img src="https://github.com/downingbots/ALSET/blob/master/ReadMeImages/excavator.jpg" width="200" title="RC Excavator">
 </p>
 
 What does your ALSET S or ALSET X do?  Whatever you train it to do!  Both run the same software and mostly the same hardware to support the most advanced Deep Learning capabilities.
                                                                                         
-ALSET S: The ALSET S is based upon the Sharper Image Robot, which was purchased on clearance for less than $20. Note that robots on clearance should be checked in advance of purchase to ensure they are 100% functional.
+ALSET S: The ALSET S is based upon the Sharper Image Robot, which was purchased on clearance for less than $20. Note that robots on clearance should be checked in advance of purchase to ensure they are 100% functional, as we found that the majority were not.
 
 <p align="center">
-  <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/sharper_image_robot2.jpg" width="200" alt="accessibility text">
+  <img src="https://github.com/downingbots/ALSET/blob/master/ReadMeImages/sharper_image_robot2.jpg" width="200" alt="accessibility text">
 </p>
 
 ALSET X: The ALSET X is based upon the Top Race 15 Channel RC Excavator. This is an amazing RC vehicle for the price.  This tractor vehicle works just like a real excavator with the ability and power to really dig with its heavy steel shovel.  It has 680° Degree Cab Rotation and 3 separate motors on digging arm to lift up and down to its full extent.
                         
 Future platforms include: the Top Race Bulldozer and Dump Truck. You will be able train these future ALSET vehicles via Remote Control to do Bulldozer-like behavior or Dump-truck-like behavior without explicitly programming anything.  With minimal changes, you can train individual "functionality" like put down the bulldozer blade and drive forward and then lift the blade and drive in reverse. You can link functionality together to do a higher-level task. Then, finally you can define some "policy" so that the linked functionalities can be optimized via end-to-end reinforcement learning.  Other possible RC toys: firetrucks with RC ladder/firehose, RC Forklifts, RC Utility Bucket Trucks, RC tanks.
 <p align="center">
-  <img src="https://github.com/downingbots/SIR_jetbot/blob/master/ReadMeImages/bulldozer.jpg" width="200" alt="accessibility text">
+  <img src="https://github.com/downingbots/ALSET/blob/master/ReadMeImages/bulldozer.jpg" width="200" alt="accessibility text">
   <img src="https://raw.githubusercontent.com/downingbots/ALSET/master/ReadMeImages/Future_ALSET_Vehicles.jpg" width="200" alt="accessibility text"> 
 </p>                              
                                                                                               
@@ -250,7 +250,7 @@ app functions to form an artificial application run for DQN:
                 python3 ./mk_rand_func_idx.py --app TT
 
 The FUNC, TT APP, TT RAND are trained incrementally and require training
-by executing sir_jetbot_train.py as discussed below.  All three
+by executing alset_train.py as discussed below.  All three
 app types (FUNC, APP, and DQN) use the FUNC app to gather data and will be
 trained from the FUNC data. 
 
@@ -357,7 +357,7 @@ I want to do Reinforcement Learning (RL) on real robots (specifically mobile man
 ROS is a good place to start with real robots, but you'll eventually hit the limits of what custom software can achieve.  Robot perception is still not solved and the best human-designed algorithms leave a lot to be desired.  My hope is that RL can adapt to handle low-end hardware and fill some of the intelligence void in robotics. Unfortunately, RL presents its own set of challenges.  I want to learn these challenges and try to solve subsets of these open-end research problems.
 
 ALSET addresses several lessons learned the hard way.
-  - Over time, I've become convinced that inexpensive Robot Arms should have camera attached directly to the arm and use RL for digital servoing. SIR_jetbot1 does this with its only sensor - the RPi camera on its gripper (just below the "wrist").
+  - Over time, I've become convinced that inexpensive Robot Arms should have camera attached directly to the arm and use RL for digital servoing. The Alset S does this with its only sensor - the RPi camera on its gripper (just below the "wrist"). The Alset X doesn't have a gripper, so the camera is attached to where a human is designed to sit.
   - ALSET does discrete moves to avoid realtime processing and also to handle low-end hardware limitions (mcp23017 communication rate).
   - The on-board Jetson is the most expensive component. Total price of the whole robot is a few hundred dollars.
   - Use imitation-learning to reduce amount of RL episodes that you have to run.
@@ -416,7 +416,7 @@ Lessons from REPLab:
 
 Lesson from using the Jetson nano / Jetbot:
   - The Jetson "notebook" is a cool idea for tutorials, but in practice needs very fast wifi - better than my house has and very fast SSD - faster than I bought.  But putting the gamepad/logitech on the robot and using lower overhead video webstreaming worked fine.
-  - I immediately outgrew the functionality provided by the Jetbot. I was able to start with the jetbot code and tutorials to incremental build an armed jetbot (sir_jetbot1).
+  - I immediately outgrew the functionality provided by the Jetbot. I was able to start with the jetbot code and tutorials to incremental build an armed jetbot (ALSET S).
   
 Reinforcement learning in general:
   - Let's look at some more recent major impressive results in deep learning:
