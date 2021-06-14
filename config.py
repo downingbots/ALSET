@@ -5,6 +5,7 @@ class Config():
       ###################################
       # Action Sets: 
       ###################################
+      self.ALSET_MODEL = "S"
       self.gather_data_modes = ["GATHER_DATA_ON", "GATHER_DATA_OFF"]
       self.modes = ["TELEOP", "NN"]
       self.base_actions  = ["FORWARD", "REVERSE", "LEFT", "RIGHT"]

@@ -429,3 +429,4 @@ Reinforcement learning in general:
   - These all confirm the ongoing trend in deep learning that shows deep learning scales to incredible degrees. Basically, if you have a problem that you need to solve, recursively add more data and then add more levels to the NN (now attention-based), until you achieve good results (near-human or better). 
   - To get anything that seems to be impressive, you need huge datasets and tons of training to such a scale that only big companies with hundreds of thousands of dollars to spend can afford.  Individual developers / researchers can make contributions to the area (podcast: Can We Scale Up to AGI with Current Tech? https://www.youtube.com/watch?v=oj5kozyUYeM ), but to get to the point of gaining common-sense intelligence is out of the reach of all but the biggest, richest companies with the biggest datasets (think Google and Facebook.)
 
+

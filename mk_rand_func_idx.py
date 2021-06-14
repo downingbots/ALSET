@@ -13,8 +13,8 @@ else:
   print("expected --app app_name")
   exit()
 
-sir_robot = Robot()
-func_app = FunctionalApp(sir_robot, app_name, "APP")
+alset_robot = Robot()
+func_app = FunctionalApp(alset_robot, app_name, "APP")
 rand_func_ds_idx = ds_util.dataset_indices(mode="RAND", nn_name=app_name, position="NEW")
 print(rand_func_ds_idx,":")
 

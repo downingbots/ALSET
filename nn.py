@@ -5,7 +5,7 @@ import numpy as np
 from robot import *
 from image_folder2 import *
 from config import *
-from sir_ddqn import *
+from alset_ddqn import *
 import torch.nn.functional as F
 import time
 import torch
@@ -17,14 +17,14 @@ import torchvision.transforms as transforms
 
 
 
-class SIRNN():
-    def __init__(self,sir_robot,outputs, nn_name, app_type):
-        self.robot = sir_robot
+class ALSETNN():
+    def __init__(self,alset_robot,outputs, nn_name, app_type):
+        self.robot = alset_robot
         self.app_name = None
         self.nn_name = nn_name
         self.app_name = nn_name
         self.app_type = app_type
-        self.sir_dqn = None
+        self.alset_dqn = None
         self.device = None
         self.model = None
         self.optimizer = None
@@ -96,10 +96,10 @@ class SIRNN():
 
     def nn_process_image_dqn(self, NN_name=None, image=None, reward_penalty=None):
         print("NN process image")
-        if self.sir_dqn is None:
-          self.sir_dqn = SIR_DDQN(robot=self.robot, initialize_model=False, do_train_model=False, app_name=NN_name, app_type="FUNC")
-          self.sir_dqn.nn_init(gather_mode=False)
-        return self.sir_dqn.nn_process_image(NN_name, image, reward_penalty)
+        if self.alset_dqn is None:
+          self.alset_dqn = ALSET_DDQN(robot=self.robot, initialize_model=False, do_train_model=False, app_name=NN_name, app_type="FUNC")
+          self.alset_dqn.nn_init(gather_mode=False)
+        return self.alset_dqn.nn_process_image(NN_name, image, reward_penalty)
         # NN_name=None, image=None, reward_penalty=None)
 
 
@@ -240,10 +240,10 @@ class SIRNN():
           dataset_root_list.append(dsp)
         for ds_root in dataset_root_list:
            func_name = self.dsu.get_func_name_from_full_path(ds_root)
-           sir_dqn = SIR_DDQN(initialize_model=False, do_train_model=False, app_name=func_name, app_type="FUNC")
-           sir_dqn.nn_init(gather_mode=False)
-           sir_dqn.parse_func_dataset(func_name, False, "FUNC")
-           # sir_dqn.parse_func_dataset(init=False, app_name=ds_root, app_mode="FUNC")
+           alset_dqn = ALSET_DDQN(initialize_model=False, do_train_model=False, app_name=func_name, app_type="FUNC")
+           alset_dqn.nn_init(gather_mode=False)
+           alset_dqn.parse_func_dataset(func_name, False, "FUNC")
+           # alset_dqn.parse_func_dataset(init=False, app_name=ds_root, app_mode="FUNC")
            #   def parse_func_dataset(self, init=False, app_name=None, app_mode="FUNC"):
            # TypeError: parse_func_dataset() got an unexpected keyword argument 'app_name'
 

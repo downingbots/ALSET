@@ -5,8 +5,8 @@
 # 
 # NN_apps (nn_apps.py)
 #   currently 3 apps are defined:
-#      1. a single SIRNN
-#      2. one tabletop_nn that will define 8 SIRNN
+#      1. a single ALSETNN
+#      2. one tabletop_nn that will define 8 ALSETNN
 #      3. DDQN reinforcement learning
 #   Each of these Apps has a set of functions that are called
 #      by the NN_apps function of the same name in a poor-man's
@@ -21,10 +21,10 @@
 #         nn_upon_failure, nn_upon_success, automatic_mode
 # 
 #  functional_app.py -> generalization of tabletop version
-#   self.NN[0-7] -> defines a SIRNN for each function performed
+#   self.NN[0-7] -> defines a ALSETNN for each function performed
 #   knows number of NN to define
 #   knows actions for each NN
-#   knows/calls actual torch NN (SIRNN)
+#   knows/calls actual torch NN (ALSETNN)
 #   defines flow between NN in config file
 #    1. Park Arm
 #    2. Automatic scan for cube
@@ -38,29 +38,29 @@
 #   defines automatic mode 
 # 
 # nn.py defines
-#   SIRNN -> actual single torch NN
+#   ALSETNN -> actual single torch NN
 #   also a self-contained single-NN app
 import os
 import time
 import cv2
 import numpy as np
 from robot import *
-from sir_ddqn import *
+from alset_ddqn import *
 from functional_app import *
 from automated_funcs import *
-import nn as sir_nn
+import nn as alset_nn
 from config import *
 import time
 
 class nn_apps():
     # initialize app registry
-    def __init__(self, sir_robot, sir_app_name=None, sir_app_type=None):
-      self.app_name = sir_app_name
-      self.app_type = sir_app_type
+    def __init__(self, alset_robot, alset_app_name=None, alset_app_type=None):
+      self.app_name = alset_app_name
+      self.app_type = alset_app_type
       self.cfg = Config()
       self.action_set = self.cfg.full_action_set
-      if sir_app_type == "FUNC":
-        self.nn_name = sir_app_name
+      if alset_app_type == "FUNC":
+        self.nn_name = alset_app_name
         classifier = self.cfg.get_func_value(self.nn_name, "CLASSIFIER")
         if classifier is not None:
           self.classifier_output = classifier[0]
@@ -70,28 +70,28 @@ class nn_apps():
       robot_dirs = []
       robot_dirs.append("apps/")
       robot_dirs.append("apps/FUNC")
-      self.dsu = DatasetUtils(sir_app_name, sir_app_type)
+      self.dsu = DatasetUtils(alset_app_name, alset_app_type)
       self.dsu.mkdirs(robot_dirs)
       self.app_functions = None
       self.func_flow_model = None
       self.dqn_policy = None
       self.curr_nn_name = None
-      if sir_app_type == "FUNC":
-        self.app_instance = sir_nn.SIRNN(sir_robot, self.action_set, self.nn_name, sir_app_type)
+      if alset_app_type == "FUNC":
+        self.app_instance = alset_nn.ALSETNN(alset_robot, self.action_set, self.nn_name, alset_app_type)
         self.curr_nn_name = self.nn_name
-      elif sir_app_type == "APP":
-        [self.app_functions, self.func_flow_model] = self.cfg.get_value(self.cfg.app_registry, sir_app_name)
-        self.app_instance = FunctionalApp(sir_robot, sir_app_name, sir_app_type)
-      elif sir_app_type == "DQN":
-        [self.app_functions, self.func_flow_model] = self.cfg.get_value(self.cfg.app_registry, sir_app_name)
-        [self.dqn_policy] = self.cfg.get_value(self.cfg.DQN_registry, sir_app_name)
-        self.app_instance = SIR_DDQN(sir_robot, True, False, sir_app_name, sir_app_type)
+      elif alset_app_type == "APP":
+        [self.app_functions, self.func_flow_model] = self.cfg.get_value(self.cfg.app_registry, alset_app_name)
+        self.app_instance = FunctionalApp(alset_robot, alset_app_name, alset_app_type)
+      elif alset_app_type == "DQN":
+        [self.app_functions, self.func_flow_model] = self.cfg.get_value(self.cfg.app_registry, alset_app_name)
+        [self.dqn_policy] = self.cfg.get_value(self.cfg.DQN_registry, alset_app_name)
+        self.app_instance = ALSET_DDQN(alset_robot, True, False, alset_app_name, alset_app_type)
       # for action in self.action_set:
       #     robot_dirs.append("apps/FUNC/" + action)
       self.mode = "TELEOP"
       self.ready_for_frame = False
       self.frame = None
-      self.robot = sir_robot
+      self.robot = alset_robot
       self.auto_funcs = AutomatedFuncs(self.robot)
       self.auto_done = False
       self.nn_dir = None

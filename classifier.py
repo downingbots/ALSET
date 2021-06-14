@@ -1,7 +1,7 @@
 
 
 class ClassifierNN():
-  def __init__(self, sir_robot, app_name, mode):
+  def __init__(self, alset_robot, app_name, mode):
     pass
 
   def nn_init(self, gather_mode=False):

@@ -6,9 +6,9 @@ import time
 
 class AutomatedFuncs():
 
-  def __init__(self, sir_robot):
+  def __init__(self, alset_robot):
       self.cfg = Config()
-      self.robot = sir_robot
+      self.robot = alset_robot
       self.quick_search_variations = ["QUICK_SEARCH_FOR_CUBE","QUICK_SEARCH", "QUICK_SEARCH_FOR_BOX_WITH_CUBE", "QUICK_SEARCH_AND_RELOCATE"]
       self.init()
 

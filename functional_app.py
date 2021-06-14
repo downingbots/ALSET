@@ -2,12 +2,12 @@ from config import *
 from automated_funcs import *
 from classifier import *
 import dataset_utils as ds_utils
-import nn as sir_nn
+import nn as alset_nn
 
 class FunctionalApp():
-  def __init__(self, sir_robot, app_name, app_type):
+  def __init__(self, alset_robot, app_name, app_type):
       # print("TableTop: 8 Functional NNs")
-      self.robot = sir_robot
+      self.robot = alset_robot
       self.NN = []
       self.dsu = ds_utils.DatasetUtils(app_name, app_type)
       self.app_name = app_name
@@ -68,8 +68,9 @@ class FunctionalApp():
       # defaults
       gather_mode = False  # ARD: why does gather_mode matter for nn_init?
       print("App: ", self.app_name, " mode:", self.app_type, " of ", len(self.NN))
-      self.robot.sir_robot.stop_all()
+      self.robot.alset_robot.stop_all()
       ds_dirs = []
+      outputs = self.cfg.full_action_set
       print(" ")
       if not self.nn_init_done:  # previously run
         for nn_num, nn_name in enumerate(self.NN):
@@ -105,14 +106,14 @@ class FunctionalApp():
 
             print("func_automated", nn_name, self.func_automated)
             # if not self.func_automated[nn_num] and self.func_classifier_outputs[nn_num] is None:
-            # ARD: if we're in training mode, we still need to create SIRNN object.
+            # ARD: if we're in training mode, we still need to create ALSETNN object.
             # ARD: postpone creation until until needed...
             # if not self.func_automated[nn_num] and self.func_classifier_outputs[nn_num] is None:
             if not self.func_automated[nn_num] or self.func_classifier_outputs[nn_num] is not None:
               print("func_classifier_outputs: ", self.func_classifier_outputs[nn_num], nn_num)
-              # SIRNN is an actual torch NN after the call to nn_init. 
+              # ALSETNN is an actual torch NN after the call to nn_init. 
               # type depends if a classification or not
-              self.func_app_function.append(sir_nn.SIRNN(self.robot, outputs, self.func_names[nn_num], "FUNC"))
+              self.func_app_function.append(alset_nn.ALSETNN(self.robot, outputs, self.func_names[nn_num], "FUNC"))
               # Don't instantiate yet by calling nn_init
               # self.func_app_function[-1].nn_init(gather_mode)
             else:
@@ -305,11 +306,11 @@ class FunctionalApp():
           print("Train model: ", nn_name)
           nn = self.func_app_function[nn_num]
           if nn is None:
-              # JIT creation of SIRNN
+              # JIT creation of ALSETNN
               outputs = self.func_classifier_outputs[nn_num]
               if outputs is None:
                  outputs = self.cfg.full_action_set
-              self.func_app_function[nn_num] = sir_nn.SIRNN(self.robot, outputs, self.func_names[nn_num], "FUNC")
+              self.func_app_function[nn_num] = alset_nn.ALSETNN(self.robot, outputs, self.func_names[nn_num], "FUNC")
               nn = self.func_app_function[nn_num]
           # nn.nn_init(gather_mode=False)
           nn.nn_init(False)

@@ -99,7 +99,7 @@ class GatherData():
         if self.nn_app.set_action(action):
           self.action_name = action
           if not self.check_func_movement_restrictions():
-            print("User Error: setting action to None")
+            print("User Error: setting action to None", action, self.check_func_movement_restrictions())
             self.action_name = None
 
     def set_function_name(self, func_name):

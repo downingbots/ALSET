@@ -2,9 +2,9 @@
 from .nn import *
 
 class tabletop_functional_nn():
-  def __init__(self, sir_robot):
+  def __init__(self, alset_robot):
       # print("TableTop: 8 Functional NNs")
-      self.robot = sir_robot
+      self.robot = alset_robot
       self.NN = []
       self.app_name = "TT_FUNC"
       self.last_arm_action = "LOWER_ARM_DOWN"
@@ -30,7 +30,7 @@ class tabletop_functional_nn():
       outputs = self.full_action_set
       if NN_num == 1:
         print("TableTop: 8 Functional NNs")
-        self.robot.sir_robot.stop_all()
+        self.robot.alset_robot.stop_all()
         print("Park Arm: Upper/Lower Arm Up/Down")
         print("  Press Success: parked")
         # outputs = [ "GRIPPER_OPEN", "UPPER_ARM_UP", "UPPER_ARM_DOWN", 
@@ -38,14 +38,14 @@ class tabletop_functional_nn():
         #            "FORWARD", "REVERSE", "LEFT", "RIGHT"] 
         # if gather_mode:
         if len(self.NN) < NN_num:
-            # SIRNN is an actual torch NN. 
+            # ALSETNN is an actual torch NN. 
             # Torch NN Not needed during gather mode.
-            # self.NN.append(SIRNN(self.robot, outputs))
-            self.NN.append(SIRNN(self.robot, outputs))
+            # self.NN.append(ALSETNN(self.robot, outputs))
+            self.NN.append(ALSETNN(self.robot, outputs))
             self.NN[NN_num-1].nn_init(app_name, NN_num, gather_mode)
         return False, outputs
       elif NN_num == 2:
-        self.robot.sir_robot.stop_all()
+        self.robot.alset_robot.stop_all()
         print("Automatic: scan for block")
         print("  Press Failure: scan direction completed")
         print("  Press Success: found block")
@@ -58,11 +58,11 @@ class tabletop_functional_nn():
         # outputs = ["LOWER_ARM_UP", "LOWER_ARM_DOWN","LEFT","REWARD","PENALTY"]
         # if gather_mode:
         if len(self.NN) < NN_num:
-            self.NN.append(SIRNN(self.robot, outputs))
+            self.NN.append(ALSETNN(self.robot, outputs))
             self.NN[NN_num-1].nn_init(app_name, NN_num, gather_mode)
         return True, outputs
       elif NN_num == 3:
-        self.robot.sir_robot.stop_all()
+        self.robot.alset_robot.stop_all()
         self.robot.gather_data.set_function(None)
         print("Keep block in center while moving forward")
         print("  Press Lower Arm UP/Down; Left; Right; Forward")
@@ -72,11 +72,11 @@ class tabletop_functional_nn():
         # outputs = ["LOWER_ARM_UP", "LOWER_ARM_DOWN",
         #         "FORWARD", "REVERSE", "LEFT", "RIGHT", "REWARD", "PENALTY"]
         if len(self.NN) < NN_num:
-            self.NN.append(SIRNN(self.robot, outputs))
+            self.NN.append(ALSETNN(self.robot, outputs))
             self.NN[NN_num-1].nn_init(app_name, NN_num, gather_mode)
         return False, outputs
       elif NN_num == 4:
-        self.robot.sir_robot.stop_all()
+        self.robot.alset_robot.stop_all()
         self.robot.gather_data.set_function(None)
         print("Reach out and grab block")
         print("  Press Upper/Lower Arm UP/Down")
@@ -87,21 +87,21 @@ class tabletop_functional_nn():
         #         "GRIPPER_CLOSE", "REWARD", "PENALTY"]
         # if gather_mode:
         if len(self.NN) < NN_num:
-            self.NN.append(SIRNN(self.robot, outputs))
+            self.NN.append(ALSETNN(self.robot, outputs))
             self.NN[NN_num-1].nn_init(app_name, NN_num, gather_mode)
         return False, outputs
       elif NN_num == 5:
-        self.robot.sir_robot.stop_all()
+        self.robot.alset_robot.stop_all()
         self.robot.gather_data.set_function(None)
         print("Park Arm with block: Upper/Lower Arm Up/Down")
         print("  Press Success: parked")
         # outputs = [ "GRIPPER_OPEN", "UPPER_ARM_UP", "UPPER_ARM_DOWN", "LOWER_ARM_UP", "LOWER_ARM_DOWN", "REWARD", "PENALTY"]
         if len(self.NN) < NN_num:
-            self.NN.append(SIRNN(self.robot, outputs))
+            self.NN.append(ALSETNN(self.robot, outputs))
             self.NN[NN_num-1].nn_init(app_name, NN_num, gather_mode)
         return False, outputs
       elif NN_num == 6:
-        self.robot.sir_robot.stop_all()
+        self.robot.alset_robot.stop_all()
         self.last_arm_action = "LOWER_ARM_DOWN"
         self.curr_automatic_action = "LEFT"
         self.robot.gather_data.set_function(None)
@@ -111,11 +111,11 @@ class tabletop_functional_nn():
         print("  Press Success: found block")
         # outputs = ["LOWER_ARM_UP", "LOWER_ARM_DOWN","LEFT","REWARD","PENALTY"]
         if len(self.NN) < NN_num:
-            self.NN.append(SIRNN(self.robot, outputs))
+            self.NN.append(ALSETNN(self.robot, outputs))
             self.NN[NN_num-1].nn_init(app_name, NN_num, gather_mode)
         return True, outputs
       elif NN_num == 7:
-        self.robot.sir_robot.stop_all()
+        self.robot.alset_robot.stop_all()
         self.robot.gather_data.set_function(None)
         print("Keep box in center while moving forward")
         print("  Press Lower Arm UP/Down; Left; Right; Forward")
@@ -125,11 +125,11 @@ class tabletop_functional_nn():
         # outputs = ["LOWER_ARM_UP", "LOWER_ARM_DOWN", "FORWARD", "REVERSE", 
         #         "LEFT", "RIGHT", "REWARD", "PENALTY"]
         if len(self.NN) < NN_num:
-            self.NN.append(SIRNN(self.robot, outputs))
+            self.NN.append(ALSETNN(self.robot, outputs))
             self.NN[NN_num-1].nn_init(app_name, NN_num, gather_mode)
         return False, outputs
       elif NN_num == 8:
-        self.robot.sir_robot.stop_all()
+        self.robot.alset_robot.stop_all()
         self.robot.gather_data.set_function(None)
         print("Reach out arm and drop cube in center and back up")
         # outputs = ["UPPER_ARM_UP", "UPPER_ARM_DOWN", 
@@ -137,7 +137,7 @@ class tabletop_functional_nn():
         #         "LEFT", "RIGHT", "GRIPPER_OPEN",
         #         "REVERSE", "REWARD", "PENALTY"]
         if len(self.NN) < NN_num:
-            self.NN.append(SIRNN(self.robot, outputs))
+            self.NN.append(ALSETNN(self.robot, outputs))
             self.NN[NN_num-1].nn_init(app_name, NN_num, gather_mode)
         return False, outputs
 
