@@ -187,8 +187,11 @@ class nn_apps():
       self.app_instance.nn_set_automatic_mode(False)
 
       # print(self.app_instance[self.app_num])
-      print(self.curr_nn_name, gather_mode)
+      print("curr_nn_name, gather_mode:", self.curr_nn_name, gather_mode)
       auto_mode, robot_action_dirs = self.app_instance.nn_init(gather_mode)
+      if self.app_type == "APP":
+        self.curr_nn_name = self.app_instance.curr_func_name
+        print("nn_apps: curr_nn_name:", self.curr_nn_name)
       print("auto_mode:", auto_mode)
       self.app_instance.nn_set_automatic_mode(auto_mode)
       # probably should use os.path.join()

@@ -237,7 +237,7 @@ class Robot(SingletonConfigurable):
     def set_NN_mode(self, mode): 
         self.NN_apps.set_nn_mode(mode)
         if mode == "DQN" and self.DQN == None:
-          self.DQN = ALSET_DDQN(self.initialize, self.train_new_data)
+          self.DQN = ALSET_DDQN(self, self.initialize, self.train_new_data)
 
     # ARD: need to clean up now that generalized beyond TableTop
     def robot_off_table_penalty(self):

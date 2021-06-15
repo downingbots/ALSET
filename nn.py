@@ -97,7 +97,7 @@ class ALSETNN():
     def nn_process_image_dqn(self, NN_name=None, image=None, reward_penalty=None):
         print("NN process image")
         if self.alset_dqn is None:
-          self.alset_dqn = ALSET_DDQN(robot=self.robot, initialize_model=False, do_train_model=False, app_name=NN_name, app_type="FUNC")
+          self.alset_dqn = ALSET_DDQN(alset_robot=self.robot, initialize_model=False, do_train_model=False, app_name=NN_name, app_type="FUNC")
           self.alset_dqn.nn_init(gather_mode=False)
         return self.alset_dqn.nn_process_image(NN_name, image, reward_penalty)
         # NN_name=None, image=None, reward_penalty=None)

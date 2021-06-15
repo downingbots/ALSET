@@ -834,8 +834,8 @@ class ALSET_DDQN():
         # transform state paths to images.  already a Tensor.
         #
         # compute_real_q_values has actual state, not state_path.
-        if type(state_path) == numpy.ndarray: 
-          print("state already converted from path.")
+        if type(state_path) == np.ndarray and type(state_path[0]) is not np.str_: 
+          print("state already converted from path.", type(state_path), type(state_path[0]))
           state = state_path
         else:
           state = self.transform_image_from_path(state_path)

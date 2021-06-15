@@ -5,6 +5,8 @@
 import os, struct, array
 from fcntl import ioctl
 import threading
+from config import *
+
 
 class ALSET_joystick:
     # We'll store the states here.
@@ -98,6 +100,7 @@ class ALSET_joystick:
     
     def __init__(self, robot_driver):
         self._robot_driver = robot_driver
+        self.cfg = Config()
         self.left_speed = None
         self.right_speed = None
         # Iterate over the joystick devices.
