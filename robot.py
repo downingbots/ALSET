@@ -92,6 +92,19 @@ class Robot(SingletonConfigurable):
                 right_speed = self.right_motor.get_speed()
                 if right_speed == None:
                   right_speed = 0
+            if self.cfg.ALSET_MODEL == "X":
+              # print("l,r:", left_speed, right_speed)
+              if left_speed is not None and right_speed is not None:
+                  if left_speed < 0 and right_speed > 0:
+                     right_speed = -right_speed
+                  elif left_speed > 0 and right_speed < 0:
+                     right_speed = -right_speed
+                  elif left_speed > 0 and right_speed > 0:
+                     left_speed = -left_speed
+                  elif left_speed < 0 and right_speed < 0:
+                     left_speed = -left_speed
+                  # print("l2,r2:", left_speed, right_speed)
+
             if abs(left_speed) <= 0.1 or abs(right_speed) <= 0.1:
                 print("stop")
                 self.stop()
@@ -111,6 +124,20 @@ class Robot(SingletonConfigurable):
                 print("stop")
                 self.stop()
         else:
+            if self.cfg.ALSET_MODEL == "X":
+              # print("l,r:", left_speed, right_speed)
+              if left_speed is not None and right_speed is not None:
+                  if left_speed < 0 and right_speed > 0:
+                     right_speed = -right_speed
+                  elif left_speed > 0 and right_speed < 0:
+                     right_speed = -right_speed
+                  elif left_speed > 0 and right_speed > 0:
+                     left_speed = -left_speed
+                  elif left_speed < 0 and right_speed < 0:
+                     left_speed = -left_speed
+                  # print("l2,r2:", left_speed, right_speed)
+              elif right_speed is not None:
+                right_speed = -right_speed
             self.alset_robot.set_motors(left_speed, right_speed)
         
     def forward(self, speed=1.0, duration=None):
@@ -188,8 +215,8 @@ class Robot(SingletonConfigurable):
     def wrist(self,direction):
         self.alset_robot.wrist(direction)
 
-    def chasis(self,direction):
-        self.alset_robot.chasis(direction)
+    def chassis(self,direction):
+        self.alset_robot.chassis(direction)
 
     def gripper(self,direction):
         if self.NN_apps.app_type == "DQN" and self.gather_data.is_on():
@@ -216,7 +243,13 @@ class Robot(SingletonConfigurable):
           self.alset_robot.shovel(direction)
 
     def sound(self,on_off):
-          self.alset_robot.shovel(on_off)
+          self.alset_robot.sound(on_off)
+
+    def demo(self,on_off):
+          self.alset_robot.demo(on_off)
+
+    def program_mode(self,on_off):
+          self.alset_robot.program_mode(on_off)
 
     def reward(self):
         self.gather_data.set_action("REWARD1")

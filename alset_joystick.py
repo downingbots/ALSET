@@ -189,11 +189,11 @@ class ALSET_joystick:
                 if button:
                     self.button_states[button] = value
                     if value:
-                        print("%s pressed" % (button))
+                        # print("%s pressed" % (button))
                         self.pressed_button = button
                         self.pressed_button_value = value
                     else:
-                        print("%s released" % (button))
+                        # print("%s released" % (button))
                         self.pressed_button = None
                         self.pressed_button_value = None
     
@@ -203,7 +203,7 @@ class ALSET_joystick:
                 if axis:
                     fvalue = value / 32767.0
                     self.axis_states[axis] = fvalue
-                    print("%s: %.3f" % (axis, fvalue))
+                    # print("%s: %.3f" % (axis, fvalue))
 
             command = []
             arg = []
@@ -309,12 +309,12 @@ class ALSET_joystick:
                   arg.append("ROTATE_LEFT")
                   self._robot_driver.wrist("ROTATE_LEFT")
                   self.wrist_active = True
-            elif self.wrist_active:
+            elif self.wrist_active or self.chassis_active:
                 if self.cfg.ALSET_MODEL == "X":
                   command.append("CHASSIS")
                   arg.append("STOP")
                   self._robot_driver.chassis("STOP")
-                  self.chassis_active = True
+                  self.chassis_active = False
                 elif self.cfg.ALSET_MODEL == "S":
                   command.append("WRIST")
                   arg.append("STOP")
@@ -346,16 +346,16 @@ class ALSET_joystick:
                     arg.append("DOWN")
                     self._robot_driver.shovel("DOWN")
                     self.shovel_active = True
-            elif self.gripper_active:
+            elif self.gripper_active or self.shovel_active:
                 if self.cfg.ALSET_MODEL == "S":
                   command.append("GRIPPER")
                   arg.append("STOP")
                   self._robot_driver.gripper("STOP")
                   self.gripper_active = False
-                elif self.cfg.ALSET_MODEL == "S":
+                elif self.cfg.ALSET_MODEL == "X":
                   command.append("SHOVEL")
                   arg.append("STOP")
-                  self._robot_driver.gripper("STOP")
+                  self._robot_driver.shovel("STOP")
                   self.shovel_active = False
             for i, c in enumerate(command):
                 print(c, arg[i])

@@ -1,7 +1,8 @@
 import time
 import traceback
 import RPi.GPIO as GPIO
-import time
+import copy
+
 
 class direct_control:
 
@@ -123,7 +124,7 @@ class direct_control:
               self.all_pin_changed[i] = False
           self.curr_timeout[self.LEFT_TRACK] = self.compute_pwm_timeout(self.LEFT_TRACK)
           self.curr_timeout[self.RIGHT_TRACK] = self.compute_pwm_timeout(self.RIGHT_TRACK)
-          if on_cnt > 4 or off_cnt > 4:
+          if not(on_cnt == 0 and off_cnt == 14) and (on_cnt > 4 or off_cnt > 4):
             print("WARNING: switch on/off count", on_cnt, off_cnt)
   
   def convert_speed(self, speed):
@@ -158,6 +159,16 @@ class direct_control:
     self.curr_speed[part] = pulse_speed
     print("new speed = %d" % pulse_speed)
 
+
+  def save_all(self, execute_immediate = True):
+    self.saved_pin_vals = copy.deepcopy(self.all_pin_vals)
+    print("saved:", self.saved_pin_vals)
+
+  def restore_all(self, execute_immediate = True):
+    self.all_pin_vals = self.saved_pin_vals
+    print("restored:", self.all_pin_vals)
+    for pin_offset, pin in enumerate(self.all_pin_numbers):
+      self.all_pin_changed[pin_offset] = True
 
   def stop_all(self, execute_immediate = True):
     #Configure the register to default value
@@ -247,9 +258,11 @@ class direct_control:
            # save_pin_val = self.curr_pin_val
            # save_pin_io_val = self.curr_pin_io_val
            # stop all motors
-           self.curr_pin_val = GPIO.LOW
+           # self.curr_pin_val = GPIO.LOW
            # self.curr_pin_io_val = self.ALL_FUNC
-           self.switch_exec(exec_next_pulse=False)
+           # save
+           self.save_all()
+           self.stop_all(execute_immediate=True)
            # restore state for next pulse
            if self._driver.gather_data.action_name != None or process_image:
              if take_picture:
@@ -257,6 +270,7 @@ class direct_control:
                action = self._driver.gather_data.save_snapshot(process_image)
              # self.curr_pin_val = save_pin_val
              # self.curr_pin_io_val = save_pin_io_val
+             self.restore_all()
              if process_image:
                print("command: ", action)
                self.execute_command(action)
@@ -271,7 +285,8 @@ class direct_control:
         #       bin(functions_not_stopped)[2:].zfill(8), pulse_num)
         if self._driver.gather_data.is_on():
             # next pulse: essentially everything is half speed during data collection
-            divisor = 10
+            # divisor = 10
+            divisor = 5
         else:
             divisor = 5
         if (pulse_num+1) % divisor == 2:
@@ -723,8 +738,10 @@ class direct_control:
     self.all_pin_numbers = [ 7, 11, 12, 13, 15, 16, 18, 19, 21, 22, 23, 24, 26, 32, 33, 36]
     self.all_pin_changed = []
     self.all_pin_vals = []
+    self.saved_pin_vals = []
     for i in range(len(self.all_pin_numbers)):
       self.all_pin_vals.append(False)
+      self.saved_pin_vals.append(False)
       self.all_pin_changed.append(False)
     self.all_pin_disallowed = [12, 36]  # disallow DEMO mode and PROGRAM mode
 

@@ -14,7 +14,6 @@ class Config():
         self.arm_actions_no_wrist_s  = ["UPPER_ARM_UP", "UPPER_ARM_DOWN", "GRIPPER_OPEN", "GRIPPER_CLOSE",
                                        "LOWER_ARM_UP", "LOWER_ARM_DOWN"]
         self.arm_actions = self.arm_actions_no_wrist + ["WRIST_ROTATE_LEFT", "WRIST_ROTATE_RIGHT"]
-        self.arm_actions_park_arm_retracted  = ["UPPER_ARM_UP", "GRIPPER_OPEN", "GRIPPER_CLOSE", "LOWER_ARM_DOWN"]
         self.nn_disallowed_actions = ["REWARD1", "REWARD2", "PENALTY1", "PENALTY2", "WRIST_ROTATE_LEFT", "WRIST_ROTATE_RIGHT"]
         # Note: Wrist Rotate is unreliable. Should just support horiz and vert positioning
         # via a NN.
@@ -148,6 +147,7 @@ class Config():
                              ["MOVEMENT_CHECK", "MOVEMENT_CHECK"]
                             ]
 
+      self.arm_actions_park_arm_retracted  = ["UPPER_ARM_UP", "GRIPPER_OPEN", "GRIPPER_CLOSE", "LOWER_ARM_DOWN"]
       self.func_movement_restrictions = [
                              ["PARK_ARM_RETRACTED", self.arm_actions_park_arm_retracted],
                              ["QUICK_SEARCH_FOR_CUBE", self.base_actions],
@@ -210,7 +210,6 @@ class Config():
       self.add_to_func_key_value("COMMENT", self.func_comments)
       self.add_to_func_key_value("SUBSUMPTION", self.func_subsumption)
       self.add_to_func_key_value("AUTOMATED", self.func_automated)
-      self.add_to_func_key_value("MOVEMENT_RESTRICTIONS", self.func_movement_restrictions)
       self.add_to_func_key_value("MOVEMENT_RESTRICTIONS", self.func_movement_restrictions)
       self.add_to_func_key_value("CLASSIFIER", self.func_classifier)
 
@@ -330,7 +329,7 @@ class Config():
       ############################
       # DEFINE PRETRAINED PT_COLLISION_AVOIDANCE
       ############################
-      self.pt_col_avoid_name        = ["PT_COLLISION_AVOIDANCE_APP"]
+      self.pt_col_avoid_name        = ["PT_AVOID_COLLISION"]
       self.pt_col_avoid_func        = [
                                       "PT_COLLISION_AVOIDANCE"        #  0
                                       ]
@@ -344,18 +343,18 @@ class Config():
             ]
 
       # for composite apps, key-value pirs
-      self.app_registry.append(["PT_COLLISION_AVOIDANCE_APP",[self.pt_col_avoid_func, self.app_pt_col_avoid_func_flow_model]])
+      self.app_registry.append(["PT_AVOID_COLLISION",[self.pt_col_avoid_func, self.app_pt_col_avoid_func_flow_model]])
 
       ############################
       # DEFINE COLLISION_AVOIDANCE
       ############################
       # if we do regular teleop training from scratch instead of pre-trained classifier, 
       # we would define following
-      self.col_avoid_name        = ["COLLISION_AVOIDANCE_APP"]
+      self.col_avoid_name        = ["AVOID_COLLISION"]
       
-      self.pt_col_avoid_func     = [
-                                   "COLLISION_AVOIDANCE"        #  0
-                                   ]
+      self.col_avoid_func     = [
+                                "COLLISION_AVOIDANCE"        #  0
+                                ]
 
       # LEFT
       self.col_avoid_func_flow_model = [
@@ -365,7 +364,7 @@ class Config():
             ]
 
       # for composite apps, key-value pirs
-      self.app_registry.append(["COLLISION_AVOIDANCE_APP",[self.col_avoid_func, self.col_avoid_func_flow_model]])
+      self.app_registry.append(["AVOID_COLLISION",[self.col_avoid_func, self.col_avoid_func_flow_model]])
 
       self.col_avoid_restrict = ["FORWARD", "LEFT"]
       self.func_movement_restrictions.append(["COLLISION_AVOIDANCE", self.col_avoid_restrict])
