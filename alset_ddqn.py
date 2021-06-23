@@ -9,6 +9,7 @@ import cv2
 # import gym
 import numpy as np
 import collections, itertools
+from collections import Counter
 
 import torch
 import torch.nn as nn
@@ -219,7 +220,7 @@ import torchvision.transforms as transforms
 # class CnnDQN(nn.Module):
 class CnnDQN():
     # def __init__(self, input_shape, num_actions):
-    def __init__(self, num_actions):
+    def __init__(self, num_actions, learning_rate):
         # super(CnnDQN, self).__init__()
 
         # Finetuning vs. feature extraction/transfer learning:
@@ -363,7 +364,8 @@ class CnnDQN():
                     print("\t",name)
 
         # Observe that all parameters are being optimized
-        self.alexnet_optimizer = optim.SGD(params_to_update, lr=0.001, momentum=0.9)
+        # self.alexnet_optimizer = optim.SGD(params_to_update, lr=0.001, momentum=0.9)
+        self.alexnet_optimizer = optim.SGD(params_to_update, lr=learning_rate, momentum=0.9)
         # Setup the loss fxn
         criterion = nn.CrossEntropyLoss()
 
@@ -588,6 +590,7 @@ class ALSET_DDQN():
         self.robot = alset_robot
         self.cfg = Config()
         self.dsu = DatasetUtils(self.app_name, self.app_type)
+        self.parse_app_ds_details = []
         if app_type == "DQN" or app_type == "APP":
           self.BEST_MODEL_PATH = self.dsu.best_model(mode="DQN")
           self.DQN_PATH_PREFIX = self.dsu.dataset_path()
@@ -615,6 +618,9 @@ class ALSET_DDQN():
         self.REPLAY_PADDING    = self.cfg.get_value(DQN_Policy, "REPLAY_BUFFER_PADDING")
         self.BATCH_SIZE        = self.cfg.get_value(DQN_Policy, "BATCH_SIZE")
         self.GAMMA             = self.cfg.get_value(DQN_Policy, "GAMMA")
+        self.LEARNING_RATE     = self.cfg.get_value(DQN_Policy, "LEARNING_RATE")
+        print("lr:",self.LEARNING_RATE)
+        self.ERROR_CLIP        = self.cfg.get_value(DQN_Policy, "ERROR_CLIP")
         self.DQN_REWARD_PHASES = self.cfg.get_value(DQN_Policy, "DQN_REWARD_PHASES")
         self.REWARD2_REWARD    = self.cfg.get_value(DQN_Policy, "REWARD2")
         self.PENALTY2_PENALTY  = self.cfg.get_value(DQN_Policy, "PENALTY2")
@@ -623,6 +629,8 @@ class ALSET_DDQN():
         self.MAX_MOVES         = self.cfg.get_value(DQN_Policy, "MAX_MOVES")
         self.MAX_MOVES_EXCEEDED_PENALTY = self.cfg.get_value(DQN_Policy, "MAX_MOVES_EXCEEDED_PENALTY")
         self.ESTIMATED_VARIANCE         = self.cfg.get_value(DQN_Policy, "ESTIMATED_VARIANCE")
+        if self.LEARNING_RATE is None:
+          self.LEARNING_RATE = 0.001
 
         # reward variables
         self.standard_mean      = 0.0
@@ -637,6 +645,8 @@ class ALSET_DDQN():
         self.state        = None
         self.prev_state   = None
         self.all_rewards  = []
+        self.clip_max_reward  = -1
+        self.clip_min_reward  = 1
 
         ############
         # DDQN variables
@@ -668,12 +678,16 @@ class ALSET_DDQN():
         self.target_model = None
         self.init_model = initialize_model
         self.train_model = do_train_model
+        self.all_loss = []
+        self.all_act_rank = []
+        self.all_allowed_act_rank = []
         print("DQN initialization: ",self.init_model, self.train_model)
         
     def nn_init(self, gather_mode=False):
         # TODO: allow classification models
-        self.current_model = CnnDQN(self.num_actions)
-        self.target_model = CnnDQN(self.num_actions)
+        print("lr:",self.LEARNING_RATE)
+        self.current_model = CnnDQN(self.num_actions, self.LEARNING_RATE)
+        self.target_model = CnnDQN(self.num_actions, self.LEARNING_RATE)
 
         if (self.init_model):  # probably done on laptop
             # starts from the first dataset
@@ -845,22 +859,92 @@ class ALSET_DDQN():
         for a in action:
           # action_idx.append(self.robot_actions.index(a))  # Human readable to integer index
           action_idx.append(self.cfg.full_action_set.index(a))  # Human readable to integer index
-        action_idx = tuple(action_idx)
-        print("action_idx:",action_idx)
-        print("max action_idx:",len(self.cfg.full_action_set))
-        print("q_val:", q_val)
+        action_index = tuple(action_idx)
+        # print("action_idx:",action_idx)
+        # print("max action_idx:",len(self.cfg.full_action_set))
+        # print("q_val:", q_val)
 
-
-        action_idx = self.Variable(torch.LongTensor(action_idx))
+        action_idx = self.Variable(torch.LongTensor(action_index))
         # reward     = self.Variable(torch.FloatTensor(rewards))
         # done       = self.Variable(torch.FloatTensor(done_val))
 
         # the real q value is precomputed in q_val
-        q_val      = self.Variable(torch.FloatTensor(q_val))  # real q value computed from done end-pt
+        # real q value computed from done end-pt
+        q_val      = self.Variable(torch.FloatTensor(q_val))  
 
         # Computed q-values from Alexnet
         current_q_values = self.current_model.alexnet_model(state)
         q_value = current_q_values.gather(1, action_idx.unsqueeze(1)).squeeze(1)
+        # print("curr_q_val:", current_q_values)
+        # print("q_value   :", q_value)
+
+        # determine rankings
+        curr_q_vals = current_q_values.detach().cpu().numpy()
+        act_rank = []
+        allowed_act_rank = []
+        if self.cfg.nn_disallowed_actions is None:
+          disallowed = []
+          feasible_act = list(self.cfg.full_action_set)
+        else:
+          disallowed = []
+          for a in self.cfg.nn_disallowed_actions:
+            try:
+              disallowed.append(list(self.cfg.full_action_set).index(a))
+            except:
+              pass
+          feasible_act = list(Counter(list(self.cfg.full_action_set)) - Counter(self.cfg.nn_disallowed_actions))
+
+        for i, curr_q_v in enumerate(curr_q_vals):
+          act_srt = np.argsort(curr_q_v)
+          # print("act_srt1",act_srt, disallowed)
+          act_srt = list(Counter(act_srt.tolist()) - Counter(disallowed))
+          # print("act_srt2",act_srt)
+          # act_srt = list(Counter(act_srt.tolist()) - (Counter(list(self.cfg.full_action_set) - Counter(allowed_actions))))
+          # a_r = act_srt.index(action_index[frame_num])
+          try:
+            a_r = act_srt.index(action_index[i])
+            act_rank.append(a_r)
+            self.all_act_rank.append(a_r)
+          except:
+            print("unranked top action:",self.cfg.full_action_set[action_index[i]])
+            pass
+          # print("ar",a_r)
+          for ff_nn, fn, allowed_actions in self.parse_app_ds_details:
+            if fn > self.frame_num:
+              # print("PARSE_APP_DS: ", ff_nn, fn, self.frame_num, allowed_actions)
+              break
+          aa_r = []
+          for aa in allowed_actions:
+            # aa_i = self.cfg.full_action_set.index(aa)  # Human readable to integer index
+            try:
+              aa_i_s = act_srt.index(aa)
+              aa_r.append(aa_i_s)
+              allowed_act_rank.append(aa_i_s)
+              self.all_allowed_act_rank.append(aa_i_s)
+            except:
+              # should be a WRIST_ROTATE_LEFT/RIGHT, which is really not an allowed action
+              # print("unranked allowed action:",self.cfg.full_action_set[aa])
+              pass
+          var_aa_r = np.var(aa_r)
+          mean_aa_r = np.mean(aa_r)
+          # print("action ranking", a_r, mean_aa_r, var_aa_r, len(feasible_act))
+          self.frame_num += 1
+
+        mean_act_rank = np.mean(act_rank)
+        var_act_rank = np.var(act_rank)
+        mean_all_act_rank = np.mean(self.all_act_rank)
+        var_all_act_rank = np.var(self.all_act_rank)
+        mean_allowed_act_rank = np.mean(allowed_act_rank)
+        var_allowed_act_rank = np.var(allowed_act_rank)
+        mean_all_allowed_act_rank = np.mean(self.all_allowed_act_rank)
+        var_all_allowed_act_rank = np.var(self.all_allowed_act_rank)
+        # This should evaluate how good of the last run of the NN was  
+        print("FINAL ACTION RANKING:" 
+                "mean", mean_all_act_rank, mean_all_allowed_act_rank,
+                #       mean_act_rank, mean_allowed_act_rank, 
+                "var", var_all_act_rank, var_all_allowed_act_rank,
+                #       var_act_rank, var_allowed_act_rank, 
+                "numact", len(feasible_act), len(allowed_actions))
 
         # For DDQN, using target_model to predict q_val (from rladvddqn.py).
         # //github.com/higgsfield/RL-Adventure/blob/master/2.double%20dqn.ipynb
@@ -882,9 +966,18 @@ class ALSET_DDQN():
           print("IMITATION_TRAINING:")
         elif mode == "REAL_Q_VALUES":
           # nondeterministic err: device-side assert triggered: nonzero_finite_vals
-          print("len q_value, q_val:", len(q_value), len(q_val))
-          loss = (q_value - q_val).pow(2).mean()
-          print("REAL_Q_VALUES:")
+          # print("len q_value, q_val:", len(q_value), len(q_val))
+          difference = torch.abs(q_value - q_val)
+          if self.ERROR_CLIP >= 0:
+            quadratic_part = torch.clamp(difference, 0.0, self.ERROR_CLIP)
+            linear_part = difference - quadratic_part
+            loss = (0.5 * quadratic_part.pow(2) + (self.ERROR_CLIP * linear_part)).mean()
+          else:
+            loss = (0.5 * difference.pow(2)).mean()
+            # loss = (q_value - q_val).pow(2).mean()
+          # print("REAL_Q_VALUES:")
+          # print("qval diff: ",  difference)
+          # print("qval loss: ",  loss)
         elif mode == "RANDOM_FUNCTIONAL_TRAINING":
           loss = (q_value - q_val).pow(2).mean()
           print("RANDOM_FUNC_TRAINING:")
@@ -893,12 +986,15 @@ class ALSET_DDQN():
           print("EXPERIENCE_REPLAY FROM TARGET:")
 
         if loss is not None:
-          print("loss training")
+          # Note that following the first .backward call, a second call is only possible after you have performed another forward pass.
+          # print("loss training")
           self.current_model.train()  # Set model to training mode
           self.current_model.alexnet_optimizer.zero_grad()
           loss.backward()
           self.current_model.alexnet_optimizer.step()
           # self.current_model.eval()  # Set model to eval mode
+          curr_q_vals = current_q_values.detach().cpu().numpy()
+          self.all_loss.append(loss.item())
         else:
           print("None loss")
         return loss
@@ -1052,6 +1148,7 @@ class ALSET_DDQN():
               print("SAVING STATE; DO NOT STOP!!!")
               self.active_buffer.compute_real_q_values(gamma=self.GAMMA,  name="active")
               self.active_buffer.reset_sample(name="active", start=0)
+              self.frame_num = 0
               for i in range(self.cfg.NUM_EPOCHS):
                 loss = 0
                 while loss is not None:
@@ -1090,6 +1187,7 @@ class ALSET_DDQN():
         func_nn_list = val[1]
         func_app = FunctionalApp(alset_robot=self.robot, app_name=self.app_name, app_type=self.app_type)
         func_app.nn_init()
+        self.parse_app_ds_details = []
 
         ###################################################
         # iterate through NNs and fill in the active buffer
@@ -1107,8 +1205,35 @@ class ALSET_DDQN():
         self.curr_phase = 0
         func_flow_reward = None
         first_time_through = True
+        self.clip_max_reward  = -1
+        self.clip_min_reward  = 1
         while True:  
           # find out what the func flow model expects
+          if first_time_through:
+            if self.cfg.nn_disallowed_actions is None:
+              disallowed = []
+              feasible_act = list(self.cfg.full_action_set)
+            else:
+              disallowed = []
+              for a in self.cfg.nn_disallowed_actions:
+                try:
+                  disallowed.append(list(self.cfg.full_action_set).index(a))  
+                except:
+                  pass
+              feasible_act = list(Counter(list(self.cfg.full_action_set)) - Counter(disallowed))
+          else:
+            # allowed_actions is different for each nn
+            allowed_actions = None
+            for [func, func_allowed_actions] in self.cfg.func_movement_restrictions:
+              if func_flow_nn_name == func:
+                 allowed_actions = []
+                 for a in func_allowed_actions:
+                   allowed_actions.append(list(self.cfg.full_action_set).index(a))
+                 break
+            if allowed_actions is None:
+              allowed_actions = feasible_act
+            self.parse_app_ds_details.append([func_flow_nn_name, frame_num, allowed_actions])
+
           [func_flow_nn_name, func_flow_reward] = func_app.eval_func_flow_model(reward_penalty="REWARD1", init=first_time_through)
           first_time_through = False
           # get the next function index 
@@ -1121,6 +1246,10 @@ class ALSET_DDQN():
                 if func_flow_nn_name is None and func_flow_reward == "REWARD1":
                     # End of Func Flow. Append reward.
                     reward, done = self.compute_reward(frame_num, "REWARD1")
+                    if reward > self.clip_max_reward:
+                       self.clip_max_reward = reward
+                    if reward < self.clip_min_reward:
+                       self.clip_min_reward = reward
                     frame_num += 1
                     # add dummy 0 q_val for now. Compute q_val at end of run.
                     q_val = 0
@@ -1208,11 +1337,13 @@ class ALSET_DDQN():
             print("SAVING STATE; DO NOT STOP!!!")
             self.active_buffer.compute_real_q_values(gamma=self.GAMMA,  name="active")
             self.active_buffer.reset_sample(name="active", start=0)
+            print("parse_app_ds:", self.parse_app_ds_details)
             for i in range(self.cfg.NUM_EPOCHS):
               loss = 0
               while loss is not None:
                 loss = self.compute_td_loss(batch_size=self.BATCH_SIZE, mode="REAL_Q_VALUES")
-                print("real q values loss: ", i, loss)
+                mean_loss = np.mean(self.all_loss)
+                print("real q values loss: ", mean_loss, i, self.all_loss[-1])
             # print("loss: ",loss)
             # print("ACTIVE BUFFER:", self.active_buffer)
             self.replay_buffer.concat(self.active_buffer)
@@ -1409,6 +1540,7 @@ class ALSET_DDQN():
             # next_state_tensor = torch.unsqueeze(next_state_tensor, 0)
             # torch.transpose(next_state_tensor, 0, 1)
             sorted_actions, q_value = self.current_model.act(next_state_tensor)
+            # top-level DQN movement_restrictions
             func_restrict = self.cfg.get_func_value(self.app_name, "MOVEMENT_RESTRICTIONS")
             sorted_action_order = sorted_actions.tolist()
             # print("sao:",sorted_action_order)

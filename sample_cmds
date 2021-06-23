@@ -1,3 +1,4 @@
+./restart_camera ; ./copy_to_python ; python3 ./alset_teleop.py --app COLLISION_AVOIDANCE_APP
 ./restart_camera ; ./copy_to_python ; python3 ./alset_teleop.py --app TT
 ./restart_camera ; ./copy_to_python ; python3 ./alset_teleop.py --app TT | unbuffer -p tee ~/tmp/output
 

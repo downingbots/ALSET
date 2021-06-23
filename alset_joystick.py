@@ -109,11 +109,14 @@ class ALSET_joystick:
         for fn in os.listdir('/dev/input'):
             if fn.startswith('js'):
                 print('  /dev/input/%s' % (fn))
+                js = "/dev/input/" + fn
+                break
     
         # Open the joystick device.
-        fn = '/dev/input/js0'
+        # fn = '/dev/input/js0'
+        # fn = '/dev/input/js1'
         print('Opening %s...' % fn)
-        self.jsdev = open(fn, 'rb')
+        self.jsdev = open(js, 'rb')
         
         # Get the device name.
         #buf = bytearray(63)
@@ -153,8 +156,19 @@ class ALSET_joystick:
         print('%d buttons found: %s' % (num_buttons, ', '.join(self.button_map)))
         # 8 axes found: x, y, z, rx, ry, rz, hat0x, hat0y
         # 11 buttons found: a, b, x, y, tl, tr, select, start, mode, thumbl, thumbr
-        if num_axes == 8 and num_buttons == 11:
+
+        # Device name: ShanWan PC/PS3/Android
+        # 8 axes found: x, y, z, rz, gas, brake, hat0x, hat0y
+        # 16 buttons found: a, b, c, x, y, z, tl, tr, tl2, tr2, select, start, mode, thumbl, thumbr, unknown(0x13f)
+
+        if num_axes == 8 and num_buttons in [11,16]:
             self.connected = True
+            if num_buttons == 11:
+              self.js1 = True
+              self.js2 = False
+            else:
+              self.js1 = False
+              self.js2 = True
         else:
             self.connected = False
         
@@ -175,11 +189,11 @@ class ALSET_joystick:
                 if button:
                     self.button_states[button] = value
                     if value:
-                        # print("%s pressed" % (button))
+                        print("%s pressed" % (button))
                         self.pressed_button = button
                         self.pressed_button_value = value
                     else:
-                        # print("%s released" % (button))
+                        print("%s released" % (button))
                         self.pressed_button = None
                         self.pressed_button_value = None
     
@@ -189,7 +203,7 @@ class ALSET_joystick:
                 if axis:
                     fvalue = value / 32767.0
                     self.axis_states[axis] = fvalue
-                    # print("%s: %.3f" % (axis, fvalue))
+                    print("%s: %.3f" % (axis, fvalue))
 
             command = []
             arg = []
@@ -199,19 +213,27 @@ class ALSET_joystick:
                 self.left_speed  = fvalue
                 # right_speed = None
                 self._robot_driver.set_motors(self.left_speed, self.right_speed)
-            if axis == "ry":
+            if (self.js1 and axis == "ry") or (self.js2 and axis == "rz"):
                 command.append("RIGHT_TRACK")
                 arg.append(-fvalue)
                 self.right_speed  = -fvalue
                 # left_speed  = None
                 self._robot_driver.set_motors(self.left_speed, self.right_speed)
-            if axis == "z":
+            if (self.js1 and axis == "z"):
                 if fvalue == 1:
                     command.append("REWARD1")
                     arg.append("REWARD1")
                     self._robot_driver.reward()
-            elif axis == "rz":
+            elif (self.js1 and axis == "rz"):
                 if fvalue == 1:
+                    command.append("PENALTY1")
+                    arg.append("PENALTY1")
+                    self._robot_driver.penalty()
+            elif (self.js2 and self.pressed_button == "tl2" and axis == "brake" and fvalue == 1):
+                    command.append("REWARD1")
+                    arg.append("REWARD1")
+                    self._robot_driver.reward()
+            elif (self.js2 and self.pressed_button == "tr2" and axis == "gas" and fvalue == 1):
                     command.append("PENALTY1")
                     arg.append("PENALTY1")
                     self._robot_driver.penalty()
@@ -267,20 +289,37 @@ class ALSET_joystick:
                 self.upper_arm_active = False
             if axis == "hat0x" and fvalue == 1:
                 if self.cfg.ALSET_MODEL == "X":
-                  command.append("CHASIS")
-                  arg.append("ROTATE_RIGHT")
-                  self._robot_driver.chassis("ROTATE_RIGHT")
+                  command.append("CHASSIS")
+                  arg.append("RIGHT")
+                  self._robot_driver.chassis("RIGHT")
                   self.chassis_active = True
                 elif self.cfg.ALSET_MODEL == "S":
                   command.append("WRIST")
                   arg.append("ROTATE_RIGHT")
                   self._robot_driver.wrist("ROTATE_RIGHT")
                   self.wrist_active = True
+            elif axis == "hat0x" and fvalue == -1:
+                if self.cfg.ALSET_MODEL == "X":
+                  command.append("CHASIS")
+                  arg.append("LEFT")
+                  self._robot_driver.chassis("LEFT")
+                  self.chassis_active = True
+                elif self.cfg.ALSET_MODEL == "S":
+                  command.append("WRIST")
+                  arg.append("ROTATE_LEFT")
+                  self._robot_driver.wrist("ROTATE_LEFT")
+                  self.wrist_active = True
             elif self.wrist_active:
-                command.append("WRIST")
-                arg.append("STOP")
-                self._robot_driver.wrist("STOP")
-                self.wrist_active = False
+                if self.cfg.ALSET_MODEL == "X":
+                  command.append("CHASSIS")
+                  arg.append("STOP")
+                  self._robot_driver.chassis("STOP")
+                  self.chassis_active = True
+                elif self.cfg.ALSET_MODEL == "S":
+                  command.append("WRIST")
+                  arg.append("STOP")
+                  self._robot_driver.wrist("STOP")
+                  self.wrist_active = False
             if self.pressed_button == "x":
                 if self._robot_driver.NN_apps.app_type == "DQN" and self._robot_driver.gather_data.is_on():
                     pass

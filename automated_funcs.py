@@ -54,6 +54,8 @@ class AutomatedFuncs():
         return self.quick_search()
       elif self.automatic_function_name == "RELOCATE":
         return self.relocate()
+      elif self.automatic_function_name == "X_PARK_ARM_UP":
+        return self.x_park_arm_up()
       elif self.automatic_function_name == "PARK_ARM_RETRACTED":
         return self.park_arm_retracted()
       elif self.automatic_function_name == "PARK_ARM_RETRACTED_WITH_CUBE":
@@ -281,6 +283,59 @@ class AutomatedFuncs():
           self.curr_automatic_action = "REWARD1"
           done = True
           print("done park_arm_retracted")
+
+      self.robot.gather_data.set_action(self.curr_automatic_action)
+      return self.curr_automatic_action, done
+
+  def x_park_arm_up(self):
+      # determine state
+      self.last_arm_action = self.curr_automatic_action
+      done = False
+
+      go_again = True
+      while go_again:
+        go_again = False
+        done = False
+        print("phase:", self.phase)
+        # determine next move
+        if self.phase == 0:
+            self.phase = 1
+            self.phase_count = 0
+            go_again = True
+        elif self.phase == 1:
+          if self.rew_pen == "PENALTY1":
+            self.phase_count = 0
+            self.phase = 3
+            go_again = True
+          elif self.phase_count >= 1:
+            self.phase_count = 0
+            self.phase = 2
+            go_again = True
+          else:
+            self.curr_automatic_action = "LOWER_ARM_UP"
+            self.phase_count += 1
+        elif self.phase == 2:
+          if self.rew_pen == "PENALTY1":
+            self.phase_count = 0
+            self.phase = 3
+            go_again = True
+          elif self.phase_count >= 1:
+            self.phase_count = 0
+            self.phase = 3
+            go_again = True
+          else:
+            self.curr_automatic_action = "UPPER_ARM_UP"
+            self.phase_count += 1
+        elif self.phase == 3:
+          if self.rew_pen == "REWARD1":
+            self.phase = 4
+            go_again = True
+          else:
+            self.curr_automatic_action = "SHOVEL_UP"
+        elif self.phase == 4:
+          self.curr_automatic_action = "REWARD1"
+          done = True
+          print("done park_arm_up")
 
       self.robot.gather_data.set_action(self.curr_automatic_action)
       return self.curr_automatic_action, done

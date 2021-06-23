@@ -4,8 +4,9 @@ import threading
 from flask import Response, Flask
 # import dataset_utils
 from dataset_utils import *
+from config import *
 
-
+cfg = Config()
 # Image frame sent to the Flask object
 global webcam_video_frame
 webcam_video_frame = None
@@ -155,5 +156,5 @@ def webcam_run(robot):
     # While it can be run on any feasible IP, IP = 0.0.0.0 renders the web app on
     # the host machine's localhost and is discoverable by other machines on the same network 
     # app.run("0.0.0.0", port=8000)
-    webcam_app.run("10.0.0.31", port=8080)
+    webcam_app.run(cfg.DEFAULT_WEBCAM_IP, port=cfg.DEFAULT_WEBCAM_PORT)
 

@@ -5,19 +5,32 @@ class Config():
       ###################################
       # Action Sets: 
       ###################################
-      self.ALSET_MODEL = "S"
-      self.gather_data_modes = ["GATHER_DATA_ON", "GATHER_DATA_OFF"]
+      # self.ALSET_MODEL = "S"
+      self.ALSET_MODEL = "X"
+      ###################################
+      if self.ALSET_MODEL == "S":
+        # self.IP_ADDR = "10.0.0.31"
+        self.IP_ADDR = "192.168.50.182"
+        self.arm_actions_no_wrist_s  = ["UPPER_ARM_UP", "UPPER_ARM_DOWN", "GRIPPER_OPEN", "GRIPPER_CLOSE",
+                                       "LOWER_ARM_UP", "LOWER_ARM_DOWN"]
+        self.arm_actions = self.arm_actions_no_wrist + ["WRIST_ROTATE_LEFT", "WRIST_ROTATE_RIGHT"]
+        self.arm_actions_park_arm_retracted  = ["UPPER_ARM_UP", "GRIPPER_OPEN", "GRIPPER_CLOSE", "LOWER_ARM_DOWN"]
+        self.nn_disallowed_actions = ["REWARD1", "REWARD2", "PENALTY1", "PENALTY2", "WRIST_ROTATE_LEFT", "WRIST_ROTATE_RIGHT"]
+        # Note: Wrist Rotate is unreliable. Should just support horiz and vert positioning
+        # via a NN.
+      ###################################
+      if self.ALSET_MODEL == "X":
+        self.IP_ADDR = "192.168.50.86"
+        self.arm_actions  = ["UPPER_ARM_UP", "UPPER_ARM_DOWN", "SHOVEL_UP", "SHOVEL_DOWN",
+                             "LOWER_ARM_UP", "LOWER_ARM_DOWN", "CHASSIS_LEFT", "CHASSIS_RIGHT"]
+        self.nn_disallowed_actions = ["REWARD1", "REWARD2", "PENALTY1", "PENALTY2"] 
+
+      ###################################
       self.modes = ["TELEOP", "NN"]
+      self.gather_data_modes = ["GATHER_DATA_ON", "GATHER_DATA_OFF"]
       self.base_actions  = ["FORWARD", "REVERSE", "LEFT", "RIGHT"]
-      self.arm_actions_no_wrist  = ["UPPER_ARM_UP", "UPPER_ARM_DOWN", "GRIPPER_OPEN", "GRIPPER_CLOSE",
-                                    "LOWER_ARM_UP", "LOWER_ARM_DOWN"]
-      self.arm_actions_park_arm_retracted  = ["UPPER_ARM_UP", "GRIPPER_OPEN", "GRIPPER_CLOSE", "LOWER_ARM_DOWN"]
-      self.arm_actions = self.arm_actions_no_wrist + ["WRIST_ROTATE_LEFT", "WRIST_ROTATE_RIGHT"]
-      # Note: Wrist Rotate is unreliable. Should just support horiz and vert positioning
-      # via a NN.
       self.robot_actions = self.base_actions + self.arm_actions
       self.joystick_actions  = ["REWARD1", "REWARD2", "PENALTY1", "PENALTY2"]
-      self.nn_disallowed_actions = ["REWARD1", "REWARD2", "PENALTY1", "PENALTY2", "WRIST_ROTATE_LEFT", "WRIST_ROTATE_RIGHT"]
       self.full_action_set = self.robot_actions + self.joystick_actions
       self.full_action_set.sort()
       self.full_action_set = tuple(self.full_action_set)
@@ -30,19 +43,15 @@ class Config():
       # SIMPLE PRETRAINED ATOMIC NNs OR AUTOMATED FUNCTIONS
       #####################################################
       self.FUNC_policy = [
-                         # reward_ph0 = 50 + max((ALLOCATED_MOVES_CUBE_PICKUP - frame_num),0)*MOVE_BONUS
-                         # reward_ph1 = 100 + max((ALLOCATED_MOVES_CUBE_DROP_IN_BOX - frame_num),0)*MOVE_BONUS
-                         # The reward phases map to the "WITH_REWARD1" actions in the function_flow_model
-                         # phase 0: to first DQN reward; 50 award & 300 allocated moves
-                         # phase 1: to second DQN reward; 100 award & 400 allocated moves
-                         # more phases allowed
-                         ["DQN_REWARD_PHASES", [[50,    300],   [100,   400]]],
+                         ["DQN_REWARD_PHASES", [[125,    300],   [275,   400]]],
+                         ["DQN_MOVE_BONUS", 1],
+                         ["PER_MOVE_PENALTY", -1],
                          ["REWARD2", 50],  # "CUBE_OFF_TABLE_REWARD"
-                         ["PENALTY2", -50],  # "ROBOT_OFF_TABLE_PENALTY"
-                         ["DQN_MOVE_BONUS", 0.25],
-                         ["PER_MOVE_PENALTY", -0.25],
+                         ["PENALTY2", -250],  # "ROBOT_OFF_TABLE_PENALTY"
                          ["MAX_MOVES", 1500],
-                         ["MAX_MOVES_EXCEEDED_PENALTY", -100.0],
+                         ["MAX_MOVES_EXCEEDED_PENALTY", -300.0],
+                         ["LEARNING_RATE", 0.0001],
+                         ["ERROR_CLIP", 1],
                          ["GAMMA", 0.99],
                          ["ESTIMATED_VARIANCE", 300.0],
                          ["REPLAY_BUFFER_CAPACITY", 10000],
@@ -56,6 +65,7 @@ class Config():
                             "COLLISION_AVOIDANCE",
                             "PARK_ARM_HIGH",
                             "PARK_ARM_HIGH_WITH_CUBE",
+                            "X_PARK_ARM_UP",
                             "PARK_ARM_RETRACTED",
                             "PARK_ARM_RETRACTED_WITH_CUBE",
                             "QUICK_SEARCH",
@@ -105,6 +115,7 @@ class Config():
                     ["PT_COLLISION_AVOIDANCE", "PreTrained Collision Avoidance for Jetbot from NVidia"],
                     ["COLLISION_AVOIDANCE", "Collision Avoidance trained via teleop"],
 		    ["PARK_ARM_HIGH", "Arm parked with upper arm vertical and lower arm pointing down, with base of robot slightly visible between grippers."],
+		    ["X_PARK_ARM_UP", "Model X: move arm / shovel up and as far out as way as possible"],
                     ["PARK_ARM_RETRACTED_WITH_CUBE","PARK_ARM_HIGH with cube in gripper"],
 		    ["PARK_ARM_RETRACTED", "Arm parked with upper arm flat backwards and lower arm flat pointing forward. Gripper is open and ground seen a few inches in front of robot.", "ALEXNET"],
 		    ["QUICK_SEARCH_FOR_CUBE", "Rotate Left in place, searching for cube. If cube not found, relocate to a different spot and search again."],
@@ -118,7 +129,7 @@ class Config():
 		    # TABLETOP ATOMIC NNs FOR SUBSUMPTION
 		    ["STAY_ON_TABLE", "An automated function that tries to rotate left to avoid going off the table. If run stand-alone, will drive around the edges of the table. Can be a background check that encourages staying on the table."],
 		    ["MOVEMENT_CHECK", "An automated function that runs in the background. It checks that the arm is moving as expected and prevents the arm from being forced beyond its limits."]
-                ]
+                  ]
 
       self.func_subsumption= ["STAY_ON_TABLE", "MOVEMENT_CHECK"]
       # self.func_subsumption = ["STAY_ON_TABLE", "FIDUCIAL", "OBJECT_FOLLOWING", "OBJECT_AVOIDANCE", "OBJECT_PICKUP", ["TIMER", secs, ACTION]  ]
@@ -130,6 +141,7 @@ class Config():
                              ["QUICK_SEARCH_FOR_CUBE","QUICK_SEARCH"],
                              ["QUICK_SEARCH_FOR_BOX_WITH_CUBE", "QUICK_SEARCH_AND_RELOCATE"],
                              ["QUICK_SEARCH_AND_RELOCATE", "QUICK_SEARCH_AND_RELOCATE"],
+                             ["X_PARK_ARM_UP", "X_PARK_ARM_UP"],
                              ["PARK_ARM_RETRACTED", "PARK_ARM_RETRACTED"],
                              ["PARK_ARM_RETRACTED_WITH_CUBE", "PARK_ARM_RETRACTED"],
                              ["CLOSE_GRIPPER", "CLOSE_GRIPPER"], 
@@ -267,19 +279,19 @@ class Config():
       ######################
       # define TT DQN policy
       self.TT_DQN_policy = [
-                         # reward_ph0 = 50 + max((ALLOCATED_MOVES_CUBE_PICKUP - frame_num),0)*MOVE_BONUS
-                         # reward_ph1 = 100 + max((ALLOCATED_MOVES_CUBE_DROP_IN_BOX - frame_num),0)*MOVE_BONUS
+                         # reward_ph0 = 125 + max((ALLOCATED_MOVES_CUBE_PICKUP - frame_num),0)*MOVE_BONUS
+                         # reward_ph1 = 275 + max((ALLOCATED_MOVES_CUBE_DROP_IN_BOX - frame_num),0)*MOVE_BONUS
                          # The reward phases map to the "WITH_REWARD1" actions in the function_flow_model
-                         # phase 0: to first DQN reward; 50 award & 300 allocated moves
-                         # phase 1: to second DQN reward; 100 award & 400 allocated moves
                          # more phases allowed
-                         ["DQN_REWARD_PHASES", [[50,    300],   [100,   400]]],
+                         ["DQN_REWARD_PHASES", [[125,    300],   [275,   400]]],
+                         ["DQN_MOVE_BONUS", 1],
+                         ["PER_MOVE_PENALTY", -1],
                          ["REWARD2", 50],  # "CUBE_OFF_TABLE_REWARD"
-                         ["PENALTY2", -50],  # "ROBOT_OFF_TABLE_PENALTY"
-                         ["DQN_MOVE_BONUS", 0.25],
-                         ["PER_MOVE_PENALTY", -0.25],
+                         ["PENALTY2", -250],  # "ROBOT_OFF_TABLE_PENALTY"
                          ["MAX_MOVES", 1500],
-                         ["MAX_MOVES_EXCEEDED_PENALTY", -100.0],
+                         ["MAX_MOVES_EXCEEDED_PENALTY", -300.0],
+                         ["LEARNING_RATE", 0.0001],
+                         ["ERROR_CLIP", 1],
                          ["GAMMA", 0.99],
                          ["ESTIMATED_VARIANCE", 300.0],
                          ["REPLAY_BUFFER_CAPACITY", 10000],
@@ -320,18 +332,15 @@ class Config():
       ############################
       self.pt_col_avoid_name        = ["PT_COLLISION_AVOIDANCE_APP"]
       self.pt_col_avoid_func        = [
-                                      "PARK_ARM_RETRACTED",           #  0
-                                      "PT_COLLISION_AVOIDANCE"        #  1
+                                      "PT_COLLISION_AVOIDANCE"        #  0
                                       ]
 
-      # LEFT
       self.app_pt_col_avoid_func_flow_model = [
             [[],["START", 0]],
-            [[0], ["IF", "REWARD1", "NEXT"] ],
-            [[1], ["IF", "REWARD1", "LEFT"] ],
-            [[1], ["IF", "PENALTY", "STOP" ]],
-            [[1], ["IF", "BLOCKED", "LEFT" ]],
-            [[1], ["IF", "FREE", "FORWARD" ]],
+            [[0], ["IF", "REWARD1", "LEFT"] ],
+            [[0], ["IF", "PENALTY", "STOP" ]],
+            [[0], ["IF", "BLOCKED", "LEFT" ]],
+            [[0], ["IF", "FREE", "FORWARD" ]],
             ]
 
       # for composite apps, key-value pirs
@@ -342,22 +351,21 @@ class Config():
       ############################
       # if we do regular teleop training from scratch instead of pre-trained classifier, 
       # we would define following
-      self.col_avoid_name        = ["COLLISION_AVOIDANCE"]
-      self.col_avoid_func     = [
-                                   "PARK_ARM_RETRACTED",           #  0
-                                   "COLLISION_AVOIDANCE"           #  1
+      self.col_avoid_name        = ["COLLISION_AVOIDANCE_APP"]
+      
+      self.pt_col_avoid_func     = [
+                                   "COLLISION_AVOIDANCE"        #  0
                                    ]
 
       # LEFT
       self.col_avoid_func_flow_model = [
             [[],["START", 0]],
-            [[0], ["IF", "REWARD1", "NEXT"] ],
-            [[1], ["IF", "REWARD1", "LEFT"] ],
-            [[1], ["IF", "PENALTY", "STOP" ]],
+            [[0], ["IF", "REWARD1", "STOP"] ],
+            [[0], ["IF", "PENALTY", "STOP" ]],
             ]
 
       # for composite apps, key-value pirs
-      self.app_registry.append(["COLLISION_AVOIDANCE",[self.col_avoid_func, self.col_avoid_func_flow_model]])
+      self.app_registry.append(["COLLISION_AVOIDANCE_APP",[self.col_avoid_func, self.col_avoid_func_flow_model]])
 
       self.col_avoid_restrict = ["FORWARD", "LEFT"]
       self.func_movement_restrictions.append(["COLLISION_AVOIDANCE", self.col_avoid_restrict])
@@ -461,7 +469,7 @@ class Config():
       ###################################
       # map actions to button/axis
       # map actions to web controller images
-      self.DEFAULT_WEBCAM_IP     = "10.0.0.31"
+      self.DEFAULT_WEBCAM_IP     = self.IP_ADDR 
       self.DEFAULT_WEBCAM_PORT   = 8080
       
     ###################
