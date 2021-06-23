@@ -5,13 +5,13 @@ class Config():
       ###################################
       # Action Sets: 
       ###################################
-      # self.ALSET_MODEL = "S"
-      self.ALSET_MODEL = "X"
+      self.ALSET_MODEL = "S"
+      # self.ALSET_MODEL = "X"
       ###################################
       if self.ALSET_MODEL == "S":
         # self.IP_ADDR = "10.0.0.31"
         self.IP_ADDR = "192.168.50.182"
-        self.arm_actions_no_wrist_s  = ["UPPER_ARM_UP", "UPPER_ARM_DOWN", "GRIPPER_OPEN", "GRIPPER_CLOSE",
+        self.arm_actions_no_wrist  = ["UPPER_ARM_UP", "UPPER_ARM_DOWN", "GRIPPER_OPEN", "GRIPPER_CLOSE",
                                        "LOWER_ARM_UP", "LOWER_ARM_DOWN"]
         self.arm_actions = self.arm_actions_no_wrist + ["WRIST_ROTATE_LEFT", "WRIST_ROTATE_RIGHT"]
         self.nn_disallowed_actions = ["REWARD1", "REWARD2", "PENALTY1", "PENALTY2", "WRIST_ROTATE_LEFT", "WRIST_ROTATE_RIGHT"]
