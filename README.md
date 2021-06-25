@@ -48,16 +48,15 @@ The original Sharper Image robot and Top Race Excavator were hacked as followed:
  - A hacked RC:
    - the circuit board from inside of the low-end RC control that came with the robot. 
    - You can see/use the buttons from the RC circuit board to control the robot. 
-   - the other side of the board was soldered to wire it up with the IO expansion board.
- - The IO expansion board was required :
-   - the RC control uses Tri-state logic on 6 pins.
-   - The expansion board uses I2C to communicate with the Jetson Development board
-   - The expansion board is connected to the RC control via wires
- - It is powered by a mongo BONAI 5.6A battery pack, but smaller 5.6A battery packs also work.
+   - the other side of the board was soldered to wire it up with the IO expansion board so work or the Multiplexer board.
  - Logitech gamepad joystick communicates with the jetson to provide more sophisticated and specialized RC control.
+ - It is powered by a mongo BONAI 5.6A battery pack, but smaller 5.6A battery packs also. Unfotunately, if the battery packs degrade just slightly, the Jetson will crash when the amps drop.
+                                                       
+The Models S and X differed in how the circuit board inside of their RC transmitters interfaced with the Jetson Nano.  For the Model S, an  IO expansion board was required because the RC control uses Tri-state logic on 6 pins.  The expansion board uses I2C to communicate with the Jetson Development board. The expansion board is connected to the RC control via wires.
+ 
+The Model X used four MC74HC4066A Quad Analog Switch/Multiplexer/Demultiplexer to interface between the RC transmitter board and the Jetson GPIOs.  No IO expansision board was needed because the Excavator doesn't use tri-state logic, but the four MC74HC4066A chips allow complex mapping between the RC buttons and the GPIO pins.
 
-The code started with the Jetson Notebook tutorial on Obstacle avoidance, but was changed 
-significantly. The Notebook tutorials barely ran on my Jetson with the wifi connectivity from my working area. The tutorials were replaced with:
+The code started with the Jetson Notebook tutorial on Obstacle avoidance, but was changed significantly. The Notebook tutorials barely ran on my Jetson with the wifi connectivity from my working area. The tutorials were replaced with:
  - The logitech joystick controls the robot directly
    - The camera is streamed using much lower overhead video webserver for teleoperation.
    - The images are saved directly to the Robot SD card.
