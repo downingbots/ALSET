@@ -5,8 +5,8 @@ class Config():
       ###################################
       # Action Sets: 
       ###################################
-      self.ALSET_MODEL = "S"
-      # self.ALSET_MODEL = "X"
+      # self.ALSET_MODEL = "S"
+      self.ALSET_MODEL = "X"
       ###################################
       if self.ALSET_MODEL == "S":
         # self.IP_ADDR = "10.0.0.31"
@@ -166,7 +166,19 @@ class Config():
             [[0], ["IF", "FREE", "FORWARD" ]],
             [[0], ["IF", "PENALTY1", "STOP" ]],
             ]
-      self.func_classifier = [ ["PT_COLLISION_AVOIDANCE", [["BLOCKED", "FREE"], self.func_pt_col_avoid_func_flow_model]]]
+      self.func_col_avoid_func_flow_model = [
+            [[],["START", 0]],
+            [[0], ["IF", "REWARD1", "LEFT"] ],
+            [[0], ["IF", "PENALTY", "STOP" ]],
+            [[0], ["IF", "BLOCKED", "LEFT" ]],
+            [[0], ["IF", "FREE", "FORWARD" ]],
+            ]
+
+      # for composite apps, key-value pirs
+      self.func_classifier = [ 
+        ["PT_COLLISION_AVOIDANCE", [["BLOCKED", "FREE"], self.func_pt_col_avoid_func_flow_model]],
+        ["COLLISION_AVOIDANCE", [["LEFT", "FORWARD"], self.func_col_avoid_func_flow_model]]
+       ]
       # TODO: self.classifier = [FIDUCIAL, OBJECT, FACE, DARK_LIGHT]
 
       # TODO:
@@ -359,9 +371,12 @@ class Config():
       # LEFT
       self.col_avoid_func_flow_model = [
             [[],["START", 0]],
-            [[0], ["IF", "REWARD1", "STOP"] ],
-            [[0], ["IF", "PENALTY", "STOP" ]],
+            [[0], ["IF", "LEFT", "LEFT"] ],
+            [[0], ["IF", "FORWARD", "FORWARD"] ],
+            [[0], ["IF", "REWARD1", "STOP" ]],
+            [[0], ["IF", "PENALTY1", "STOP" ]],
             ]
+
 
       # for composite apps, key-value pirs
       self.app_registry.append(["AVOID_COLLISION",[self.col_avoid_func, self.col_avoid_func_flow_model]])
