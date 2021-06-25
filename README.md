@@ -154,7 +154,7 @@ many moves.
 
 ## HOW TO BUILD 
 
-Full list of parts with Amazon-searchable names:
+Full list of parts with Amazon-searchable names for the Model S:
 
  - SanDisk Extreme Pro SDXC UHS-I U3 A2 V30 128GB + Adapter, SDSQXCY-128G-GN6MA
  - Cookie Wheel Camera Case for The Raspberry Pi Camera v1 and v2 (not Included) mounted on wrist after taking off half of the black plastic
