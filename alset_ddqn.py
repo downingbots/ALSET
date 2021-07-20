@@ -30,7 +30,6 @@ from functional_app import *
 # import matplotlib.pyplot as plt
 # %matplotlib inline
 
-
 from collections import deque
 
 # workaround due to ReplayBuffer pickling/unpickling and class evolution
@@ -102,11 +101,11 @@ class ReplayBuffer():
         done_end = replay_buffer.find_done()
         len_buf = len(replay_buffer)
         # state, action, reward, next_state, done, q_val = zip(replay_buffer.buffer[-1])
-        assert done_end == len_buf, "last entry must be completion of run"
+        # assert done_end == len_buf, "last entry must be completion of run"
         self.buffer += replay_buffer.buffer
         replay_buffer.clear()
 
-    def compute_real_q_values(self, gamma=.99, name="replay", sample_start=0, done_end=None):
+    def compute_real_q_values(self, gamma=.99, name="replay", sample_start=0, done_end=None, done_required=True):
         buf_id = self.reset_sample(name,sample_start)
         if done_end is None:
           done_end = len(self.buffer)
@@ -118,11 +117,12 @@ class ReplayBuffer():
           state, action, reward, next_state, done = zip(*itertools.islice(self.buffer,sample_start,done_end))
           print("No qval in replay buffer. Adding qval.")
           add_q_val = True
-        if not done[done_end-sample_start-1]:
+        if done_required:
+          if not done[done_end-sample_start-1]:
             # print("[state, action, reward, next_state, done]:")
             # print([state, action, reward, next_state, done])
             print("compute_real_q_values: last DONE must be True")
-        assert done[done_end-sample_start-1], "Only compute real q values upon completion of run"
+          assert done[done_end-sample_start-1], "Only compute real q values upon completion of run"
         next_q_val = 0
         q_val = 0
         len_reward = len(reward)
@@ -175,6 +175,9 @@ class ReplayBuffer():
             #   next_q_val = q_val # "next" because iterating in reverse order
 
             q_val = reward_val + gamma * next_q_val
+            if q_val > 5:
+                print("ERROR: q_val out of range ", q_val, self.ESTIMATED_VARIANCE)
+                x14 = x33
             q_val_lst.append(q_val)
             offset = done_end - sample_start - i - 1
             if add_q_val:
@@ -596,7 +599,14 @@ class ALSET_DDQN():
           self.DQN_PATH_PREFIX = self.dsu.dataset_path()
           self.REPLAY_BUFFER_PATH = self.dsu.dqn_replay_buffer()
           if app_type == "DQN":
-            self.DQN_DS_PATH = self.dsu.dataset_path(mode="DQN")
+            func_restrict = self.cfg.get_func_value(self.app_name, "MOVEMENT_RESTRICTIONS")
+            print("func_restrict:", self.app_name, func_restrict)
+            self.DQN_DS_IDX_PROCESSED = self.dsu.dataset_idx_processed(mode="DQN",nn_name=self.app_name)
+            self.DQN_DS_IDX = self.dsu.dataset_indices(mode="DQN",nn_name=self.app_name,position="NEW")
+            self.dqn_ds_idx_nm = self.dsu.get_filename_from_full_path(self.DQN_DS_IDX)
+            self.dqn_ds_idx_nm = self.dqn_ds_idx_nm[0:-len(".txt")]
+            self.DQN_DS_PATH = self.dsu.dataset_path(mode="DQN", dqn_idx_name=self.dqn_ds_idx_nm)
+            # print("processed,idx,pth:", self.DQN_DS_IDX_PROCESSED, self.DQN_DS_IDX, self.DQN_DS_PATH)
           else:
             self.DQN_DS_PATH = self.dsu.dataset_path(mode="APP")
 
@@ -615,22 +625,33 @@ class ALSET_DDQN():
           DQN_Policy = self.cfg.FUNC_policy
 
         self.REPLAY_INITIAL    = self.cfg.get_value(DQN_Policy, "REPLAY_BUFFER_CAPACITY")
+        if self.REPLAY_INITIAL is None or self.REPLAY_INITIAL == 0:
+          self.REPLAY_INITIAL  = 20000
         self.REPLAY_PADDING    = self.cfg.get_value(DQN_Policy, "REPLAY_BUFFER_PADDING")
         self.BATCH_SIZE        = self.cfg.get_value(DQN_Policy, "BATCH_SIZE")
         self.GAMMA             = self.cfg.get_value(DQN_Policy, "GAMMA")
+        self.QVAL_THRESHOLD    = self.cfg.get_value(DQN_Policy, "QVAL_THRESHOLD")
+        print("qvthresh:",self.QVAL_THRESHOLD)
         self.LEARNING_RATE     = self.cfg.get_value(DQN_Policy, "LEARNING_RATE")
         print("lr:",self.LEARNING_RATE)
         self.ERROR_CLIP        = self.cfg.get_value(DQN_Policy, "ERROR_CLIP")
+        self.ERROR_LINEAR_CLIP = self.cfg.get_value(DQN_Policy, "ERROR_LINEAR_CLIP")
         self.DQN_REWARD_PHASES = self.cfg.get_value(DQN_Policy, "DQN_REWARD_PHASES")
+        self.REWARD1_REWARD    = self.cfg.get_value(DQN_Policy, "REWARD1")
         self.REWARD2_REWARD    = self.cfg.get_value(DQN_Policy, "REWARD2")
+        self.PENALTY1_PENALTY  = self.cfg.get_value(DQN_Policy, "PENALTY1")
         self.PENALTY2_PENALTY  = self.cfg.get_value(DQN_Policy, "PENALTY2")
         self.DQN_MOVE_BONUS    = self.cfg.get_value(DQN_Policy, "DQN_MOVE_BONUS")
         self.PER_MOVE_PENALTY  = self.cfg.get_value(DQN_Policy, "PER_MOVE_PENALTY")
+        self.PER_MOVE_REWARD   = self.cfg.get_value(DQN_Policy, "PER_MOVE_REWARD")
+        self.PER_FORWARD_REWARD   = self.cfg.get_value(DQN_Policy, "PER_FORWARD_REWARD")
         self.MAX_MOVES         = self.cfg.get_value(DQN_Policy, "MAX_MOVES")
         self.MAX_MOVES_EXCEEDED_PENALTY = self.cfg.get_value(DQN_Policy, "MAX_MOVES_EXCEEDED_PENALTY")
+        self.MAX_MOVES_REWARD  = self.cfg.get_value(DQN_Policy, "MAX_MOVES_REWARD")
         self.ESTIMATED_VARIANCE         = self.cfg.get_value(DQN_Policy, "ESTIMATED_VARIANCE")
+        print("est var:", self.ESTIMATED_VARIANCE)
         if self.LEARNING_RATE is None:
-          self.LEARNING_RATE = 0.001
+          self.LEARNING_RATE = 0.00005
 
         # reward variables
         self.standard_mean      = 0.0
@@ -706,6 +727,14 @@ class ALSET_DDQN():
             else:
               self.current_model.load_state_dict(torch.load(self.BEST_MODEL_PATH))
 
+        if self.app_type == "DQN":
+            ds_path = self.DQN_DS_PATH + "/"
+            ds_dirs = [self.DQN_DS_PATH]
+            for act in self.cfg.full_action_set:
+              ds_dirs.append(ds_path + act)
+            self.dsu.mkdirs(ds_dirs)
+            self.robot.gather_data.set_ds_idx(self.DQN_DS_IDX)
+
         # self.frame_num = len(self.active_buffer)
         self.frame_num = 0
         # target_model = copy.deepcopy(current_model)
@@ -717,6 +746,8 @@ class ALSET_DDQN():
 
     def nn_set_automatic_mode(self, TF):
         pass
+    def nn_automatic_mode(self):
+        return False
 
     def update_target(self, current_mdl, target_mdl):
         target_mdl.load_state_dict(current_mdl.state_dict())
@@ -806,17 +837,99 @@ class ALSET_DDQN():
         print("s: ", s)
         return tuple([s[i].value for i in range(0, len(s))])
 
-    def compute_td_loss(self, batch_size=32, mode="REAL_Q_VALUES"):
+    def compute_ranking_stats(self, current_q_values, action_index):
+          try:
+            # determine rankings
+            curr_q_vals = current_q_values.detach().cpu().numpy()
+            act_rank = []
+            allowed_act_rank = []
+            if self.cfg.nn_disallowed_actions is None:
+              disallowed = []
+              feasible_act = list(self.cfg.full_action_set)
+            else:
+              disallowed = []
+              for a in self.cfg.nn_disallowed_actions:
+                try:
+                  disallowed.append(list(self.cfg.full_action_set).index(a))
+                except:
+                  pass
+              feasible_act = list(Counter(list(self.cfg.full_action_set)) - Counter(self.cfg.nn_disallowed_actions))
+    
+            for i, curr_q_v in enumerate(curr_q_vals):
+              act_srt = np.argsort(curr_q_v)
+              act_srt = act_srt[::-1]
+              # print("act_srt1",act_srt, disallowed)
+              act_srt = list(Counter(act_srt.tolist()) - Counter(disallowed))
+              # print("act_srt2",act_srt)
+              # act_srt = list(Counter(act_srt.tolist()) - (Counter(list(self.cfg.full_action_set) - Counter(allowed_actions))))
+              # a_r = act_srt.index(action_index[frame_num])
+              try:
+                a_r = act_srt.index(action_index[i])
+                act_rank.append(a_r)
+                cqv = curr_q_vals[i]
+                print("real action,rank:", self.cfg.full_action_set[action_index[i]], a_r, qval_idx[i], cqv[act_srt[a_r]])
+                self.all_act_rank.append(a_r)
+              except:
+                print("unranked top action:",self.cfg.full_action_set[action_index[i]])
+                pass
+              ranks = []
+              for i2, a2 in enumerate(act_srt):
+                  cqv = curr_q_vals[i]
+                  ranks.append([i2, self.cfg.full_action_set[a2], cqv[a2]])
+              print("top action rank: ", ranks)
+    
+              # print("ar",a_r)
+              aa_r = []
+              for ff_nn, fn, allowed_actions in self.parse_app_ds_details:
+                if fn > self.frame_num:
+                  # print("PARSE_APP_DS: ", ff_nn, fn, self.frame_num, allowed_actions)
+                  break
+                aa_r = []
+                for aa in allowed_actions:
+                  # aa_i = self.cfg.full_action_set.index(aa)  # Human readable to integer index
+                  try:
+                    aa_i_s = act_srt.index(aa)
+                    aa_r.append(aa_i_s)
+                    allowed_act_rank.append(aa_i_s)
+                    self.all_allowed_act_rank.append(aa_i_s)
+                  except:
+                    # should be a WRIST_ROTATE_LEFT/RIGHT, which is really not an allowed action
+                    # print("unranked allowed action:",self.cfg.full_action_set[aa])
+                    pass
+              var_aa_r = np.var(aa_r)
+              mean_aa_r = np.mean(aa_r)
+              # print("action ranking", a_r, mean_aa_r, var_aa_r, len(feasible_act))
+              self.frame_num += 1
+    
+            mean_act_rank = np.mean(act_rank)
+            var_act_rank = np.var(act_rank)
+            mean_all_act_rank = np.mean(self.all_act_rank)
+            var_all_act_rank = np.var(self.all_act_rank)
+            mean_allowed_act_rank = np.mean(allowed_act_rank)
+            var_allowed_act_rank = np.var(allowed_act_rank)
+            mean_all_allowed_act_rank = np.mean(self.all_allowed_act_rank)
+            var_all_allowed_act_rank = np.var(self.all_allowed_act_rank)
+            # This should evaluate how good of the last run of the NN was  
+            print("FINAL ACTION RANKING:" 
+                    "mean", mean_all_act_rank, mean_all_allowed_act_rank,
+                    #       mean_act_rank, mean_allowed_act_rank, 
+                    "var", var_all_act_rank, var_all_allowed_act_rank,
+                    #       var_act_rank, var_allowed_act_rank, 
+                    "numact", len(feasible_act), len(allowed_actions))
+          except Exception as e:
+            print("Error during statistics:", e)
+            pass
+
+    def compute_td_loss(self, batch_size=32, mode="REAL_Q_VALUES", compute_stats=True):
         self.current_model.train()  # Set model to training mode
         if mode == "IMITATION_TRAINING":
           # Train based on composite app runs
           state_path, action, rewards, next_state_path, done_val, q_val = self.replay_buffer.get_next_sample(batch_size)
-        elif mode == "REAL_Q_VALUES":
+        elif mode == "TARGET_Q_VALUES":
           # Train based on runs of DQN datasets
           state_path, action, rewards, next_state_path, done_val, q_val = self.active_buffer.get_next_sample(batch_size=batch_size, name="active")
-        elif mode == "RANDOM_FUNCTIONAL_TRAINING":
-          # Train based on random runs of func/NN datasets
-          self.parse_rand_func_dataset(self, init=False)   # creates a replay buffer
+        elif mode == "REAL_Q_VALUES":
+          # Train based on runs of DQN datasets
           state_path, action, rewards, next_state_path, done_val, q_val = self.active_buffer.get_next_sample(batch_size=batch_size, name="active")
         elif mode == "EXPERIENCE_REPLAY":
           # Part of DQN algorithm.
@@ -853,20 +966,29 @@ class ALSET_DDQN():
           state = state_path
         else:
           state = self.transform_image_from_path(state_path)
-        # next_state   = self.transform_image_from_path(next_state_path)
+        if type(next_state_path) == np.ndarray and type(next_state_path[0]) is not np.str_: 
+          print("next_state already converted from path.", type(next_state_path), type(next_state_path[0]))
+          next_state = next_state_path
+        else:
+          next_state = self.transform_image_from_path(next_state_path)
+
         # transform action string to number
         action_idx = []
-        for a in action:
+        qval_idx = []
+        for i3,a3 in enumerate(action):
           # action_idx.append(self.robot_actions.index(a))  # Human readable to integer index
-          action_idx.append(self.cfg.full_action_set.index(a))  # Human readable to integer index
+          try:
+            action_idx.append(self.cfg.full_action_set.index(a3))  # Human readable to integer index
+            qval_idx.append(q_val[i3])
+          except:
+              print("error with:", a3, i3)
+              exit()
         action_index = tuple(action_idx)
         # print("action_idx:",action_idx)
         # print("max action_idx:",len(self.cfg.full_action_set))
         # print("q_val:", q_val)
 
         action_idx = self.Variable(torch.LongTensor(action_index))
-        # reward     = self.Variable(torch.FloatTensor(rewards))
-        # done       = self.Variable(torch.FloatTensor(done_val))
 
         # the real q value is precomputed in q_val
         # real q value computed from done end-pt
@@ -878,109 +1000,53 @@ class ALSET_DDQN():
         # print("curr_q_val:", current_q_values)
         # print("q_value   :", q_value)
 
-        # determine rankings
-        curr_q_vals = current_q_values.detach().cpu().numpy()
-        act_rank = []
-        allowed_act_rank = []
-        if self.cfg.nn_disallowed_actions is None:
-          disallowed = []
-          feasible_act = list(self.cfg.full_action_set)
-        else:
-          disallowed = []
-          for a in self.cfg.nn_disallowed_actions:
-            try:
-              disallowed.append(list(self.cfg.full_action_set).index(a))
-            except:
-              pass
-          feasible_act = list(Counter(list(self.cfg.full_action_set)) - Counter(self.cfg.nn_disallowed_actions))
+        if compute_stats and False:
+            self.compute_ranking_stats(current_q_values, action_index)
 
-        for i, curr_q_v in enumerate(curr_q_vals):
-          act_srt = np.argsort(curr_q_v)
-          # print("act_srt1",act_srt, disallowed)
-          act_srt = list(Counter(act_srt.tolist()) - Counter(disallowed))
-          # print("act_srt2",act_srt)
-          # act_srt = list(Counter(act_srt.tolist()) - (Counter(list(self.cfg.full_action_set) - Counter(allowed_actions))))
-          # a_r = act_srt.index(action_index[frame_num])
-          try:
-            a_r = act_srt.index(action_index[i])
-            act_rank.append(a_r)
-            self.all_act_rank.append(a_r)
-          except:
-            print("unranked top action:",self.cfg.full_action_set[action_index[i]])
-            pass
-          # print("ar",a_r)
-          for ff_nn, fn, allowed_actions in self.parse_app_ds_details:
-            if fn > self.frame_num:
-              # print("PARSE_APP_DS: ", ff_nn, fn, self.frame_num, allowed_actions)
-              break
-          aa_r = []
-          for aa in allowed_actions:
-            # aa_i = self.cfg.full_action_set.index(aa)  # Human readable to integer index
-            try:
-              aa_i_s = act_srt.index(aa)
-              aa_r.append(aa_i_s)
-              allowed_act_rank.append(aa_i_s)
-              self.all_allowed_act_rank.append(aa_i_s)
-            except:
-              # should be a WRIST_ROTATE_LEFT/RIGHT, which is really not an allowed action
-              # print("unranked allowed action:",self.cfg.full_action_set[aa])
-              pass
-          var_aa_r = np.var(aa_r)
-          mean_aa_r = np.mean(aa_r)
-          # print("action ranking", a_r, mean_aa_r, var_aa_r, len(feasible_act))
-          self.frame_num += 1
-
-        mean_act_rank = np.mean(act_rank)
-        var_act_rank = np.var(act_rank)
-        mean_all_act_rank = np.mean(self.all_act_rank)
-        var_all_act_rank = np.var(self.all_act_rank)
-        mean_allowed_act_rank = np.mean(allowed_act_rank)
-        var_allowed_act_rank = np.var(allowed_act_rank)
-        mean_all_allowed_act_rank = np.mean(self.all_allowed_act_rank)
-        var_all_allowed_act_rank = np.var(self.all_allowed_act_rank)
-        # This should evaluate how good of the last run of the NN was  
-        print("FINAL ACTION RANKING:" 
-                "mean", mean_all_act_rank, mean_all_allowed_act_rank,
-                #       mean_act_rank, mean_allowed_act_rank, 
-                "var", var_all_act_rank, var_all_allowed_act_rank,
-                #       var_act_rank, var_allowed_act_rank, 
-                "numact", len(feasible_act), len(allowed_actions))
-
-        # For DDQN, using target_model to predict q_val (from rladvddqn.py).
-        # //github.com/higgsfield/RL-Adventure/blob/master/2.double%20dqn.ipynb
-        #
-        # current_next_q_values = self.current_model.alexnet_model(next_state)
-        # target_next_q_values  = self.target_model.alexnet_model(next_state)
-        # target_next_q_state_values = target_model(next_state)
-        ## orig:
-        ## target_next_q_value = target_next_q_state_values.gather(1, torch.max(target_next_q_values, 1)[1].unsqueeze(1)).squeeze(1)
-        # target_next_q_value = next_q_state_values.gather(1, next_q_values.max(1)[1].unsqueeze(1)).squeeze(1)
-
-        # target_next_q_value = target_next_q_state_values.gather(1, torch.max(target_next_q_values, 1)[1].unsqueeze(1)).squeeze(1)
-        # expected_q_value = reward + gamma * target_next_q_value * (1 - done)
-        # loss = (q_value - Variable(expected_q_value.data)).pow(2).mean()
-
-        # TODO: use the target_model for ddqn per above
         if mode == "IMITATION_TRAINING":
           loss = (q_value - q_val).pow(2).mean()
           print("IMITATION_TRAINING:")
+        elif mode == "TARGET_Q_VALUES":
+          print("TARGET_Q_VALUES:")
+          # For DDQN, using target_model to predict q_val (derived from rladvddqn.py).
+          # //github.com/higgsfield/RL-Adventure/blob/master/2.double%20dqn.ipynb
+          current_next_q_values  = self.current_model.alexnet_model(next_state)
+          target_next_q_values  = self.target_model.alexnet_model(next_state)
+          next_q_value = target_next_q_values.gather(1, torch.max(current_next_q_values, 1)[1].unsqueeze(1)).squeeze(1)
+          reward     = self.Variable(torch.FloatTensor(rewards))
+          done       = self.Variable(torch.FloatTensor(done_val))
+          expected_q_value = reward + self.GAMMA * next_q_value * (1 - done)
+
+          if self.ERROR_CLIP is not None and self.ERROR_CLIP >= 0:
+            difference = torch.abs(q_value - self.Variable(expected_q_value.data))
+            print("qval diff: ",  difference)
+            quadratic_part = torch.clamp(difference, 0.0, self.ERROR_CLIP)
+            linear_part = difference - quadratic_part
+            if self.ERROR_LINEAR_CLIP:
+              loss = (0.5 * quadratic_part.pow(2) + (self.ERROR_CLIP * linear_part)).mean()
+            else:
+              loss = (quadratic_part.pow(2)).mean()
+          else:
+            loss = (q_value - self.Variable(expected_q_value.data)).pow(2).mean()
+          print("TARGET_Q_VALUES:")
+          print("qval loss: ",  loss)
         elif mode == "REAL_Q_VALUES":
           # nondeterministic err: device-side assert triggered: nonzero_finite_vals
           # print("len q_value, q_val:", len(q_value), len(q_val))
           difference = torch.abs(q_value - q_val)
-          if self.ERROR_CLIP >= 0:
+          if self.ERROR_CLIP is not None and self.ERROR_CLIP >= 0:
             quadratic_part = torch.clamp(difference, 0.0, self.ERROR_CLIP)
             linear_part = difference - quadratic_part
-            loss = (0.5 * quadratic_part.pow(2) + (self.ERROR_CLIP * linear_part)).mean()
+            if self.ERROR_LINEAR_CLIP:
+              loss = (0.5 * quadratic_part.pow(2) + (self.ERROR_CLIP * linear_part)).mean()
+            else:
+              loss = (0.5 * quadratic_part.pow(2)).mean()
           else:
             loss = (0.5 * difference.pow(2)).mean()
             # loss = (q_value - q_val).pow(2).mean()
           # print("REAL_Q_VALUES:")
           # print("qval diff: ",  difference)
           # print("qval loss: ",  loss)
-        elif mode == "RANDOM_FUNCTIONAL_TRAINING":
-          loss = (q_value - q_val).pow(2).mean()
-          print("RANDOM_FUNC_TRAINING:")
         elif mode == "EXPERIENCE_REPLAY":
           loss = (q_value - q_val).pow(2).mean()
           print("EXPERIENCE_REPLAY FROM TARGET:")
@@ -1015,32 +1081,63 @@ class ALSET_DDQN():
                          # phase 1: to second DQN reward; 100 award & 400 allocated moves
                          # more phases allowed
         # ["DQN_REWARD_PHASES", [[50,    300],   [100,   400]]],
-        if self.curr_phase < len(self.DQN_REWARD_PHASES):
-          PHASE_ALLOCATED_MOVES = self.DQN_REWARD_PHASES[self.curr_phase][1]
-          PHASE_REWARD = self.DQN_REWARD_PHASES[self.curr_phase][0]
-        else:
-          PHASE_ALLOCATED_MOVES = self.DQN_REWARD_PHASES[-1][1]
-          PHASE_REWARD = self.DQN_REWARD_PHASES[-1][0]
-          print("WARN: curr phase exceeds DQN_REWARD_PHASES.", self.curr_phase, frame_num, action, len(self.DQN_REWARD_PHASES), self.DQN_REWARD_PHASES)
-        # print("COMPUTE_REWARD: action, phase, self.DQN_REWARD_PHASES:",  action, frame_num, self.curr_phase, self.DQN_REWARD_PHASES, len(self.DQN_REWARD_PHASES))
+        if self.DQN_REWARD_PHASES is not None:
+          if self.curr_phase < len(self.DQN_REWARD_PHASES):
+            PHASE_ALLOCATED_MOVES = self.DQN_REWARD_PHASES[self.curr_phase][1]
+            PHASE_REWARD = self.DQN_REWARD_PHASES[self.curr_phase][0]
+            print("curr phase does not exceed DQN_REWARD_PHASES.", self.curr_phase, frame_num, action, len(self.DQN_REWARD_PHASES), self.DQN_REWARD_PHASES)
+          else:
+            PHASE_ALLOCATED_MOVES = self.DQN_REWARD_PHASES[-1][1]
+            PHASE_REWARD = self.DQN_REWARD_PHASES[-1][0]
+            print("WARN: curr phase exceeds DQN_REWARD_PHASES.", self.curr_phase, frame_num, action, len(self.DQN_REWARD_PHASES), self.DQN_REWARD_PHASES)
+          # print("COMPUTE_REWARD: action, phase, self.DQN_REWARD_PHASES:",  action, frame_num, self.curr_phase, self.DQN_REWARD_PHASES, len(self.DQN_REWARD_PHASES))
         reward = 0
         if frame_num > self.MAX_MOVES:
-          return (self.MAX_MOVES_EXCEEDED_PENALTY / self.ESTIMATED_VARIANCE), True
+            return 0, True
+        if frame_num == self.MAX_MOVES:
+          if self.MAX_MOVES_EXCEEDED_PENALTY is not None:
+            return (self.MAX_MOVES_EXCEEDED_REWARD / self.ESTIMATED_VARIANCE), True
+          elif self.MAX_MOVES_REWARD is not None:
+            return (self.MAX_MOVES_REWARD / self.ESTIMATED_VARIANCE), True
         elif action == "REWARD1":
           done = False
-          reward = PHASE_REWARD + max((PHASE_ALLOCATED_MOVES - frame_num),0)*self.DQN_MOVE_BONUS
-          self.curr_phase += 1
-          print("reward, phase, self.DQN_REWARD_PHASES:",  reward, self.curr_phase, self.DQN_REWARD_PHASES, len(self.DQN_REWARD_PHASES), frame_num)
+          if self.DQN_REWARD_PHASES is not None:
+            reward = PHASE_REWARD + max((PHASE_ALLOCATED_MOVES - frame_num),0)*self.DQN_MOVE_BONUS
+            self.curr_phase += 1
+            print("reward, phase, self.DQN_REWARD_PHASES:",  reward, self.curr_phase, self.DQN_REWARD_PHASES, len(self.DQN_REWARD_PHASES), frame_num)
           # reward, phase, self.DQN_REWARD_PHASES: 52.0 1 [[50, 300], [100, 400]] 2 292
-          if self.curr_phase >= len(self.DQN_REWARD_PHASES):
-            done = True
-          return (reward / self.ESTIMATED_VARIANCE), done
+            if self.curr_phase >= len(self.DQN_REWARD_PHASES):
+              done = True
+            return (reward / self.ESTIMATED_VARIANCE), done
+          elif self.REWARD1_REWARD is not None:
+            return (self.REWARD1_REWARD / self.ESTIMATED_VARIANCE), done
+          else:
+            return 0, done
         elif action == "REWARD2":
-          return (self.REWARD2_REWARD / self.ESTIMATED_VARIANCE), True
+          if self.REWARD2_REWARD is not None:
+            return (self.REWARD2_REWARD / self.ESTIMATED_VARIANCE), True
+          else:
+            return 0, True
         elif action in ["PENALTY1","PENALTY2"]:
-          return (self.PENALTY2_PENALTY / self.ESTIMATED_VARIANCE), True
-        elif self.curr_phase < len(self.DQN_REWARD_PHASES):
-          return (self.PER_MOVE_PENALTY / self.ESTIMATED_VARIANCE), False
+          if self.PENALTY1_PENALTY is not None and action == "PENALTY1":
+            return (self.PENALTY1_PENALTY / self.ESTIMATED_VARIANCE), True
+          elif self.PENALTY2_PENALTY is not None and action == "PENALTY2":
+            return (self.PENALTY2_PENALTY / self.ESTIMATED_VARIANCE), True
+          else:
+            return 0, True
+        # elif self.DQN_REWARD_PHASES is not None and self.PER_MOVE_PENALTY is not None:
+        #   if self.curr_phase < len(self.DQN_REWARD_PHASES):
+        #     return (self.PER_MOVE_PENALTY / self.ESTIMATED_VARIANCE), False
+        if (self.PER_MOVE_REWARD is not None or self.PER_FORWARD_REWARD is not None 
+            or self.PER_MOVE_PENALTY is not None):
+          rew = 0
+          if self.PER_MOVE_REWARD is not None:
+              rew += self.PER_MOVE_REWARD
+          if self.PER_MOVE_PENALTY is not None: 
+              rew += self.PER_MOVE_PENALTY
+          if self.PER_FORWARD_REWARD is not None and action in ["FORWARD"]:
+              rew += self.PER_FORWARD_REWARD
+          return (rew / self.ESTIMATED_VARIANCE), False
         elif action not in self.cfg.full_action_set:
           print("unknown action: ",  action)
           exit()
@@ -1068,7 +1165,7 @@ class ALSET_DDQN():
     # Func: need to factor out common functionality with parse_app_dataset
     #       Currently, just a minor modified clone
     def parse_func_dataset(self, NN_name, init=False, app_mode="FUNC"):
-        print(">>>>> parse_func_dataset")
+        print("PFD: >>>>> parse_func_dataset", init)
         app_dsu = DatasetUtils(self.app_name, "FUNC")
         if init:
           # start at the beginning
@@ -1076,16 +1173,17 @@ class ALSET_DDQN():
           app_dsu.save_dataset_idx_processed(mode = app_mode, clear = True )
 
         frame_num = 0
-        final_reward_computed = False
+        # parse FUNC ds doesn't use reward phases
         reward = []
         ###################################################
         # iterate through NNs and fill in the active buffer
         while True:
           func_index = app_dsu.dataset_indices(mode=app_mode,nn_name=NN_name,position="NEXT")
           if func_index is None:
-            print("parse_func_dataset: done")
+            print("PFD: parse_func_dataset: done")
             break
           print("Parsing FUNC idx", func_index)
+          frame_num = 0
           run_complete = False
           line = None
           next_action = None
@@ -1094,21 +1192,12 @@ class ALSET_DDQN():
           self.curr_phase = 0
           nn_filehandle = open(func_index, 'r')
           line = None
-          final_reward_computed = False
           while True: # iterate through Img frames in nn
             # read a single line
             next_line = nn_filehandle.readline()
             if not next_line:
                 run_complete = True
-                print("Function Index completed:", frame_num, NN_name, next_action)
-                # Function Index completed: 293 PARK_ARM_RETRACTED_WITH_CUBE REWARD1 PARK_ARM_RETRACTED_WITH_CUBE REWARD1
-
-                if not final_reward_computed:
-                  reward, done = self.compute_reward(frame_num, next_action)
-                  done = True  # end of func is done in this mode
-                  print("completed REWARD phase1", frame_num, next_action, reward, done)
-                  self.active_buffer.push(state, action, reward, next_state, done, q_val)
-                  final_reward_computed = True
+                print("PFD: Function Index completed:", frame_num, NN_name, next_action)
                 break
             # get action & next_action
             [tm, app, mode, next_nn_name, next_action, img_name, next_state] = self.dsu.get_dataset_info(next_line, mode="FUNC")
@@ -1118,22 +1207,25 @@ class ALSET_DDQN():
                 line = next_line
                 continue
               elif action == "REWARD1":
-                print("Goto next NN; NOOP Reward, curr_NN", action, nn_name)
+                print("PFD: Goto next NN; NOOP Reward, curr_NN", action, nn_name)
                 line = next_line
                 continue
+              else:
+                reward, done = self.compute_reward(frame_num, action)
+                print("PFD: compute_reward:", frame_num, action, reward, done, next_action)
               if next_action == "REWARD1":
                 reward, done = self.compute_reward(frame_num, next_action)
                 done = True  # end of func is done in this mode
-                print("completed REWARD phase2", frame_num, next_action, reward, done)
-                final_reward_computed = True
-              else:
-                # print("compute_reward:", frame_num, action)
-                reward, done = self.compute_reward(frame_num, action)
+                print("PFD: completed REWARD phase2", frame_num, next_action, reward, done)
+              elif next_action in ["PENALTY1", "PENALTY2"]:
+                reward, done = self.compute_reward(frame_num, next_action)
+                done = True  # end of func is done in this mode
+                print("PFD: assessed run-ending PENALTY", frame_num, next_action, reward, done)
               frame_num += 1
               # add dummy 0 q_val for now. Compute q_val at end of run.
               q_val = 0
               self.active_buffer.push(state, action, reward, next_state, done, q_val)
-            if next_action != "REWARD1":
+            if next_action not in ["REWARD1", "PENALTY1", "PENALTY2"]:
               line = next_line
           # close the pointer to that file
           nn_filehandle.close()
@@ -1145,36 +1237,36 @@ class ALSET_DDQN():
           #   self.update_target(self.current_model, self.target_model)
           #################################################
           if run_complete:
-              print("SAVING STATE; DO NOT STOP!!!")
-              self.active_buffer.compute_real_q_values(gamma=self.GAMMA,  name="active")
+              print("PFD: SAVING STATE; DO NOT STOP!!!")
+              self.active_buffer.compute_real_q_values(gamma=self.GAMMA,  name="active", done_required=done_required)
               self.active_buffer.reset_sample(name="active", start=0)
               self.frame_num = 0
-              for i in range(self.cfg.NUM_EPOCHS):
+              for i in range(self.cfg.NUM_DQN_EPOCHS):
                 loss = 0
                 while loss is not None:
                   loss = self.compute_td_loss(batch_size=self.BATCH_SIZE, mode="REAL_Q_VALUES")
-                  print("real q values loss: ", i, loss)
-              # print("loss: ",loss)
-              # print("ACTIVE BUFFER:", self.active_buffer)
+                  print("PFD: real q values loss: ", i, loss)
+              # print("PFD: loss: ",loss)
+              # print("PFD: ACTIVE BUFFER:", self.active_buffer)
               try:
                 self.replay_buffer.concat(self.active_buffer)
               except:
                 if self.replay_buffer is None:
-                    print("self.replay_buffer is None")
+                    print("PFD: self.replay_buffer is None")
                 if self.active_buffer is None:
-                    print("self.active_buffer is None")
+                    print("PFD: self.active_buffer is None")
               self.save_replay_buffer()
               print(self.BEST_MODEL_PATH)
               self.current_model.save_state(self.BEST_MODEL_PATH)
               # torch.save(model.state_dict(), self.BEST_MODEL_PATH)
               self.update_target(self.current_model, self.target_model)
-              app_dsu.save_dataset_idx_processed(mode = app_mode, nn_name=nn_name)
-              print("STATE SAVED")
+              app_dsu.save_dataset_idx_processed(mode = app_mode, nn_name=nn_name, ds_idx=func_index)
+              print("PFD: STATE SAVED")
         return "PROCESSED_FUNC_RUN"
 
     # for training DQN by processing app dataset (series of functions/NNs)
     def parse_app_dataset(self, init=False, app_mode="APP"):
-        print(">>>>> parse_app_dataset")
+        print("PAD: >>>>> parse_app_dataset:", init)
         app_dsu = DatasetUtils(self.app_name, "APP")
         if init:
           # start at the beginning
@@ -1193,9 +1285,9 @@ class ALSET_DDQN():
         # iterate through NNs and fill in the active buffer
         app_index = app_dsu.dataset_indices(mode=app_mode,nn_name=None,position="NEXT")
         if app_index is None:
-          print("parse_app_dataset: unknown NEXT index or DONE")
+          print("PAD: parse_app_dataset: unknown NEXT index or DONE")
           return None
-        print("Parsing APP idx", app_index)
+        print("PAD: Parsing APP idx", app_index)
         app_filehandle = open(app_index, 'r')
         run_complete = False
         line = None
@@ -1208,8 +1300,11 @@ class ALSET_DDQN():
         self.clip_max_reward  = -1
         self.clip_min_reward  = 1
         while True:  
+          [func_flow_nn_name, func_flow_reward] = func_app.eval_func_flow_model(reward_penalty="REWARD1", init=first_time_through)
+          print("PAD: FUNC_FLOW_REWARD1:", func_flow_reward)
           # find out what the func flow model expects
           if first_time_through:
+            first_time_through = False
             if self.cfg.nn_disallowed_actions is None:
               disallowed = []
               feasible_act = list(self.cfg.full_action_set)
@@ -1221,29 +1316,29 @@ class ALSET_DDQN():
                 except:
                   pass
               feasible_act = list(Counter(list(self.cfg.full_action_set)) - Counter(disallowed))
-          else:
-            # allowed_actions is different for each nn
-            allowed_actions = None
-            for [func, func_allowed_actions] in self.cfg.func_movement_restrictions:
-              if func_flow_nn_name == func:
-                 allowed_actions = []
-                 for a in func_allowed_actions:
-                   allowed_actions.append(list(self.cfg.full_action_set).index(a))
-                 break
-            if allowed_actions is None:
-              allowed_actions = feasible_act
-            self.parse_app_ds_details.append([func_flow_nn_name, frame_num, allowed_actions])
+          # allowed_actions is different for each nn
+          allowed_actions = None
+          for [func, func_allowed_actions] in self.cfg.func_movement_restrictions:
+            if func_flow_nn_name == func:
+               allowed_actions = []
+               for a in func_allowed_actions:
+                 allowed_actions.append(list(self.cfg.full_action_set).index(a))
+               break
+          if allowed_actions is None:
+            allowed_actions = feasible_act
+          self.parse_app_ds_details.append([func_flow_nn_name, frame_num, allowed_actions])
 
-          [func_flow_nn_name, func_flow_reward] = func_app.eval_func_flow_model(reward_penalty="REWARD1", init=first_time_through)
-          first_time_through = False
           # get the next function index 
           nn_idx = app_filehandle.readline()
+          print("PAD: allowed_actions, nn_idx:", allowed_actions, nn_idx, func_flow_nn_name)
           if not nn_idx:
             if func_flow_nn_name is None:
               if func_flow_reward == "REWARD1":
+                print("PAD: FUNC_FLOW_REWARD2:", func_flow_reward)
                 if next_action != "REWARD1":
-                  print("Soft Error: last action of run is expected to be a reward:", func_flow_action, next_action)
+                    print("PAD: Soft Error: last action of run is expected to be a reward:", func_flow_action, next_action)
                 if func_flow_nn_name is None and func_flow_reward == "REWARD1":
+                    print("PAD: FUNC_FLOW_REWARD2:", func_flow_reward)
                     # End of Func Flow. Append reward.
                     reward, done = self.compute_reward(frame_num, "REWARD1")
                     if reward > self.clip_max_reward:
@@ -1255,73 +1350,85 @@ class ALSET_DDQN():
                     q_val = 0
                     done = True
                     self.active_buffer.push(state,"REWARD1", reward, next_state, done, q_val)
-                    print("Appending default REWARD1 at end of buffer", func_flow_nn_name)
+                    print("PAD: Appending default REWARD1 at end of buffer", func_flow_nn_name)
               run_complete = True
-              print("Function flow complete", state, action, reward, next_state, done, q_val)
+              print("PAD: Function flow complete", state, action, reward, next_state, done, q_val)
 
               break
             else:
-              print("Function Flow expected:", func_flow_nn_name, "but app index ended: ", app_index)
               # don't train DQN with incomplete TT results; continue with next idx
               # ARD: TODO: differentiate APP_FOR_DQN and native DQN datasets
               # TT_APP_IDX_PROCESSED.txt vs. TT_APP_IDX_PROCESSED_BY_DQN.txt 
+              if self.MAX_MOVES_REWARD is not None:
+                if self.REWARD1_REWARD is None or self.REWARD1_REWARD == 0:
+                   # then REWARD/PENALTY is not required; compute rewards
+                   print("PAD: No final reward required (MAX_MOVE_REWARD only)")
+                   run_complete = True
+                   break
+              print("PAD: Function Flow expected:", func_flow_nn_name, "but app index ended: ", app_index)
+              # don't train DQN with incomplete TT results; continue with next idx
+              # ARD: TODO: differentiate APP_FOR_DQN and native DQN datasets
+              # TT_APP_IDX_PROCESSED.txt vs. TT_APP_IDX_PROCESSED_BY_DQN.txt
               app_dsu.save_dataset_idx_processed(mode = app_mode)
               return "INCOMPLETE_APP_RUN"
             break
           nn_idx = nn_idx[0:-1]
-          # print("remove trailing newline1", nn_idx)
+          # print("PAD: remove trailing newline1", nn_idx)
           # file_name = nn_idx[0:-1]   # remove carriage return
           # NN_name = app_dsu.dataset_idx_to_func(file_name)
           NN_name = app_dsu.get_func_name_from_idx(nn_idx)
           if NN_name != func_flow_nn_name:
-            print("Func flow / index inconsistency:", NN_name, func_flow_nn_name)
+            print("PAD: Func flow / index inconsistency:", NN_name, func_flow_nn_name)
           # file_name = app_dsu.dataset_index_path(mode="FUNC", nn_name=NN_name) + file_name
           # print("Parsing NN idx", nn_idx, file_name)
           # nn_filehandle = open(file_name, 'r')
-          print("Parsing NN idx", nn_idx)
+          print("PAD: Parsing NN idx", nn_idx)
           # Parsing NN idx ./apps/FUNC/PARK_ARM_RETRACTED_WITH_CUBE/dataset_indexes/FUNC_PARK_ARM_RETRACTED_WITH_CUBE_21_05_15a.txt
           nn_filehandle = open(nn_idx, 'r')
           line = None
+          compute_reward_penalty = False
           while True: # iterate through Img frames in nn
             # read a single line
             next_line = nn_filehandle.readline()
             if not next_line:
-                print("Function Index completed:", frame_num, NN_name, next_action, func_flow_nn_name, func_flow_reward)
-                # Function Index completed: 293 PARK_ARM_RETRACTED_WITH_CUBE REWARD1 PARK_ARM_RETRACTED_WITH_CUBE REWARD1
+                run_complete = True
+                print("PAD: Function Index completed:", frame_num, NN_name, next_action)
                 break
-            # get action & next_action
+            # get action & next_action (nn_name is None)
             [tm, app, mode, next_nn_name, next_action, img_name, next_state] = self.dsu.get_dataset_info(next_line, mode="FUNC")
             if line is not None:
               [tm, app, mode, nn_name, action, img_name, state] = self.dsu.get_dataset_info(line, mode="FUNC")
-              # if func_flow_reward is not None:
-                # ARD: is this correct? real_reward is never used. Why only called once?
-                # ARD: Why break?
-                # print("Real reward:", frame_num, func_flow_reward, func_flow_nn_name, next_action)
-                # real_reward=True
-                # break
               if action == "NOOP":
                 # Too common in initial test dataset. Print warning later?
                 # print("NOOP action, NN:", action, nn_name)
                 line = next_line
                 continue
               elif action == "REWARD1":
-                print("Goto next NN; NOOP Reward, curr_NN", action, nn_name)
+                print("PAD: Goto next NN; NOOP Reward, curr_NN", action, nn_name)
                 line = next_line
                 continue
-              if next_action == "REWARD1" and func_flow_reward == "REWARD1":
-                # func_flow determines if a function completes a "reward phase"
-                reward, done = self.compute_reward(frame_num, next_action)
-                print("completed REWARD phase", frame_num, next_action, reward, done)
-                # completed REWARD phase 292 REWARD1 0.17333333333333334 False
-
               else:
-                # print("compute_reward:", frame_num, action)
+                # the final compute reward sets done to True (see above)
                 reward, done = self.compute_reward(frame_num, action)
+                print("PAD: compute_reward:", frame_num, action, reward, done)
+              if next_action == "REWARD1" and func_flow_reward == "REWARD1":
+                print("PAD: FUNC_FLOW_REWARD4:", func_flow_reward)
+                reward, done = self.compute_reward(frame_num, next_action)
+                print("PAD: completed REWARD phase", frame_num, next_action, reward, done)
+                if func_flow_nn_name is None:
+                  done = True  
+                print("PAD: granted REWARD", frame_num, next_action, reward, done)
+              elif next_action in ["PENALTY1", "PENALTY2"]:
+                reward, done = self.compute_reward(frame_num, next_action)
+                if func_flow_nn_name is None:
+                  done = True  
+                print("PAD: assessed run-ending PENALTY", frame_num, next_action, reward, done)
               frame_num += 1
               # add dummy 0 q_val for now. Compute q_val at end of run.
               q_val = 0
               self.active_buffer.push(state, action, reward, next_state, done, q_val)
-            if next_action != "REWARD1":
+
+            if next_action not in ["REWARD1", "PENALTY1", "PENALTY2"]:
               line = next_line
           # close the pointer to that file
           nn_filehandle.close()
@@ -1334,16 +1441,22 @@ class ALSET_DDQN():
         #   self.update_target(self.current_model, self.target_model)
         #################################################
         if run_complete:
-            print("SAVING STATE; DO NOT STOP!!!")
-            self.active_buffer.compute_real_q_values(gamma=self.GAMMA,  name="active")
+            print("PAD: SAVING STATE; DO NOT STOP!!!")
+            done_required = True
+            if self.MAX_MOVES_REWARD is not None:
+              if self.REWARD1_REWARD is None or self.REWARD1_REWARD == 0:
+                 done_required = False
+            print("PAD: done_required: ", done_required, self.MAX_MOVES_REWARD, self.REWARD1_REWARD)
+            self.active_buffer.compute_real_q_values(gamma=self.GAMMA,  name="active", done_required=done_required)
             self.active_buffer.reset_sample(name="active", start=0)
-            print("parse_app_ds:", self.parse_app_ds_details)
-            for i in range(self.cfg.NUM_EPOCHS):
+            print("PAD: parse_app_ds:", self.parse_app_ds_details)
+            for i in range(self.cfg.NUM_DQN_EPOCHS):
               loss = 0
               while loss is not None:
                 loss = self.compute_td_loss(batch_size=self.BATCH_SIZE, mode="REAL_Q_VALUES")
                 mean_loss = np.mean(self.all_loss)
-                print("real q values loss: ", mean_loss, i, self.all_loss[-1])
+                if len(self.all_loss) > 0:
+                  print("PAD: real q values loss: ", mean_loss, i, self.all_loss[-1])
             # print("loss: ",loss)
             # print("ACTIVE BUFFER:", self.active_buffer)
             self.replay_buffer.concat(self.active_buffer)
@@ -1352,8 +1465,8 @@ class ALSET_DDQN():
             self.current_model.save_state(self.BEST_MODEL_PATH)
             # torch.save(model.state_dict(), self.BEST_MODEL_PATH)
             self.update_target(self.current_model, self.target_model)
-            app_dsu.save_dataset_idx_processed(mode = app_mode)
-            print("STATE SAVED")
+            app_dsu.save_dataset_idx_processed(mode = app_mode, ds_idx=app_index)
+            print("PAD: STATE SAVED")
         return "PROCESSED_APP_RUN"
 
     def parse_unprocessed_app_datasets(self, init=False):
@@ -1381,112 +1494,107 @@ class ALSET_DDQN():
 
 
     def parse_unprocessed_dqn_datasets(self, init=False):
-        init_ds = init
-        while self.parse_dqn_dataset(init_ds) in ["PROCESSED_DQN_RUN", "INCOMPLETE_DQN_RUN"]:
+        init_ds = False
+        while self.parse_dqn_dataset(init_ds) in ["PROCESSED_APP_RUN", "INCOMPLETE_APP_RUN"]:
             init_ds = False
             print("process another dqn dataset")
 
     # for training DQN by processing native DQN dataset
     def parse_dqn_dataset(self, init=False):
-        print(">>>>> parse_dqn_dataset")
+        print("PDQNDS: >>>>> parse_app_dataset:", init)
+        app_dsu = DatasetUtils(self.app_name, "DQN")
         if init:
           # start at the beginning
-          self.dsu.save_dataset_idx_processed(mode = "APP", nn_name = None, dataset_idx = None)
+          # e.g., clear TTT_APP_IDX_PROCESSED_BY_DQN.txt
+          app_dsu.save_dataset_idx_processed(mode = "DQN", clear = True )
+
         frame_num = 0
         reward = []
-        #######################
-        # iterate through NNs
-        dqn_index = self.dsu.dataset_indices(mode="APP",nn_name=None,position="NEXT")
+
+        ###################################################
+        # iterate through NNs and fill in the active buffer
+        dqn_index = self.dsu.dataset_indices(mode="DQN",nn_name=None,position="NEXT")
         if dqn_index is None:
           # print("parse_func_dataset: unknown NEXT index")
-          print("parse_func_dataset: no more indexes")
-          return
-        print("Parsing DQN idx", dqn_index)
+          print("PDQNDS: parse_dqn_dataset: no more indexes")
+          return None
+        print("PDQNDS: Parsing DQN idx", dqn_index)
+
         dqn_filehandle = open(dqn_index, 'r')
+        run_complete = False
         line = None
+        next_action = None
+        next_line = None
+        self.active_buffer.clear()
+        self.curr_phase = 0
+        self.clip_max_reward  = -1
+        self.clip_min_reward  = 1
         while True:  
-            # read a single line
             next_line = dqn_filehandle.readline()
             if not next_line:
-                done = False
+                run_complete = True
+                print("PDQNDS: Function Index completed:", frame_num, next_action)
                 break
             # get action & next_action
-            [tm, app, mode, next_nn_name, next_action, img_name, next_state] = self.dsu.get_dataset_info(next_line)
+            [tm, app, mode, next_nn_name, next_action, img_name, next_state] = self.dsu.get_dataset_info(next_line, mode="DQN")
             if line is not None:
-              [tm, app, mode, nn_name, action, img_name, state] = self.dsu.get_dataset_info(line)
-              self.replay_buffer.push(state, action, reward, next_state, done)
-              reward, done = self.compute_reward(frame_num, action)
-            frame_num += 1
-  
-            if next_action != "REWARD1":
-              line = next_line
-            if len(self.replay_buffer) > self.REPLAY_INITIAL:
-              loss = self.compute_td_loss(batch_size, app_path_prefix)
-            if frame_num % 1000 == 0 or done:
-              self.update_target(self.current_model, self.target_model)
-            if done:
-              state = None
-              self.all_rewards.append(self.total_reward)
-              torch.save(self.current_model.state_dict(), self.BEST_MODEL_PATH)
-        # close the pointer to that file
-        filehandle.close()
+              [tm, app, mode, nn_name, action, img_name, state] = self.dsu.get_dataset_info(line, mode="DQN")
+              if action == "NOOP":
+                # Too common in initial test dataset. Print warning later?
+                # print("NOOP action, NN:", action, nn_name)
+                line = next_line
+                continue
+              elif action == "REWARD1":
+                print("PDQNDS: Goto next NN; NOOP Reward, curr_NN", action, nn_name)
+                line = next_line
+                continue
+              else:
+                # the final compute reward sets done to True (see above)
+                reward, done = self.compute_reward(frame_num, action)
+                print("PDQNDS: compute_reward:", frame_num, action, reward, done)
+              if next_action == "REWARD1":
+                reward, done = self.compute_reward(frame_num, next_action)
+                print("PDQNDS: granted REWARD", frame_num, next_action, reward, done)
+              elif next_action in ["PENALTY1", "PENALTY2"]:
+                reward, done = self.compute_reward(frame_num, next_action)
+                done = True  
+                print("PDQNDS: assessed run-ending PENALTY", frame_num, next_action, reward, done)
+              frame_num += 1
+              # add dummy 0 q_val for now. Compute q_val at end of run.
+              q_val = 0
+              self.active_buffer.push(state, action, reward, next_state, done, q_val)
 
-    # for training DQN by processing random NN datasets
-    def parse_rand_func_dataset(self, init=False):
-        print(">>>>> parse_rand_func_dataset")
-        frame_num = 0
-        done = False
-        reward = []
-        val = self.cfg.get_value(self.cfg.app_registry, self.app_name)
-        func_nn_list = val[1]
-        func_app = FunctionalApp(alset_robot=None, app_name=self.app_name, app_type=self.app_type)
-        ff_init = True
-        while True:
-          # Assume only the primary "successful" func_flow
-          [func_flow_nn_name, func_flow_reward] = func_app.eval_func_flow_model(reward_penalty="REWARD1", init=ff_init)
-          ff_init = False
-          if func_flow_nn_name is None:
-            reward, done = self.compute_reward(frame_num, "REWARD1")
-            done = True
-            break   # done func flow
-
-          # randomly select NN dataset
-          nn_idx = self.dsu.dataset_indices(mode="FUNC",nn_name=func_flow_nn_name,position="RANDOM")
-          if nn_idx is None:
-            break
-          print("Parsing NN idx", nn_idx)
-          nn_filehandle = open(nn_idx, 'r')
-          line = None
-          while True: # iterate through Img frames in nn
-            # read a single line
-            next_line = nn_filehandle.readline()
-            if not next_line:
-                break
-            # get action & next_action
-            [tm, app, mode, next_nn_name, next_action, img_name, next_state] = self.dsu.get_dataset_info(next_line)
-            if line is not None:
-              [tm, app, mode, nn_name, action, img_name, state] = self.dsu.get_dataset_info(line)
-              qval = 0  # dummy qval for now until final reward assigned
-              self.replay_buffer.push(state, action, reward, next_state, done, qval)
-              if action == "REWARD1":
-                break
-              reward, done = self.compute_reward(frame_num, action)
-            frame_num += 1
-  
-            if next_action != "REWARD1":
+            if next_action not in ["REWARD1", "PENALTY1", "PENALTY2"]:
               line = next_line
-            if len(self.replay_buffer) > self.REPLAY_INITIAL:
-              loss = self.compute_td_loss(batch_size, app_path_prefix)
-            if frame_num % 1000 == 0 or done:
-              self.update_target(self.current_model, self.target_model)
-          # close the pointer to that file
-          nn_filehandle.close()
-          # continue to While loop
-        if done:
-          state = None
-          self.all_rewards.append(self.total_reward)
-          torch.save(self.current_model.state_dict(), self.BEST_MODEL_PATH)
-  
+        dqn_filehandle.close()
+
+        if run_complete:
+            print("PDQNDS: SAVING STATE; DO NOT STOP!!!")
+            done_required = True
+            if self.MAX_MOVES_REWARD is not None:
+              if self.REWARD1_REWARD is None or self.REWARD1_REWARD == 0:
+                 done_required = False
+            print("PDQNDS: done_required: ", done_required, self.MAX_MOVES_REWARD, self.REWARD1_REWARD)
+            self.active_buffer.compute_real_q_values(gamma=self.GAMMA,  name="active", done_required=done_required)
+            self.active_buffer.reset_sample(name="active", start=0)
+            print("PDQNDS: parse_app_ds:", self.parse_app_ds_details)
+            for i in range(self.cfg.NUM_DQN_EPOCHS):
+              loss = 0
+              while loss is not None:
+                loss = self.compute_td_loss(batch_size=self.BATCH_SIZE, mode="TARGET_Q_VALUES", compute_stats=False)
+                mean_loss = np.mean(self.all_loss)
+                if len(self.all_loss) > 0:
+                  print("PDQNDS: target q values loss: ", mean_loss, i, self.all_loss[-1])
+            # print("loss: ",loss)
+            print("PDQNDS: ACTIVE BUFFER:", self.active_buffer)
+            self.replay_buffer.concat(self.active_buffer)
+            self.save_replay_buffer()
+            print(self.BEST_MODEL_PATH)
+            self.current_model.save_state(self.BEST_MODEL_PATH)
+            self.update_target(self.current_model, self.target_model)
+            app_dsu.save_dataset_idx_processed(mode = "DQN", ds_idx=dqn_index)
+            print("PDQNDS: STATE SAVED")
+        return "PROCESSED_APP_RUN"
 
     def nn_process_image(self, NN_num, next_state, reward_penalty = None):
         # NN_num is unused by ddqn, but keeping nn_apps API
@@ -1501,25 +1609,36 @@ class ALSET_DDQN():
         epsilon_decay = 30000   # make a config parameter?
         epsilon_by_frame = lambda frame_idx : epsilon_final + (epsilon_start - epsilon_final) * math.exp(-1. * frame_idx / epsilon_decay)
         fr_num = self.frame_num + len(self.replay_buffer)
+        if fr_num < self.REPLAY_INITIAL:
+            print("fr_num", fr_num, self.REPLAY_INITIAL + self.frame_num)
+            fr_num = self.REPLAY_INITIAL + self.frame_num
         epsilon = epsilon_by_frame(fr_num)
+        if epsilon > 0.1:
+            epsilon = 0.1
         rand_num = random.random()
         next_action = None
+        sal = []
 
         if reward_penalty in ["REWARD1", "PENALTY1", "PENALTY2", "REWARD2"]:
             next_action = reward_penalty
             print("reward/penalty: ", next_action)
         # ARD: for debugging supervised learning, minimize random actions
-        elif False and rand_num < epsilon:
+        elif self.app_type == "DQN" and rand_num < epsilon:
             # ARD: We start with supervised learning. The original algorithm starts
             # with pure random actions.  We want to be more focused and add randomness
             # based upon a results of the DQN NN weights.
+            func_restrict = self.cfg.get_func_value(self.app_name, "MOVEMENT_RESTRICTIONS")
             while True:
-              next_action_num = random.randrange(self.num_actions)
+              if func_restrict is not None:
+                next_action_num = random.randrange(len(func_restrict))
+                next_action = func_restrict[next_action_num]
+              else:
+                next_action_num = random.randrange(self.num_actions)
+                next_action = list(self.cfg.full_action_set)[next_action_num]
               # next_action = list(self.robot_actions)[next_action_num]
-              next_action = list(self.cfg.full_action_set)[next_action_num]
-              print("random action: ", next_action, epsilon, rand_num, fr_num, self.frame_num)
               if next_action not in self.cfg.nn_disallowed_actions:
-                  break
+                    print("random action: ", next_action, epsilon, rand_num, fr_num, self.frame_num)
+                    break
         else:
             # print("next_state:",next_state)
             # next_state = self.transform_image_from_path(next_state)
@@ -1530,31 +1649,67 @@ class ALSET_DDQN():
             #  weight 64 3 11 11, but got 3-dimensional input of size [224, 224, 3] instead
             # RuntimeError: Given groups=1, weight of size 64 3 11 11, expected input[1, 224, 224, 3] to have 3 channels, but got 224 channels instead
 
-            print("B4 DQN NN exec")
+            # print("B4 DQN NN exec")
             next_state = next_state.transpose((2, 0, 1))
             next_state_tensor = self.Variable(torch.FloatTensor(np.float32(next_state)))
             next_state_tensor = torch.unsqueeze(next_state_tensor, 0)
+            # print(next_state_tensor)
             # batch_item_num = 0 
             ## Doesn't use CUDA. Use self.Variable()
             # next_state_tensor = torchvision.transforms.ToTensor()(next_state).unsqueeze(batch_item_num) 
             # next_state_tensor = torch.unsqueeze(next_state_tensor, 0)
             # torch.transpose(next_state_tensor, 0, 1)
-            sorted_actions, q_value = self.current_model.act(next_state_tensor)
-            # top-level DQN movement_restrictions
-            func_restrict = self.cfg.get_func_value(self.app_name, "MOVEMENT_RESTRICTIONS")
-            sorted_action_order = sorted_actions.tolist()
-            # print("sao:",sorted_action_order)
-            sal = []
-            tot = 0
-            for i, s_a in enumerate(sorted_action_order):
-                a = self.cfg.full_action_set[s_a]
-                if a in self.cfg.nn_disallowed_actions:
-                   continue
-                if func_restrict is None or a in func_restrict:
-                  q_val = q_value[0].tolist()
-                  sal.append([i, a, q_val[s_a]])
-                  if q_val[s_a] > 0:
-                    tot += q_val[s_a]
+            overfit = True
+            while overfit:
+              sorted_actions, q_value = self.current_model.act(next_state_tensor)
+              # top-level DQN movement_restrictions
+              func_restrict = self.cfg.get_func_value(self.app_name, "MOVEMENT_RESTRICTIONS")
+              sorted_action_order = sorted_actions.tolist()
+              # print("sao:",sorted_action_order)
+              sal = []
+              tot = 0
+              q_val = q_value[0].tolist()
+              # print("QV:", q_val)
+              act_list = []
+              restrict_q_list = []
+              for i, s_a in enumerate(sorted_action_order):
+                  a = self.cfg.full_action_set[s_a]
+                  if a in self.cfg.nn_disallowed_actions:
+                     continue
+                  if func_restrict is None or a in func_restrict:
+                    q_val = q_value[0].tolist()
+                    sal.append([i, a, q_val[s_a]])
+                    restrict_q_list.append(q_val[s_a])
+                    if q_val[s_a] > 0:
+                      tot += q_val[s_a]
+                    if len(act_list) < 3:
+                      act_list.append([a, round(q_val[s_a],2)])
+              print("DQN top actions: ", act_list)
+              min_qv = round(min(restrict_q_list),2)
+              max_qv = round(max(restrict_q_list),2)
+              mean_qv = round(np.mean(restrict_q_list),2)
+              overfit = False
+              if max_qv > -self.QVAL_THRESHOLD and max_qv < self.QVAL_THRESHOLD:
+                  print("DQN qval results:              MAX ", max_qv, end='')
+              else:
+                  print("DQN qval results:              max ", max_qv, end='')
+                  overfit = True
+              if mean_qv > -self.QVAL_THRESHOLD and mean_qv < self.QVAL_THRESHOLD:
+                  print("; MEAN ", mean_qv, end='')
+              else:
+                  print("; mean ", mean_qv, end='')
+                  overfit = True
+              if min_qv > -self.QVAL_THRESHOLD and min_qv < self.QVAL_THRESHOLD:
+                  print("; MIN ", min_qv)
+              else:
+                  print("; min ", min_qv)
+                  overfit = True
+              if overfit:
+                  # time.sleep(3)
+                  # ARD: resort to teleop
+                  # nn_apps: return self._driver.gather_data.action_name
+                  return None
+
             # print("all actions:",self.cfg.full_action_set)
             # print("disallowed:", self.cfg.nn_disallowed_actions)
             # print("restrictions:",self.app_name, func_restrict) 
@@ -1615,12 +1770,12 @@ class ALSET_DDQN():
               for next_action_num in sorted_actions:
                   next_action = list(self.cfg.full_action_set)[next_action_num]
                   if func_restrict is None or next_action in func_restrict:
-                    print("allowed1")
+                    print("allowed1:", next_action)
                     break
                   # elif next_action not in self.cfg.nn_disallowed_actions:
                   #     print("next_action:", next_action)
                   #     break
-                  print("action disallowed:", next_action)
+                  # print("action disallowed:", next_action)
         print("sel_act:",  next_action, sal)
         if self.frame_num == 0 and self.state == None:
           self.frame_num += 1
@@ -1638,7 +1793,7 @@ class ALSET_DDQN():
         print("reward: ", self.frame_num, self.action, action_reward, action_done)
         self.total_reward += action_reward
 
-        if self.action != "REWARD1":
+        if self.action not in ["REWARD1","PENALTY1", "PENALTY2"]:
           # self.replay_buffer or active_buffer????  
           # add dummy 0 q_val for now. Compute q_val at end of run.
           self.active_buffer.push(self.state, self.action, action_reward, next_state, action_done, 0)
@@ -1701,3 +1856,5 @@ class ALSET_DDQN():
         self.parse_unprocessed_rand_datasets(init=self.init_model)
         # for i in range(number_of_random_func_datasets):
         #   self.parse_func_datasets(init=self.init_model)
+        print("Train on DQN-specific dataset...")
+        self.parse_unprocessed_dqn_datasets(init=self.init_model)

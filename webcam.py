@@ -30,7 +30,7 @@ global webcam_robot
 # where H and W are expected to be at least 224. The images have to be
 # loaded in to a range of [0, 1] and then normalized using
 # mean = [0.485, 0.456, 0.406] and std = [0.229, 0.224, 0.225].
-WEBCAM_GSTREAMER_PIPELINE = 'nvarguscamerasrc ! video/x-raw(memory:NVMM), width=3280, height=2464, format=(string)NV12, framerate=20/1 ! nvvidconv flip-method=0 ! video/x-raw, width=224, height=224, format=(string)BGRx ! videoconvert ! video/x-raw, format=(string)BGR ! appsink wait-on-eos=false max-buffers=1 drop=True'
+WEBCAM_GSTREAMER_PIPELINE = 'nvarguscamerasrc ! video/x-raw(memory:NVMM), width=3280, height=2464, format=(string)NV12, framerate=15/1 ! nvvidconv flip-method=0 ! video/x-raw, width=224, height=224, format=(string)BGRx ! videoconvert ! video/x-raw, format=(string)BGR ! appsink wait-on-eos=false max-buffers=1 drop=True'
 
 # Create the Flask object for the application
 webcam_app = Flask(__name__)
@@ -42,9 +42,17 @@ def webcam_captureFrames():
     ds_line = None
     # Video capturing from OpenCV
     video_capture = cv2.VideoCapture(WEBCAM_GSTREAMER_PIPELINE, cv2.CAP_GSTREAMER)
+
+    print("vid cap buffersize: ", video_capture.get(cv2.CAP_PROP_BUFFERSIZE)) # should be 0
+    # video_capture.set(cv2.CAP_PROP_BUFFERSIZE, 3) # internal buffer will now store only 3 frames
+    # print("vid cap buffersize2: ", video_capture.get(cv2.CAP_PROP_BUFFERSIZE))
+
     ds_util = DatasetUtils(webcam_robot.app_name,webcam_robot.app_type)
 
     def verify_func(image_loc, ds_idx):
+        mode = ds_util.get_mode_from_path(ds_idx)
+        if mode == "DQN":
+            return True 
         img_func = ds_util.get_func_name_from_full_path(image_loc)
         idx_func = ds_util.get_func_name_from_idx(ds_idx)
         if img_func != idx_func:
@@ -68,10 +76,20 @@ def webcam_captureFrames():
         # if appropriate, store image in designated robot training directory 
         if webcam_robot.do_process_image():
             webcam_robot.capture_frame(webcam_video_frame)
+            #                                                                 
+            # webcam->robot->gather_data->nn_apps -> [automatic mode, NN, DQN].process_image
+            #                   ^
+            #                   | gather_data shared variables.
+            #                   v
+            # joystick->robot->gather_data->[mcp, direct_control] -> robot manipulation
+            #
             image_loc = webcam_robot.process_image()
             if image_loc == "DONE":
                 webcam_robot.capture_frame_completed()
-                exit()
+                print("webcame: DONE; Start Next Run")
+                image_loc = None
+                continue
+                # exit()
             elif image_loc != None:
               print("process_image loc:",image_loc)
         else:

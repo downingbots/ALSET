@@ -117,7 +117,7 @@ class FunctionalApp():
               # Don't instantiate yet by calling nn_init
               # self.func_app_function[-1].nn_init(gather_mode)
             else:
-                # TODO: handle a clasifier function!
+              # TODO: handle a clasifier function!
               self.func_app_function.append(None)
       if not self.nn_init_done:
         self.dsu.mkdirs(ds_dirs)
@@ -152,9 +152,10 @@ class FunctionalApp():
        # self.curr_phase = 0
     if self.ff_nn_num is not None:
       NN_name = self.NN[self.ff_nn_num]
-      if self.func_classifier_outputs[self.ff_nn_num] is None:
+      if (len(self.func_classifier_outputs) > self.ff_nn_num and
+         self.func_classifier_outputs[self.ff_nn_num] is None):
         nn_output = self.cfg.full_action_set
-      else:
+      elif len(self.func_classifier_outputs) > self.ff_nn_num:
         nn_output = self.func_classifier_outputs[self.ff_nn_num]
       # print("AFM: nn_output: ", nn_output)
     for [it0, it1] in self.app_flow_model:
@@ -213,8 +214,11 @@ class FunctionalApp():
                 # print("AFM: output mapping:", it1[1], it1[2])
                 output_rew_pen = it1[2]
                 break
+            else:
+                output_rew_pen = reward_penalty
+                print("AFT: rew_pen ", output_rew_pen)
     if self.ff_nn_num is None:
-      # print("AFM: ending: ", output_rew_pen)
+      print("AFM: ending: ", output_rew_pen)
       return [None, output_rew_pen]
     print("AFM: eval ", self.ff_nn_num, self.NN[self.ff_nn_num], output_rew_pen)
     return [self.NN[self.ff_nn_num], output_rew_pen]

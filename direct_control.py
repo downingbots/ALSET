@@ -4,6 +4,9 @@ import RPi.GPIO as GPIO
 import copy
 
 
+# TODO: direct_control and MCP23017 share a lot of code, with minor changes spread
+# throughout. The structure and logic of the code is mostly the same. A bug in one
+# file may implicate a bug in the other. Eventually, should cleanly split shared functions.
 class direct_control:
 
 
@@ -184,7 +187,7 @@ class direct_control:
           print("F")
           self.switch_down(self.LEFT_TRACK)
           self.curr_speed[self.LEFT_TRACK] = self.convert_speed(speed)
-          self.switch_on(self.RIGHT_TRACK)
+          self.switch_down(self.RIGHT_TRACK)
           self.curr_speed[self.RIGHT_TRACK] = self.convert_speed(speed)
           self.switch_exec(False)
           self.PARTS_VAL[self.LEFT_TRACK] = "FORWARD"
@@ -194,7 +197,7 @@ class direct_control:
           print("B")
           self.switch_on(self.LEFT_TRACK)
           self.curr_speed[self.LEFT_TRACK] = -self.convert_speed(speed)
-          self.switch_down(self.RIGHT_TRACK)
+          self.switch_on(self.RIGHT_TRACK)
           self.curr_speed[self.RIGHT_TRACK] = -self.convert_speed(speed)
           self.switch_exec(False)
           self.PARTS_VAL[self.LEFT_TRACK] = "BACK"
@@ -202,7 +205,7 @@ class direct_control:
   
   def drive_rotate_left(self, speed=1):
           # print("L")
-          self.switch_on(self.LEFT_TRACK)
+          self.switch_down(self.LEFT_TRACK)
           self.curr_speed[self.LEFT_TRACK] = -self.convert_speed(speed)
           self.switch_on(self.RIGHT_TRACK)
           self.curr_speed[self.RIGHT_TRACK] = self.convert_speed(speed)
@@ -212,7 +215,7 @@ class direct_control:
   
   def drive_rotate_right(self, speed=1):
           print("R")
-          self.switch_down(self.LEFT_TRACK)
+          self.switch_up(self.LEFT_TRACK)
           self.curr_speed[self.LEFT_TRACK] = self.convert_speed(speed)
           self.switch_down(self.RIGHT_TRACK)
           self.curr_speed[self.RIGHT_TRACK] = -self.convert_speed(speed)
@@ -271,9 +274,20 @@ class direct_control:
              # self.curr_pin_val = save_pin_val
              # self.curr_pin_io_val = save_pin_io_val
              self.restore_all()
+             #
+             # Execute set_action here!  Does stop_all first in execute_command.
+             # So, check for None actions should let Teleop command execute.
+             # But save sanapshot already done..
+             #
+#             if process_image and action is not None:
              if process_image:
                print("command: ", action)
                self.execute_command(action)
+#             else:
+#               action = self.pin_to_command()
+#               if process_image and action is not None:
+#                 print("pin to command: ", action)
+#                 self.execute_command(action)
              self.switch_exec(exec_next_pulse=True)
            elif self._driver.gather_data.action_name == None:
              print("None action_name", self._driver.gather_data.nn_name)
@@ -537,7 +551,76 @@ class direct_control:
       if on_off is None:
         break
 
+  def is_pin_on(self, pin):
+    pin_offset = self.all_pin_numbers.index(pin)
+    return self.all_pin_vals[pin_offset]
 
+  def is_pin_off(self, pin):
+    pin_offset = self.all_pin_numbers.index(pin)
+    return self.all_pin_vals[pin_offset]
+ 
+  def is_switch_up(self, part_num):
+      part_lst = self.PART_SPECS[part_num]
+      [part_name0, direction0, pin0] = part_lst[0]
+      if direction0 == "TOGGLE":
+         return self.is_pin_on(pin0)
+      else:
+         [part_name1, direction1, pin1] = part_lst[1]
+         return self.is_pin_on(pin0) and self.is_pin_off(pin1)
+
+  def is_switch_off(self, part_num):
+      part_lst = self.PART_SPECS[part_num]
+      [part_name0, direction0, pin0] = part_lst[0]
+      if direction == "TOGGLE":
+         return self.is_pin_off(pin0)
+      else:
+         [part_name1, direction1, pin1] = part_lst[1]
+         return self.is_pin_off(pin0) and self.is_pin_off(pin1)
+
+  def is_switch_down(self, part_num):
+      part_lst = self.PART_SPECS[part_num]
+      [part_name0, direction0, pin0] = part_lst[0]
+      if direction == "TOGGLE":
+         return self.is_pin_off(pin0)
+      else:
+         [part_name1, direction1, pin1] = part_lst[1]
+         return self.is_pin_off(pin0) and self.is_pin_on(pin1)
+
+  def pin_to_command(self): 
+      if self.is_switch_down(self.LEFT_TRACK) and self.is_switch_down(self.RIGHT_TRACK):
+        return("FORWARD")
+      if self.is_switch_up(self.LEFT_TRACK) and self.is_switch_up(self.RIGHT_TRACK):
+        return("REVERSE")
+      if self.is_switch_down(self.LEFT_TRACK) and self.is_switch_up(self.RIGHT_TRACK):
+        return("LEFT")
+      if self.is_switch_up(self.LEFT_TRACK) and self.is_switch_down(self.RIGHT_TRACK):
+        return("RIGHT")
+      if self.is_switch_off(self.LEFT_TRACK) and self.is_switch_off(self.RIGHT_TRACK):
+        return("STOP")
+      if self.is_switch_up(self.UPPER_ARM):
+        return("UPPER_ARM_UP")
+      if self.is_switch_down(self.UPPER_ARM):
+        return("UPPER_ARM_DOWN")
+      if self.is_switch_off(self.UPPER_ARM):
+        return("UPPER_ARM_STOP")
+      if self.is_switch_up(self.LOWER_ARM):
+        return("LOWER_ARM_UP")
+      if self.is_switch_down(self.LOWER_ARM):
+        return("LOWER_ARM_DOWN")
+      if self.is_switch_off(self.LOWER_ARM):
+        return("LOWER_ARM_STOP")
+      if self.is_switch_up(self.WRIST):
+        return("SHOVEL_UP")
+      if self.is_switch_down(self.SHOVEL):
+        return("SHOVEL_DOWN")
+      if self.is_switch_off(self.SHOVEL):
+        return("SHOVEL_STOP")
+      if self.is_switch_up(self.CHASSIS):
+        return("CHASSIS_LEFT")
+      if self.is_switch_down(self.CHASSIS):
+        return("CHASSIS_RIGHT")
+      if self.is_switch_off(self.CHASSIS):
+        return("CHASSIS_STOP")
 
   def execute_command(self, command):
       self.stop_all(execute_immediate=False)

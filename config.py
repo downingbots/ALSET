@@ -5,8 +5,8 @@ class Config():
       ###################################
       # Action Sets: 
       ###################################
-      # self.ALSET_MODEL = "S"
-      self.ALSET_MODEL = "X"
+      self.ALSET_MODEL = "S"
+      # self.ALSET_MODEL = "X"
       ###################################
       if self.ALSET_MODEL == "S":
         # self.IP_ADDR = "10.0.0.31"
@@ -46,11 +46,13 @@ class Config():
                          ["DQN_MOVE_BONUS", 1],
                          ["PER_MOVE_PENALTY", -1],
                          ["REWARD2", 50],  # "CUBE_OFF_TABLE_REWARD"
+                         ["PENALTY1", -250],  # "ROBOT_OFF_TABLE_PENALTY"
                          ["PENALTY2", -250],  # "ROBOT_OFF_TABLE_PENALTY"
                          ["MAX_MOVES", 1500],
                          ["MAX_MOVES_EXCEEDED_PENALTY", -300.0],
-                         ["LEARNING_RATE", 0.0001],
+                         ["LEARNING_RATE", 0.00005],
                          ["ERROR_CLIP", 1],
+                         ["ERROR_LINEAR_CLIP", False],
                          ["GAMMA", 0.99],
                          ["ESTIMATED_VARIANCE", 300.0],
                          ["REPLAY_BUFFER_CAPACITY", 10000],
@@ -169,9 +171,7 @@ class Config():
       self.func_col_avoid_func_flow_model = [
             [[],["START", 0]],
             [[0], ["IF", "REWARD1", "LEFT"] ],
-            [[0], ["IF", "PENALTY", "STOP" ]],
-            [[0], ["IF", "BLOCKED", "LEFT" ]],
-            [[0], ["IF", "FREE", "FORWARD" ]],
+            [[0], ["IF", "PENALTY1", "STOP" ]],
             ]
 
       # for composite apps, key-value pirs
@@ -217,13 +217,6 @@ class Config():
 
       # TODO/FUTURE: external sensor-based reward/penalty system shared among a swarm
       # case statement: use for bounding box of classification
-
-      # denormalizes each
-      self.add_to_func_key_value("COMMENT", self.func_comments)
-      self.add_to_func_key_value("SUBSUMPTION", self.func_subsumption)
-      self.add_to_func_key_value("AUTOMATED", self.func_automated)
-      self.add_to_func_key_value("MOVEMENT_RESTRICTIONS", self.func_movement_restrictions)
-      self.add_to_func_key_value("CLASSIFIER", self.func_classifier)
 
 
       #######################
@@ -298,12 +291,15 @@ class Config():
                          ["DQN_MOVE_BONUS", 1],
                          ["PER_MOVE_PENALTY", -1],
                          ["REWARD2", 50],  # "CUBE_OFF_TABLE_REWARD"
+                         ["PENALTY1", -250],  # "ROBOT_OFF_TABLE_PENALTY"
                          ["PENALTY2", -250],  # "ROBOT_OFF_TABLE_PENALTY"
                          ["MAX_MOVES", 1500],
                          ["MAX_MOVES_EXCEEDED_PENALTY", -300.0],
-                         ["LEARNING_RATE", 0.0001],
+                         ["LEARNING_RATE", 0.00005],
                          ["ERROR_CLIP", 1],
+                         ["ERROR_LINEAR_CLIP", False],
                          ["GAMMA", 0.99],
+                         ["QVAL_THRESHOLD", 2],
                          ["ESTIMATED_VARIANCE", 300.0],
                          ["REPLAY_BUFFER_CAPACITY", 10000],
                          ["REPLAY_BUFFER_PADDING", 20],
@@ -360,9 +356,11 @@ class Config():
       ############################
       # DEFINE COLLISION_AVOIDANCE
       ############################
-      # if we do regular teleop training from scratch instead of pre-trained classifier, 
-      # we would define following
-      self.col_avoid_name        = ["AVOID_COLLISION"]
+      # 
+      # Teleop training from scratch instead of pre-trained classifier. 
+      # Supports classifier by using --FUNC COLLISION_AVOIDANCE
+      # Supports DQN by using --DQN COLLISION_AVOIDANCE
+      self.col_avoid_name        = ["COLLISION_AVOIDANCE"]
       
       self.col_avoid_func     = [
                                 "COLLISION_AVOIDANCE"        #  0
@@ -377,12 +375,36 @@ class Config():
             [[0], ["IF", "PENALTY1", "STOP" ]],
             ]
 
+      self.col_avoid_DQN_policy = [
+                         ["DQN_REWARD_PHASES", [[0,    1501]]],
+                         ["PER_FORWARD_REWARD", 10.0],
+                         ["PER_MOVE_PENALTY", -1.0],
+                         ["REWARD1", 0],  
+                         ["PENALTY1", -250],  # "ROBOT_OFF_TABLE_PENALTY"
+                         ["MAX_MOVES", 1500],
+                         ["MAX_MOVES_REWARD", 275.0],
+                         ["LEARNING_RATE", 0.001],
+                         ["ERROR_CLIP", 1],
+                         ["ERROR_LINEAR_CLIP", False],
+                         ["GAMMA", 0.99],
+                         ["QVAL_THRESHOLD", 20],
+                         ["ESTIMATED_VARIANCE", 300.0],
+                         ["REPLAY_BUFFER_CAPACITY", 10000],
+                         ["REPLAY_BUFFER_PADDING", 20],
+                         ["BATCH_SIZE", 32]   # ["BATCH_SIZE", 8] ["BATCH_SIZE", 1]
+                       ]
+
 
       # for composite apps, key-value pirs
-      self.app_registry.append(["AVOID_COLLISION",[self.col_avoid_func, self.col_avoid_func_flow_model]])
+      # self.app_registry.append(["AVOID_COLLISION",[self.col_avoid_func, self.col_avoid_func_flow_model]])
+      self.app_registry.append(["COLLISION_AVOIDANCE",[self.col_avoid_func, self.col_avoid_func_flow_model]])
 
+      # since COLLISION_AVOIDANCE is both the app_name and func_name, movement restrictions
+      # apply to both.
       self.col_avoid_restrict = ["FORWARD", "LEFT"]
       self.func_movement_restrictions.append(["COLLISION_AVOIDANCE", self.col_avoid_restrict])
+
+      self.DQN_registry.append(["COLLISION_AVOIDANCE",[self.col_avoid_DQN_policy]])
 
       ########################
       # DEFINE PERSONALITY APP
@@ -478,6 +500,7 @@ class Config():
       self.DQN_NN_COMBOS         = "_DQN_NN_TRAINING_COMBOS.txt"
 
       self.NUM_EPOCHS            = 30
+      self.NUM_DQN_EPOCHS        = 1
       ###################################
       # TODO: CONTROLLER MAPPINGS: 
       ###################################
@@ -486,6 +509,16 @@ class Config():
       self.DEFAULT_WEBCAM_IP     = self.IP_ADDR 
       self.DEFAULT_WEBCAM_PORT   = 8080
       
+      ###################################
+      # FUNC KEY REGISTRATION
+      ###################################
+      # denormalizes each
+      self.add_to_func_key_value("COMMENT", self.func_comments)
+      self.add_to_func_key_value("SUBSUMPTION", self.func_subsumption)
+      self.add_to_func_key_value("AUTOMATED", self.func_automated)
+      self.add_to_func_key_value("MOVEMENT_RESTRICTIONS", self.func_movement_restrictions)
+      self.add_to_func_key_value("CLASSIFIER", self.func_classifier)
+
     ###################
     # TODO: FIDUCIALS
     ###################

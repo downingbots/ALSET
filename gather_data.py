@@ -40,7 +40,9 @@ class GatherData():
               print("save snapshot race condition; break loop")
               break
           if self.frame_location == "DONE":
-              exit()
+              # exit()
+              print("save_snapshot: DONE")
+              break
       # if gather data, store frame jpg in index
 ## move to webcam.py to avoid race condition
 #      if i <= 200 and self.is_on():
@@ -66,6 +68,16 @@ class GatherData():
     def do_process_image(self):
         return self.process_image_value
 
+    def clear_process_image_action(self):
+        self.process_image_action = None
+
+    #
+    # webcam->robot->gather_data->nn_apps -> [automatic mode, NN, DQN]
+    #                   ^
+    #                   | gather_data shared variables.
+    #                   v
+    # joystick->robot->gather_data->[mcp, direct_control] -> robot manipulation
+    #
     def process_image(self):
         if self.is_on() and self.nn_app.nn_automatic_mode():
           self.process_image_action = self.nn_app.nn_automatic_action(self.action_name)
@@ -141,6 +153,8 @@ class GatherData():
         self.speed = .5
         self.process_image_value = False
         self.process_image_action = None
+        self.curr_func_ds_idx = None
+        self.curr_app_ds_idx = None
         # Video capture is done in __main__()
         self.ds_util =  DatasetUtils(self.nn_app.app_name, self.nn_app.app_type)
         self.cfg = Config()

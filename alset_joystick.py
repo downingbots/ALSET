@@ -122,7 +122,7 @@ class ALSET_joystick:
         #buf = bytearray(63)
         buf = array.array('B', [0] * 64)
         ioctl(self.jsdev, 0x80006a13 + (0x10000 * len(buf)), buf) # JSIOCGNAME(len)
-        js_name = buf.tostring().rstrip(b'\x00').decode('utf-8')
+        js_name = buf.tostring().rstrip(b'x00').decode('utf-8')
         print('Device name: %s' % js_name)
         
         # Get number of axes and buttons.
@@ -257,9 +257,9 @@ class ALSET_joystick:
                 self._robot_driver.lower_arm("DOWN")
                 self.lower_arm_active = True
             elif self.pressed_button == "y":
-                if self._robot_driver.NN_apps.app_type == "DQN" and self._robot_driver.gather_data.is_on():
-                  self._robot_driver.robot_off_table_penalty()
-                else:
+                # if self._robot_driver.NN_apps.app_type == "DQN" and self._robot_driver.gather_data.is_on():
+                #   self._robot_driver.robot_off_table_penalty()
+                # else:
                   command.append("LOWER_ARM")
                   arg.append("UP")
                   self._robot_driver.lower_arm("UP")
@@ -275,9 +275,9 @@ class ALSET_joystick:
                 self._robot_driver.upper_arm("DOWN")
                 self.upper_arm_active = True
             elif axis == "hat0y" and fvalue < -.9:
-                if self._robot_driver.NN_apps.app_type == "DQN" and self._robot_driver.gather_data.is_on():
-                  self._robot_driver.cube_off_table_reward()
-                else:
+                # if self._robot_driver.NN_apps.app_type == "DQN" and self._robot_driver.gather_data.is_on():
+                #   self._robot_driver.cube_off_table_reward()
+                # else:
                   command.append("UPPER_ARM")
                   arg.append("UP")
                   self._robot_driver.upper_arm("UP")
@@ -321,9 +321,9 @@ class ALSET_joystick:
                   self._robot_driver.wrist("STOP")
                   self.wrist_active = False
             if self.pressed_button == "x":
-                if self._robot_driver.NN_apps.app_type == "DQN" and self._robot_driver.gather_data.is_on():
-                    pass
-                elif self.cfg.ALSET_MODEL == "S":
+                # if self._robot_driver.NN_apps.app_type == "DQN" and self._robot_driver.gather_data.is_on():
+                    # pass
+                if self.cfg.ALSET_MODEL == "S":
                     command.append("GRIPPER")
                     arg.append("OPEN")
                     self._robot_driver.gripper("OPEN")
@@ -334,9 +334,9 @@ class ALSET_joystick:
                     self._robot_driver.shovel("UP")
                     self.shovel_active = True
             elif self.pressed_button == "b":
-                if self._robot_driver.NN_apps.app_type == "DQN" and self._robot_driver.gather_data.is_on():
-                    pass
-                elif self.cfg.ALSET_MODEL == "S":
+                # if self._robot_driver.NN_apps.app_type == "DQN" and self._robot_driver.gather_data.is_on():
+                    # pass
+                if self.cfg.ALSET_MODEL == "S":
                     command.append("GRIPPER")
                     arg.append("CLOSE")
                     self._robot_driver.gripper("CLOSE")

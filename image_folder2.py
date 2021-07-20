@@ -140,7 +140,7 @@ class ImageFolder2(datasets.ImageFolder):
 
         if only_new_images is not None and only_new_images:
           # new_images = ds_util.new_images(root)
-          new_images,ds_idx = self.ds_util.get_dataset_images(mode="FUNC", nn_name=self.nn_name, position="NEXT")
+          new_images,ds_idx = self.ds_util.get_dataset_images(mode="FUNC", nn_name=self.nn_name, position="NEXT", exclude_FPEN=True)
 
           img_lst = []
           for i, [image_path, old_class_index] in enumerate(self.imgs): 
@@ -160,6 +160,7 @@ class ImageFolder2(datasets.ImageFolder):
         # currently we're using full_action_set everywhere.
         # In the past, we allowed individual NNs to train on only a subset of actions.
         # We will probably need to do so again in the future. 
+        # ARD: Changing 7/5/21
         if full_action_set is not None or remap_to_noop is not None or only_new_images is not None:
           for i, [image_path, old_class_index] in enumerate(self.imgs): 
               if (remap_to_noop is not None and old_class_index in old_class_idx):
@@ -173,9 +174,15 @@ class ImageFolder2(datasets.ImageFolder):
                   print("old_class_index", old_class_index)
                   print("old_classes", old_classes)
                   print("class_to_idx", self.class_to_idx)
-                  new_item  = image_path, self.class_to_idx[old_classes[old_class_index]]
-                  self.imgs[i] = new_item
-                  print(self.imgs[i], old_class_index)
+                  print("self.classes", old_classes[old_class_index], self.classes[old_class_index])
+                  new_act = old_classes[old_class_index]
+                  print("full_action_set,new_act:", full_action_set, new_act)
+                  if new_act in full_action_set:
+                    new_item  = image_path, self.class_to_idx[old_classes[old_class_index]]
+                    self.imgs[i] = new_item
+                    print(self.imgs[i], old_class_index)
+                  else:
+                    print("discarded from training:", self.imgs[i])
 
     def all_images_processed(self, mode, nn_name):
           return self.ds_util.all_indices_processed(mode, nn_name)

@@ -5,7 +5,6 @@ from mcp23017 import *
 from direct_control import *
 from motor import *
 from alset_joystick import *
-from alset_joystick import *
 from gather_data import *
 from nn import *
 from docopt import docopt
@@ -13,60 +12,89 @@ from nn_apps import *
 from alset_ddqn import *
 from config import *
 
+#
+# webcam->robot->gather_data->nn_apps -> [automatic mode, NN, DQN].process_image
+#                   ^
+#                   | gather_data shared variables.
+#                   v
+# joystick->robot->gather_data->[mcp, direct_control] -> robot manipulation
+#
 class Robot(SingletonConfigurable):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, args):
         __doc__ = """
         Scripts to drive a Smarter Image Robot and train a model for it.
+        Also used by other scripts to generate datasets.
 
         Usage:
-            alset_jetbot_{teleop,train}.py [--func=nn_name] [--app=app_name] [--dqn=app_name] [--init]
+            alset_{teleop,train}.py [--func nn_name] [--app app_name] [--dqn app_name] [--init]
 
         Options:
             -h --help        Show this screen.
-            --func=nn_name   name of a single simple NN/automatic action
-            --app=app_name   App defined as a series of NN/automatic actions in config.py
-            --dqn=app_name   RL trained on a series of NN/automatic actions in config.py
+            --func nn_name   name of a single simple NN/automatic action
+            --app app_name   App defined as a series of NN/automatic actions in config.py
+            --dqn app_name   RL trained on a series of NN/automatic actions in config.py
             --init           Initialize
         """
-        # print(__doc__)
-        args = docopt(__doc__)
+        print(__doc__)
+        print("args:", args)
+        # print("kwargs:", kwargs)
+        # args = docopt(__doc__)
         self.cfg = Config()
-        if args['--func']:
-          self.app_name  = args['--func'] 
-          if self.app_name not in self.cfg.func_registry:
-            self.app_name  = args['--func'] 
-            val = self.cfg.get_value(self.cfg.func_registry, self.app_name)
-            if val is None:
-              print("Function name not found: ", self.app_name)
-              print("Known function names: ", self.cfg.func_registry)
-              exit()
-          self.app_type  = "FUNC"
-        elif args['--app']:
-          self.app_name  = args['--app'] 
-          val = self.cfg.get_value(self.cfg.app_registry, self.app_name)
-          if val is None:
-            if self.app_name not in self.cfg.func_registry:
-              print("Function name not found: ", self.app_name)
-              print("Known function names: ", self.cfg.app_registry)
-              exit()
-          self.app_type  = "APP"
-        elif args['--dqn']:
-          self.app_name  = args['--dqn']
-          val = self.cfg.get_value(self.cfg.DQN_registry, self.app_name)
-          if val is None:
-            print("Function name not found: ", self.app_name)
-            print("Known function names: ", self.cfg.DQN_registry)
-            exit()
-          self.app_type  = "DQN"
-
+        if args[1] == '--func':
+             try:
+               self.app_name  = args[2]
+               print("app_name:", self.app_name)
+               if self.app_name not in self.cfg.func_registry:
+                 self.app_name  = args[2]
+                 val = self.cfg.get_value(self.cfg.func_registry, self.app_name)
+                 if val is None:
+                   print("Function name not found: ", self.app_name)
+                   print("Known function names: ", self.cfg.func_registry)
+                   exit()
+               self.app_type  = "FUNC"
+             except:
+               self.app_type  = None
+               self.app_name  = None
+        elif args[1] == '--app':
+             try:
+               self.app_name  = args[2]
+               val = self.cfg.get_value(self.cfg.app_registry, self.app_name)
+               if val is None:
+                 if self.app_name not in self.cfg.func_registry:
+                   print("Function name not found: ", self.app_name)
+                   print("Known function names: ", self.cfg.app_registry)
+                   exit()
+               self.app_type  = "APP"
+             except:
+                 pass
+        elif args[1] == '--dqn':
+             try:
+               self.app_name  = args[2]
+               val = self.cfg.get_value(self.cfg.DQN_registry, self.app_name)
+               if val is None:
+                 print("Function name not found: ", self.app_name)
+                 print("Known function names: ", self.cfg.DQN_registry)
+                 exit()
+               self.app_type  = "DQN"
+             except:
+               pass
+        if self.app_type is None or self.app_name is None:
+               print("bad app type/name:", self.app_type, self.app_name)
+               exit()
         self.NN_apps  = nn_apps(alset_robot=self, alset_app_name=self.app_name, alset_app_type=self.app_type)
         # only for DQN
-        print("init: ", args['--init'])
-        self.initialize = args['--init']
+        self.initialize = False
+        self.train_new_data = False
+        if len(args) > 3 and args[3] == '--init':
+             try:
+               print("init: ", args[3])
+               self.initialize = args[3]
+               self.train_new_data = True
+             except:
+               self.initialize = False
+               self.train_new_data = False
         # on DQN trains new-data-only, but does so automatically.
         # self.train_new_data = args['--train_new_data']
-        if self.initialize:
-          self.train_new_data = True
         # super(Robot, self).__init__(*args, **kwargs)
         self.gather_data = GatherData(self.NN_apps)
         # self.NN = ALSETNN(self)
@@ -92,18 +120,6 @@ class Robot(SingletonConfigurable):
                 right_speed = self.right_motor.get_speed()
                 if right_speed == None:
                   right_speed = 0
-            if self.cfg.ALSET_MODEL == "X":
-              # print("l,r:", left_speed, right_speed)
-              if left_speed is not None and right_speed is not None:
-                  if left_speed < 0 and right_speed > 0:
-                     right_speed = -right_speed
-                  elif left_speed > 0 and right_speed < 0:
-                     right_speed = -right_speed
-                  elif left_speed > 0 and right_speed > 0:
-                     left_speed = -left_speed
-                  elif left_speed < 0 and right_speed < 0:
-                     left_speed = -left_speed
-                  # print("l2,r2:", left_speed, right_speed)
 
             if abs(left_speed) <= 0.1 or abs(right_speed) <= 0.1:
                 print("stop")
@@ -141,9 +157,10 @@ class Robot(SingletonConfigurable):
             self.alset_robot.set_motors(left_speed, right_speed)
         
     def forward(self, speed=1.0, duration=None):
-        if self.NN_apps.app_type == "DQN" and self.gather_data.is_on():
-            pass
-        elif self.NN_apps.app_type in ["APP", "FUNC"] and self.get_NN_mode() == "NN":
+        # if self.NN_apps.app_type == "DQN" and self.gather_data.is_on():
+        #     pass
+        # elif self.NN_apps.app_type in ["APP", "FUNC"] and self.get_NN_mode() == "NN":
+        if self.NN_apps.app_type in ["APP", "FUNC"] and self.get_NN_mode() == "NN":
             pass
         elif self.gather_data.is_on():
             self.gather_data.set_action("FORWARD")
@@ -152,9 +169,10 @@ class Robot(SingletonConfigurable):
             self.alset_robot.drive_forward(speed)
 
     def backward(self, speed=1.0):
-        if self.NN_apps.app_type == "DQN" and self.gather_data.is_on():
-            pass
-        elif self.NN_apps.app_type in ["APP", "FUNC"] and self.get_NN_mode() == "NN":
+        # if self.NN_apps.app_type == "DQN" and self.gather_data.is_on():
+        #     pass
+        # elif self.NN_apps.app_type in ["APP", "FUNC"] and self.get_NN_mode() == "NN":
+        if self.NN_apps.app_type in ["APP", "FUNC"] and self.get_NN_mode() == "NN":
             pass
         elif self.gather_data.is_on():
             self.gather_data.set_action("REVERSE")
@@ -163,9 +181,10 @@ class Robot(SingletonConfigurable):
             self.alset_robot.drive_reverse(speed)
 
     def left(self, speed=1.0):
-        if self.NN_apps.app_type == "DQN" and self.gather_data.is_on():
-            pass
-        elif self.NN_apps.app_type in ["APP", "FUNC"] and self.get_NN_mode() == "NN":
+        # if self.NN_apps.app_type == "DQN" and self.gather_data.is_on():
+        #     pass
+        # elif self.NN_apps.app_type in ["APP", "FUNC"] and self.get_NN_mode() == "NN":
+        if self.NN_apps.app_type in ["APP", "FUNC"] and self.get_NN_mode() == "NN":
             pass
         elif self.gather_data.is_on():
             self.gather_data.set_action("LEFT")
@@ -174,9 +193,10 @@ class Robot(SingletonConfigurable):
             self.alset_robot.drive_rotate_left(speed)
 
     def right(self, speed=1.0):
-        if self.NN_apps.app_type == "DQN" and self.gather_data.is_on():
-            pass
-        elif self.NN_apps.app_type in ["APP", "FUNC"] and self.get_NN_mode() == "NN":
+        # if self.NN_apps.app_type == "DQN" and self.gather_data.is_on():
+        #     pass
+        # elif self.NN_apps.app_type in ["APP", "FUNC"] and self.get_NN_mode() == "NN":
+        if self.NN_apps.app_type in ["APP", "FUNC"] and self.get_NN_mode() == "NN":
             pass
         elif self.gather_data.is_on():
             self.gather_data.set_action("RIGHT")
@@ -189,9 +209,10 @@ class Robot(SingletonConfigurable):
         self.alset_robot.drive_stop()
 
     def upper_arm(self,direction):
-        if self.NN_apps.app_type == "DQN" and self.gather_data.is_on():
-            pass
-        elif self.NN_apps.app_type in ["APP", "FUNC"] and self.get_NN_mode() == "NN":
+        # if self.NN_apps.app_type == "DQN" and self.gather_data.is_on():
+        #     pass
+        # elif self.NN_apps.app_type in ["APP", "FUNC"] and self.get_NN_mode() == "NN":
+        if self.NN_apps.app_type in ["APP", "FUNC"] and self.get_NN_mode() == "NN":
             pass
         elif direction == "STOP":
           self.gather_data.set_action(None)
@@ -201,9 +222,10 @@ class Robot(SingletonConfigurable):
           self.gather_data.set_action("UPPER_ARM_" + direction)
 
     def lower_arm(self,direction):
-        if self.NN_apps.app_type == "DQN" and self.gather_data.is_on():
-            pass
-        elif self.NN_apps.app_type in ["APP", "FUNC"] and self.get_NN_mode() == "NN":
+        # if self.NN_apps.app_type == "DQN" and self.gather_data.is_on():
+        #     pass
+        # elif self.NN_apps.app_type in ["APP", "FUNC"] and self.get_NN_mode() == "NN":
+        if self.NN_apps.app_type in ["APP", "FUNC"] and self.get_NN_mode() == "NN":
             pass
         elif direction == "STOP":
           self.gather_data.set_action(None)
@@ -219,9 +241,10 @@ class Robot(SingletonConfigurable):
         self.alset_robot.chassis(direction)
 
     def gripper(self,direction):
-        if self.NN_apps.app_type == "DQN" and self.gather_data.is_on():
-            pass
-        elif self.NN_apps.app_type in ["APP", "FUNC"] and self.get_NN_mode() == "NN":
+        # if self.NN_apps.app_type == "DQN" and self.gather_data.is_on():
+        #     pass
+        # elif self.NN_apps.app_type in ["APP", "FUNC"] and self.get_NN_mode() == "NN":
+        if self.NN_apps.app_type in ["APP", "FUNC"] and self.get_NN_mode() == "NN":
             pass
         elif direction == "STOP":
           self.gather_data.set_action(None)
@@ -231,9 +254,10 @@ class Robot(SingletonConfigurable):
           self.alset_robot.gripper(direction)
 
     def shovel(self,direction):
-        if self.NN_apps.app_type == "DQN" and self.gather_data.is_on():
-            pass
-        elif self.NN_apps.app_type in ["APP", "FUNC"] and self.get_NN_mode() == "NN":
+        # if self.NN_apps.app_type == "DQN" and self.gather_data.is_on():
+        #     pass
+        # elif self.NN_apps.app_type in ["APP", "FUNC"] and self.get_NN_mode() == "NN":
+        if self.NN_apps.app_type in ["APP", "FUNC"] and self.get_NN_mode() == "NN":
             pass
         elif direction == "STOP":
           self.gather_data.set_action(None)

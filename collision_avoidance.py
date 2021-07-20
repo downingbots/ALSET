@@ -127,14 +127,21 @@ import torchvision.transforms as transforms
 
 !unzip -q dataset.zip
 
-dataset = datasets.ImageFolder(
+func_classifier = self.cfg.get_func_value(self.nn_name, "CLASSIFIER")
+if func_classifier is not None:
+    full_action_set2 = func_classifier[0]
+else:
+    full_action_set2 = full_action_set
+
+dataset = datasets.ImageFolder2(
     'dataset',
     transforms.Compose([
         transforms.ColorJitter(0.1, 0.1, 0.1, 0.1),
         transforms.Resize((224, 224)),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-    ])
+    ]),
+    full_action_set = full_action_set2,
 )
 
 train_dataset, test_dataset = torch.utils.data.random_split(dataset, [len(dataset) - 50, 50])

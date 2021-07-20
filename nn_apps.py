@@ -86,11 +86,15 @@ class nn_apps():
         [self.app_functions, self.func_flow_model] = self.cfg.get_value(self.cfg.app_registry, alset_app_name)
         [self.dqn_policy] = self.cfg.get_value(self.cfg.DQN_registry, alset_app_name)
         self.app_instance = ALSET_DDQN(alset_robot, True, False, alset_app_name, alset_app_type)
+      else:
+         print("bad app_type: ", alset_app_type)
+         exit()
       # for action in self.action_set:
       #     robot_dirs.append("apps/FUNC/" + action)
       self.mode = "TELEOP"
       self.ready_for_frame = False
       self.frame = None
+      self.override_action = None
       self.robot = alset_robot
       self.auto_funcs = AutomatedFuncs(self.robot)
       self.auto_done = False
@@ -150,7 +154,6 @@ class nn_apps():
         self.frame = img
         self.ready_for_frame = False
 
-    # ARD: TODO: rename to set_action() to match current terminology
     def set_action(self, action):
         if action == None or action in self.action_set or action in ["ROBOT_OFF_TABLE_PENALTY", "CUBE_OFF_TABLE_REWARD", "PENALTY1", "REWARD1", "PENALTY2", "REWARD2"]:
             self.action_name = action
@@ -161,6 +164,7 @@ class nn_apps():
 
     def get_snapshot_dir(self):
       # where to store the images
+      dqn_idx = None
       if self.app_type in ["APP", "FUNC"]:
         app_dir_type = "FUNC"
         if self.app_type == "FUNC":
@@ -170,7 +174,9 @@ class nn_apps():
       else:
         app_dir_type = "DQN"
         func_nm = None
-      self.nn_dir = self.dsu.dataset_path(app_dir_type, func_nm)
+        dqn_idx = self.app_instance.dqn_ds_idx_nm
+
+      self.nn_dir = self.dsu.dataset_path(app_dir_type, func_nm, dqn_idx)
       return self.nn_dir 
 
     ####################################################
@@ -197,6 +203,13 @@ class nn_apps():
       # probably should use os.path.join()
       return robot_action_dirs
 
+    #
+    # webcam->robot->gather_data->nn_apps -> [automatic mode, NN, DQN].process_image
+    #                   ^
+    #                   | gather_data shared variables.
+    #                   v
+    # joystick->robot->gather_data->[mcp, direct_control] -> robot manipulation
+    #
     def nn_process_image(self):
       if self.action_name in ["ROBOT_OFF_TABLE_PENALTY", "CUBE_OFF_TABLE_REWARD", "PENALTY1", "REWARD1", "PENALTY2", "REWARD2"]:
           rew_pen = self.action_name
@@ -204,9 +217,24 @@ class nn_apps():
           rew_pen = None
       if self.frame is None:
           print("nn_apps process_image None")
+      time.sleep(0.0001)   # yield to joystick
+      # time.sleep(0.25)   # yield to joystick
       action = self.app_instance.nn_process_image(self.curr_nn_name, self.frame, reward_penalty = rew_pen)
-      if action == None:
-          return None
+      if (action == None or action in ["REWARD1", "PENALTY1"]
+          or (self.robot.gather_data.action_name is not None 
+              and self.robot.gather_data.action_name in ["REWARD1", "PENALTY1"])):
+          # ARD: Resort to teleop action
+          # return None
+          time.sleep(0.0001)   # yield to joystick
+          # time.sleep(0.25)   # yield to joystick
+          # time.sleep(0.0)   # yield to joystick
+          print("process_image action override: ", self.robot.gather_data.action_name)
+          if self.override_action in ["REWARD1", "PENALTY1"] and self.robot.gather_data.action_name in ["REWARD1", "PENALTY1"]:
+              self.robot.gather_data.action_name.set_action(None)
+              return None   # Prevent accidental REWARD1 assignments
+          self.override_action = self.robot.gather_data.action_name
+          self.robot.gather_data.set_action(None)
+          return self.override_action
 # called directly from mcp to better handle automatic mode 
 #      if action == "SUCCESS":
 #          # do apps-specific transition to next function-specific NN

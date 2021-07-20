@@ -55,6 +55,7 @@ class ALSETNN():
         func_classifier = self.cfg.get_func_value(self.nn_name, "CLASSIFIER")
         if func_classifier is not None:
             outputs = func_classifier[0]
+            self.cfg.full_action_set = outputs
             self.func_flow_model = FunctionalApp(self.robot, self.nn_name, "FUNC") 
             self.func_flow_model.nn_init()
             action_name = self.func_flow_model.eval_func_flow_model(reward_penalty=None,init=True)
@@ -257,7 +258,7 @@ class ALSETNN():
           dataset_root_list = []
           dsp = self.dsu.dataset_path("FUNC", self.nn_name)
           dataset_root_list.append(dsp)
-        best_model = self.dsu.best_model("FUNC", self.nn_name)
+        best_model = self.dsu.best_model("FUNC", self.nn_name, classifier=True)
         if full_action_set is None:
            full_action_set = self.cfg.full_action_set
         if noop_remap is None:
@@ -297,11 +298,16 @@ class ALSETNN():
         NUM_EPOCHS = 30
         # NUM_EPOCHS = 3   # for debugging
         best_accuracy = 0.0
-        optimizer = optim.SGD(self.model.parameters(), lr=0.001, momentum=0.9)
+        optimizer = optim.SGD(self.model.parameters(), lr=0.00005, momentum=0.9)
         for root in dataset_root_list:
             while True:
               print("nn train: ", root, best_model_path) 
-              # dataset = datasets.ImageFolder2(
+              func_classifier = self.cfg.get_func_value(self.nn_name, "CLASSIFIER")
+              if func_classifier is not None:
+                full_action_set2 = func_classifier[0]
+              else:
+                full_action_set2 = full_action_set
+              print("fas: ", full_action_set2)
               dataset = ImageFolder2(
                   root,
                   self.nn_name,
@@ -312,7 +318,7 @@ class ALSETNN():
                       transforms.ToTensor(),
                       transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
                   ]),
-                  full_action_set = full_action_set,
+                  full_action_set = full_action_set2,
                   remap_to_noop = noop_remap,
                   only_new_images = only_new_images
               )

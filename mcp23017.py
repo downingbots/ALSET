@@ -2,6 +2,9 @@ import smbus
 import time
 import traceback
 
+# TODO: direct_control and MCP23017 share a lot of code, with minor changes spread
+# throughout. The structure and logic of the code is mostly the same. A bug in one
+# file may implicate a bug in the other. Eventually, should cleanly split shared functions.
 class MCP23017:
   IODIRA = 0x00
   IPOLA  = 0x02
@@ -110,6 +113,11 @@ class MCP_control:
           self.bus.write_byte_data(MCP23017.ADDRESS,MCP23017.GPIOB,self.curr_pin_val)
           self.curr_timeout[self.LEFT_TRACK] = self.compute_pwm_timeout(self.LEFT_TRACK)
           self.curr_timeout[self.RIGHT_TRACK] = self.compute_pwm_timeout(self.RIGHT_TRACK)
+          # self._driver.gather_data.set_action(None)
+          # self.stop_all(execute_immediate = False)
+          # if self._driver.gather_data.is_on():
+          #   self.set_speed(self.LEFT_TRACK, 0)
+          #   self.set_speed(self.RIGHT_TRACK, 0)
   
   def convert_speed(self, speed):
     pulse_speed = max(speed, -1)
@@ -146,10 +154,11 @@ class MCP_control:
 
   def stop_all(self, execute_immediate = True):
     #Configure the register to default value
-    for addr in range(22):
-      if (addr == 0) or (addr == 1):
+    if execute_immediate:
+      for addr in range(22):
+        if (addr == 0) or (addr == 1):
           self.bus.write_byte_data(MCP23017.ADDRESS, addr, 0xFF)
-      else:
+        else:
           self.bus.write_byte_data(MCP23017.ADDRESS, addr, 0x00)
     #configure all PinB as input
     self.curr_pin_io_val     = MCP23017.HIGH
@@ -239,9 +248,21 @@ class MCP_control:
                action = self._driver.gather_data.save_snapshot(process_image)
              self.curr_pin_val = save_pin_val
              self.curr_pin_io_val = save_pin_io_val
+             #
+             # Execute set_action here!  Does stop_all first in execute_command.
+             # So, check for None actions should let Teleop command execute.
+             # But save sanapshot already done..
+             #
+#             if process_image and action is not None:
              if process_image:
                print("command: ", action)
                self.execute_command(action)
+               self._driver.gather_data.clear_process_image_action()
+#             else:
+#               action = self.pin_to_command()
+#               if process_image and action is not None:
+#                 print("pin to command: ", action)
+#                 self.execute_command(action)
              self.switch_exec(exec_next_pulse=True)
            elif self._driver.gather_data.action_name == None:
              print("None action_name", self._driver.gather_data.nn_name)
@@ -253,7 +274,9 @@ class MCP_control:
         #       bin(functions_not_stopped)[2:].zfill(8), pulse_num)
         if self._driver.gather_data.is_on():
             # next pulse: essentially everything is half speed during data collection
-            divisor = 10
+            # if self._driver.get_NN_mode() == "NN", divisor of 5 seems sufficient
+            # divisor = 10
+            divisor = 5
         else:
             divisor = 5
         if (pulse_num+1) % divisor == 2:
@@ -265,6 +288,13 @@ class MCP_control:
             self.switch_exec(exec_next_pulse=False)
         return
 
+  #
+  # webcam->robot->gather_data->nn_apps -> [automatic mode, NN, DQN]
+  #                   ^
+  #                   | gather_data shared variables.
+  #                   v
+  # joystick->robot->gather_data->[mcp, direct_control] -> robot manipulation
+  #
   def handle_pwm(self, pulse_num):
     timeout = False
     self.curr_pwm_pulse = pulse_num
@@ -472,6 +502,68 @@ class MCP_control:
           self.stop_all()
       else:
           print("execute_command: command unknown(%s)" % command)
+
+  def is_switch_up(self,pin):
+      all_on = self.ALL_FUNC
+      bit_off = all_on ^ pin
+      pin_io_val = bit_off & self.curr_pin_io_val
+      pin_val = bit_off & self.curr_pin_val
+      if (self.curr_pin_io_val == pin_io_val and self.curr_pin_val == pin_val):
+        return True
+      return False
+  
+  def is_switch_off(self,pin):
+      pin_io_val = self.curr_pin_io_val | pin
+      all_on = self.ALL_FUNC
+      bit_off = all_on ^ pin
+      if self.curr_pin_val == bit_off:
+        return True
+      return False
+
+  def is_switch_down(self,pin):
+      all_on = self.ALL_FUNC
+      bit_off = all_on ^ pin
+      pin_io_val = self.curr_pin_io_val & bit_off
+      pin_io_val |= pin
+      if self.curr_pin_val == pin_io_val:
+        return True
+      return False
+  
+  def pin_to_command(self): 
+      if self.is_switch_down(self.LEFT_TRACK) and self.is_switch_up(self.RIGHT_TRACK):
+        return("FORWARD")
+      if self.is_switch_up(self.LEFT_TRACK) and self.is_switch_down(self.RIGHT_TRACK):
+        return("REVERSE")
+      if self.is_switch_up(self.LEFT_TRACK) and self.is_switch_up(self.RIGHT_TRACK):
+        return("LEFT")
+      if self.is_switch_down(self.LEFT_TRACK) and self.is_switch_down(self.RIGHT_TRACK):
+        return("RIGHT")
+      if self.is_switch_off(self.LEFT_TRACK) and self.is_switch_off(self.RIGHT_TRACK):
+        return("STOP")
+      if self.is_switch_up(self.UPPER_ARM):
+        return("UPPER_ARM_UP")
+      if self.is_switch_down(self.UPPER_ARM):
+        return("UPPER_ARM_DOWN")
+      if self.is_switch_off(self.UPPER_ARM):
+        return("UPPER_ARM_STOP")
+      if self.is_switch_up(self.LOWER_ARM):
+        return("LOWER_ARM_UP")
+      if self.is_switch_down(self.LOWER_ARM):
+        return("LOWER_ARM_DOWN")
+      if self.is_switch_off(self.LOWER_ARM):
+        return("LOWER_ARM_STOP")
+      if self.is_switch_up(self.WRIST):
+        return("WRIST_ROTATE_LEFT")
+      if self.is_switch_down(self.WRIST):
+        return("WRIST_ROSTAT_RIGHT")
+      if self.is_switch_off(self.WRIST):
+        return("WRIST_STOP")
+      if self.is_switch_up(self.GRIPPER):
+        return("GRIPPER_CLOSE")
+      if self.is_switch_down(self.GRIPPER):
+        return("GRIPPER_OPEN")
+      if self.is_switch_off(self.GRIPPER):
+        return("GRIPPER_STOP")
 
   def test_arm(self):
           for pin in (self.LOWER_ARM, self.UPPER_ARM, self.WRIST, self.GRIPPER):

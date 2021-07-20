@@ -48,7 +48,9 @@ class DatasetUtils():
           self.last_ds_idx = self.last_dataset_idx_processed(app_type, nn_name)
         else:
           if app_type == "DQN":
-            self.last_ds_idx = self.last_dataset_idx_processed("APP", app_name)
+            self.last_ds_idx = self.last_dataset_idx_processed("DQN", app_name)
+            if self.last_ds_idx is None:
+              self.last_ds_idx = self.last_dataset_idx_processed("APP", app_name)
           else:
             self.last_ds_idx = self.last_dataset_idx_processed(app_type, app_name)
 
@@ -69,11 +71,11 @@ class DatasetUtils():
           if self.app_name is None:
               print("dataset_index_path mode,app_name:", mode, self.app_name)
           ds_idx_path = self.cfg.APP_DIR + self.app_name + "_" + mode + self.cfg.DATASET_IDX_DIR 
-        elif mode == "FUNC":
+        elif mode == "FUNC" or mode == "FPEN":
           if self.app_name is None:
               print("dataset_index_path mode,nn_name:", mode, nn_name)
           # print("dip: ", self.cfg.APP_DIR, mode, nn_name , self.cfg.DATASET_IDX_DIR)
-          ds_idx_path = self.cfg.APP_DIR + mode + "/" + nn_name + self.cfg.DATASET_IDX_DIR 
+          ds_idx_path = self.cfg.APP_DIR + "FUNC" + "/" + nn_name + self.cfg.DATASET_IDX_DIR 
         else:
           print("dataset_index_path: unknown mode", mode)
         return ds_idx_path
@@ -88,9 +90,9 @@ class DatasetUtils():
     # position in ["NEW","NEXT","OLDEST", "NEWEST", "RANDOM"]
     def dataset_indices(self, mode="DQN", nn_name=None, position="RANDOM"):
         ds_idx_pth = self.dataset_index_path(mode, nn_name) 
-        if mode == "FUNC":
+        if mode in ["FUNC","FPEN"]:
           # ds_idx_nm = "FUNC_" + nn_name + "_IDX_" 
-          ds_idx_nm = "FUNC_" + nn_name  + "_"
+          ds_idx_nm = mode + "_" + nn_name  + "_"
         elif mode in ["APP","DQN","RAND"]:
           # ds_idx_nm = self.app_name + "_" + mode + "_IDX_" 
           ds_idx_nm = self.app_name + "_" + mode + "_IDX_"
@@ -110,12 +112,19 @@ class DatasetUtils():
     def next_dataset_idx(self, ds_idx_pth, ds_idx_nm, mode="DQN", nn_name=None):
         # Sort the list in ascending order of dates
         idx_list = os.listdir(ds_idx_pth)
-        idx_list.sort()
+        # sort indx with same dates with all lowercase, then all uppercase
+        idx_list.sort(key=str.swapcase)
+        # idx_list.sort()
         if mode == "DQN":
-          lastdataset = self.last_dataset_idx_processed("APP", nn_name)
+          # could be APP or DQN (or RAND?) Depends on ds_idx_pth.
+          real_mode = self.get_mode_from_path(ds_idx_pth)
+          # print("real_mode:", real_mode)
+          # print("idx_list:", idx_list)
+          lastdataset = self.last_dataset_idx_processed(real_mode, nn_name)
         else:
           lastdataset = self.last_dataset_idx_processed(mode, nn_name)
-        today = datetime.now().strftime("%d_%m_%y")
+        # today = datetime.now().strftime("%d_%m_%y")
+        today = datetime.now().strftime("%y_%m_%d")
         # initialize 
         next_dataset = ds_idx_nm + today + "a.txt"
         print("lastdataset:", lastdataset)
@@ -123,18 +132,23 @@ class DatasetUtils():
           i = 0
           while True and i < len(idx_list):
             next_dataset = idx_list[i]
+            if (next_dataset.endswith("_DQN_IDX_PROCESSED.txt")
+                or next_dataset.endswith("_IDX_PROCESSED_BY_DQN.txt")):
+              i = i+1
+              continue
             # confirm proper format for dataset index name
             if next_dataset[0:len(ds_idx_nm)] == ds_idx_nm and len(next_dataset) == len(ds_idx_nm) + len("YY_MM_DDa.txt"):
               print("next_dataset:", next_dataset)
               break
             i = i+1
         elif lastdataset is not None and len(lastdataset) > 0:
-          print("idx_list:", idx_list)
+          # print("idx_list:", idx_list)
           lastdatasetname = self.get_filename_from_full_path(lastdataset)
           print("lastdatasetname:", lastdatasetname)
           try:
             i = idx_list.index(lastdatasetname) # else value index error
-          except:
+          except Exception as e:
+            print("not in idx_list",e)
             return None
           # print("i = ", i)
           if i+1 >= len(idx_list):
@@ -145,6 +159,9 @@ class DatasetUtils():
               i = i+1
               if i < len(idx_list):
                 next_dataset = idx_list[i]
+                if (next_dataset.endswith("_DQN_IDX_PROCESSED.txt")
+                    or next_dataset.endswith("_IDX_PROCESSED_BY_DQN.txt")):
+                  continue
                 # confirm proper format for dataset index name
                 if next_dataset[0:len(ds_idx_nm)] == ds_idx_nm and len(next_dataset) == len(ds_idx_nm) + len("YY_MM_DDa.txt"):
                   print("next_dataset:", next_dataset)
@@ -152,6 +169,7 @@ class DatasetUtils():
               else:
                 # maybe dataset_idx_processed(self, mode="DQN", nn_name=None)
                 # if so, all done.
+                print("all done?")
                 return None
         else:
           # should be there unless explicitly skipped by command line option
@@ -159,9 +177,11 @@ class DatasetUtils():
           #   print("last data set processed not found")
           #   return None
           found = False
-          print("idx_list:", idx_list, ds_idx_nm)
+          # print("idx_list:", idx_list, ds_idx_nm)
           for idx in idx_list:
-            if idx[0:len(ds_idx_nm)] == ds_idx_nm and len(idx) == len(ds_idx_nm) + len("YY_MM_DDa.txt"):
+            if (idx[0:len(ds_idx_nm)] == ds_idx_nm 
+                and len(idx) == len(ds_idx_nm) + len("YY_MM_DDa.txt")
+                and not idx.endswith("_DQN_IDX_PROCESSED.txt")):
               next_dataset = idx
               print(len(idx), len(ds_idx_nm), len("YY_MM_DDa.txt"))
               print("ds_idx_nm:", ds_idx_nm)
@@ -204,7 +224,7 @@ class DatasetUtils():
 #        print("last ds idx", last_ds_idx)
         lower_done = False
         while name in idx_list:
-          print("duplicate name: ", name)
+          # print("duplicate name: ", name)
           if letter == "z":
             letter = "A"
           elif letter == "Z":
@@ -251,7 +271,11 @@ class DatasetUtils():
     ##  contains single line containing the most recently processed DQN run like:
     ##  ./apps/TT_DQN/dataset_indexes/TT_DQN_IDX_YY_MM_DDa.txt
     def dataset_idx_processed(self, mode="DQN", nn_name=None):
+        ds_idx_p = None
         if mode == "FUNC":
+          ds_idx_p = self.dataset_index_path(mode=mode, nn_name=nn_name) + mode + "_" + nn_name + "_IDX_PROCESSED.txt"
+        elif mode == "FPEN":
+          # ARD: FPEN isn't processed by FUNC mode; it's part of RAND dataset idx in APP mode.
           ds_idx_p = self.dataset_index_path(mode=mode, nn_name=nn_name) + mode + "_" + nn_name + "_IDX_PROCESSED.txt"
         elif mode == "RAND":
           ds_idx_p = self.dataset_index_path(mode=mode, nn_name=nn_name) + self.app_name + "_" + mode + "_IDX_PROCESSED_BY_DQN.txt"
@@ -259,6 +283,7 @@ class DatasetUtils():
           ds_idx_p = self.dataset_index_path(mode=mode, nn_name=nn_name) + self.app_name + "_" + mode + "_IDX_PROCESSED_BY_DQN.txt"
         elif mode == "DQN":
           ds_idx_p = self.dataset_index_path(mode=mode, nn_name=nn_name) + self.app_name + "_" + mode + "_IDX_PROCESSED.txt"
+        print("dataset_idx_processed: ", ds_idx_p)
         return ds_idx_p
 
     def last_dataset_idx_processed(self, mode="DQN", nn_name=None):
@@ -266,6 +291,7 @@ class DatasetUtils():
         try:
           with open(filename, 'r') as file:
             last_ds_idx_processed = file.readline()
+          last_ds_idx_processed = last_ds_idx_processed.strip()
           print("last_dataset_idx_processed: ", filename, last_ds_idx_processed, mode)
         except:
           # first_processed = self.dataset_indices(mode, nn_name, position="OLDEST")
@@ -279,9 +305,12 @@ class DatasetUtils():
         return last_ds_idx_processed
 
     # save last dataset_index that has been processed for an App 
-    def save_dataset_idx_processed(self, mode="DQN", nn_name=None, clear=False):
+    def save_dataset_idx_processed(self, mode="DQN", nn_name=None, clear=False, ds_idx=None):
         filename = self.dataset_idx_processed(mode,nn_name)
-        last_processed = self.dataset_indices(mode=mode, nn_name=nn_name, position="LAST_PROCESSED")
+        if ds_idx is None:
+          last_processed = self.dataset_indices(mode=mode, nn_name=nn_name, position="LAST_PROCESSED")
+        else:
+          last_processed = ds_idx
         if last_processed is None or last_processed == "DUMMY_IDX":
           print("save_dataset_idx_processed: nothing to save")
           return
@@ -313,8 +342,18 @@ class DatasetUtils():
 
     def get_func_name_from_idx(self, idx):
         ds_idx_info = idx.split("/")
-        # print("ds_idx_info", ds_idx_info)
+        print("ds_idx_info", ds_idx_info)
         return ds_idx_info[3]
+
+    def get_mode_from_path(self, full_path):
+        dataset_info = full_path.split("/")
+        mode = None
+        if dataset_info[2].endswith("DQN"):
+          mode = "DQN"
+        elif dataset_info[2].endswith("APP"):
+          mode = "APP"
+        # print("ds_mode:", mode, dataset_info)
+        return mode
 
     def get_dataset_info(self, ds_line, mode="DQN"):
         #  "18:31:28 ./apps/TT_DQN/dataset/LOWER_ARM_DOWN/a1099b28-4334-11eb-8cce-3413e860d1ff.jpg"
@@ -326,7 +365,7 @@ class DatasetUtils():
         full_img_path = dataset_info[1] 
         dataset_info = full_img_path.split("/")
         if not ((len(dataset_info) == 7 and mode == "APP") or
-                (len(dataset_info) == 6 and mode == "DQN") or
+                (len(dataset_info) == 7 and mode == "DQN") or
                 (len(dataset_info) == 8 and mode == "FUNC") or
                 (len(dataset_info) == 8 and mode == "RAND")):
           print("get_dataset_info error:",mode, len(dataset_info), dataset_info)
@@ -345,8 +384,8 @@ class DatasetUtils():
           # print("ds_line_app", ds_line_app)
           ds_line_mode = "DQN"
           ds_line_nn = None
-          ds_line_action = dataset_info[4]
-          ds_line_img = dataset_info[5]
+          ds_line_action = dataset_info[5]
+          ds_line_img = dataset_info[6]
         elif app_mode.endswith("RAND"):
           ds_line_app = app_mode[:-4]
           print("ds_line_app", ds_line_app)
@@ -368,9 +407,16 @@ class DatasetUtils():
         return [ds_line_time, ds_line_app, ds_line_mode, ds_line_nn, ds_line_action, ds_line_img, full_img_path]
 
     # return a tuple of new images since last dataset training
-    def get_dataset_images(self, mode="DQN", nn_name=None, position="NEXT"):
+    def get_dataset_images(self, mode="DQN", nn_name=None, position="NEXT", exclude_FPEN=False):
         # open the file for reading
-        full_path = self.dataset_indices(mode,nn_name,position)
+        while True:
+          full_path = self.dataset_indices(mode,nn_name,position)
+          fnm = self.get_filename_from_full_path(full_path)
+          if exclude_FPEN and fnm.startswith("FPEN_"):
+              print("excluding ", fnm)
+              continue
+          else:
+              break
         if full_path is None:
           return [], None
         # full_path = self.dataset_idx_processed(mode,nn_name)
@@ -484,12 +530,15 @@ class DatasetUtils():
           bmp = self.cfg.APP_DIR + self.app_name + "_" + mode + "/" 
         return bmp
 
-    def best_model(self, mode="DQN", nn_name=None):
+    def best_model(self, mode="DQN", nn_name=None, classifier=False):
         if mode in ["DQN", "APP"]:
           bm = self.best_model_path(mode, nn_name) + self.app_name + "_" + mode + self.cfg.MODEL_POST_FIX 
         else:
-          # nn_name assumed to already been validated
-          bm = self.best_model_path(mode, nn_name) + "FUNC_" + nn_name + self.cfg.MODEL_POST_FIX 
+          if classifier:
+            # nn_name assumed to already been validated
+            bm = self.best_model_path(mode, nn_name) + "FCLASS_" + nn_name + self.cfg.MODEL_POST_FIX 
+          else:
+            bm = self.best_model_path(mode, nn_name) + "FUNC_" + nn_name + self.cfg.MODEL_POST_FIX 
         return bm
 
     # FUNC_PARK_ARM_HIGH_20_12_20a.txt -> PARK_ARM_HIGH
@@ -500,7 +549,7 @@ class DatasetUtils():
 
     # ./apps/FUNC/dataset/FUNC_DRIVE_TO_CUBE
     # ./apps/TT_DQN/dataset
-    def dataset_path(self, mode="DQN", nn_name=None):
+    def dataset_path(self, mode="DQN", nn_name=None, dqn_idx_name=None):
         if mode == "FUNC":
           dir_pth = self.best_model_path(mode=mode, nn_name=nn_name)
           ds_idx_path = dir_pth[:-1] + self.cfg.DATASET_PATH + nn_name + "/"
@@ -508,6 +557,8 @@ class DatasetUtils():
           dir_pth = self.best_model_path(mode=mode)
           # extra / after dir_pth ?  ... still works
           ds_idx_path = dir_pth[:-1] + self.cfg.DATASET_PATH 
+          if dqn_idx_name is not None:
+            ds_idx_path = ds_idx_path + dqn_idx_name + "/"
         return ds_idx_path
 
     # ./apps/TT_DQN/dataset_indexes/TT_DQN_replay_buffer.data
