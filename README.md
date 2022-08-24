@@ -152,6 +152,25 @@ cube off the table.  The penalties are a small per-move penalty,
 the robot going off the table (or other bad state), or taking too
 many moves.
 
+## CURRENT STATUS AND FUTURE DIRECTIONS
+
+ALSET is essentially an applied research project that tries to take 
+state-of-the-art research and applies it to simple real low-end robots.
+This ALSET repository tries to take human-demoed functionality and
+automatically create a dataset to train NNs and DQN RL.  Unfortunately,
+the number of demonstrations required to produce even basic pick-and-place
+functionality is insurmountable for a mere mortal.
+
+This led to the ALSET_ANALYSIS repository, which tries to apply Open-CV
+to help automatically gather and label the datasets.
+
+I am currently incorporating the lessons learned from these two repositories
+into a revised version of ALSET, which is currently in work-in-progress. It
+also tries to integrate GPT-x as a method for model-free offline RL as per
+the paper: "Decision Transformer: Reinforcement Learning via Sequence Modeling"
+( https://arxiv.org/pdf/2106.01345.pdf ). GPT-3 is the basis for huge language
+models, and the image-from-text DALL-E.
+
 ## HOW TO BUILD 
 
 Full list of parts with Amazon-searchable names for the Model S:
