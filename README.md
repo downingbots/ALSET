@@ -353,7 +353,7 @@ Gather more data if necessary via the TT_APP app in gather_data mode.
 TT_DQN, FUNC and TT_APP will all train incrementally so that you
 don't have to train from scratch each time, which is very time consuming.
  
-## WHAT'S NEXT
+## MORE FUTURE DIRECTIONS
 
 The key infrastructure is working. There's many directions that we can go from here. Each of the following aren't very hard for me to implement on top of the existing infrastructure. If you are interested in any of these (or other suggestions), contact me via my downingbots gmail:
  - Define single-level NN that provide specific named functionality (line following, stay-on-table). Currently possible with some file-copying of NN or training data in the current code. The idea is to expose this functionality.
