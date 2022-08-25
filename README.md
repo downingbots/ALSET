@@ -165,7 +165,7 @@ This led to the ALSET_ANALYSIS repository, which tries to apply Open-CV
 to help automatically gather and label the datasets.
 
 I am currently incorporating the lessons learned from these two repositories
-into a revised version of ALSET, which is currently in work-in-progress. It
+into a revised version of ALSET, which is currently work-in-progress. It
 also tries to integrate GPT-x as a method for model-free offline RL as per
 the paper: "Decision Transformer: Reinforcement Learning via Sequence Modeling"
 ( https://arxiv.org/pdf/2106.01345.pdf ). GPT-3 is the basis for huge language
