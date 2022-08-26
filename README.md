@@ -236,7 +236,7 @@ killing the robot executable. If so, run the following script:
   - ./restart_camera
 
 To execute the teleop app, run:
-  - sir_robot_{teleop,train}.py [--func=nn_name] [--app=app_name] [--dqn=app_name] [--init]
+  - alset_{teleop,train}.py [--func=nn_name] [--app=app_name] [--dqn=app_name] [--init]
   - For example: 
     - python3 ./alset_teleop.py --app="TT"
     - python3 ./alset_teleop.py --func="STAY_ON_TABLE"
