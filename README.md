@@ -41,6 +41,8 @@ for mobile manipulation. Finally, ALSET software can do end-to-end optimizations
 of the sequence of individual tasks via reinforcement learning. 
 
 ALSET vehicles are inexpensive platforms to run NNs and DDQN reinforcement learning on a mobile manipulator. The ALSET hardware and software is generalized to handle many inexpensive RC toys with tracked or differential-drive wheels that have  an arm or crane or dozer blade or shovel. Just add a Jetson Nano, battery, and camera mounted near the end of the arm/excavator/bulldozer/crane/shovel as described below. Contact me if interested.
+                                                     
+*NOTE: A major revision to this project is underway. See the next section for details.*
 
 The original Sharper Image robot and Top Race Excavator were hacked as followed:
  - Jetson Nano Developer Board with wifi
@@ -170,7 +172,11 @@ also tries to integrate GPT-x as a method for model-free offline RL as per
 the paper: "Decision Transformer: Reinforcement Learning via Sequence Modeling"
 ( https://arxiv.org/pdf/2106.01345.pdf ). GPT-3 is the basis for huge language
 models, and the image-from-text DALL-E.
-
+                                                                               
+Under the new client-server architecture, ALSET dumbs down the on-board processing 
+of the RC vehicle so that a Raspberry Pi can be used instead of a Jetson.  A laptop
+with GPUs can be used to run the heavy-duty processing of the AI and openCV models.
+                                                                               
 ## HOW TO BUILD 
 
 Full list of parts with Amazon-searchable names for the Model S:
