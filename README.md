@@ -5,6 +5,8 @@
 # ALSET Autonomous Vehicles 
 ## Inexpensive Autonomous RC Vehicles with Full Self-Driving Capabilities
 
+*NOTE: This project is on hold. Advancements with Large Language Models, transformers, and robotics have effectively leap-frogged some of the goals of this project. See my repository "DeepMind_RT_X_with_WidowX_Arm" for current investigations.*
+
 Welcome to ALSET. Do you want an inexpensive, open-source autonomous vehicle with full-self driving capabilities?  Currently ALSET has 2 models, with more on the way:
  - Model S: an autonomous robotic arm on tracks. 
  - Model X: an autonomous Excavator.    
